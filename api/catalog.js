@@ -211,3 +211,41 @@ function readBody(req) {
     });
   });
 }
+
+function fromSubcategory(row) {
+  return {
+    id: row.id,
+    categoryId: row.category_id || "",
+    name: row.name,
+    image: row.image_url || "",
+    active: row.active !== false,
+    order: Number(row.display_order || 0)
+  };
+}
+
+function fromBanner(row) {
+  return {
+    id: row.id,
+    title: row.title || "",
+    subtitle: row.subtitle || "",
+    image: row.image_url || "",
+    mobileImage: row.mobile_image_url || "",
+    buttonText: row.button_text || "Ver produtos",
+    buttonLink: row.button_link || "#produtos",
+    placement: row.placement || "main",
+    active: row.active !== false,
+    order: Number(row.display_order || 0)
+  };
+}
+
+function fromPage(row) {
+  return {
+    id: row.id,
+    title: row.title || "",
+    slug: row.slug || "",
+    content: row.content || "",
+    seoTitle: row.seo_title || "",
+    seoDescription: row.seo_description || "",
+    active: row.active !== false
+  };
+}
