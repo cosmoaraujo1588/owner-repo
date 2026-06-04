@@ -8,15 +8,19 @@
   const SEED_PRODUCTS = Array.isArray(window.KAIROS_SEED_PRODUCTS) ? window.KAIROS_SEED_PRODUCTS : [];
 
   const state = {
-    products: [],
-    settings: normalizeSettings(DEFAULT_SETTINGS),
-    category: "Todos",
-    search: "",
-    sort: "relevance",
-    favorites: readJson(FAVORITES_KEY, []),
-    sessionId: getSessionId(),
-    supabaseConfig: null
-  };
+  products: [],
+  settings: normalizeSettings(DEFAULT_SETTINGS),
+  banners: [],
+  subcategories: [],
+  pages: [],
+  category: "Todos",
+  subcategory: "Todas",
+  search: "",
+  sort: "relevance",
+  favorites: readJson(FAVORITES_KEY, []),
+  sessionId: getSessionId(),
+  supabaseConfig: null
+};
 
   const els = {
     promoBar: document.getElementById("promoBar"),
