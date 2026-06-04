@@ -71,7 +71,9 @@
       state.products = sanitizeProducts(localProducts || SEED_PRODUCTS);
       state.settings = normalizeSettings({ ...DEFAULT_SETTINGS, ...(localSettings || {}) });
     }
-
+state.banners = Array.isArray(catalog.banners) ? catalog.banners : [];
+state.subcategories = Array.isArray(catalog.subcategories) ? catalog.subcategories : [];
+state.pages = Array.isArray(catalog.pages) ? catalog.pages : [];
     try {
       const configResponse = await fetch("/api/config", { cache: "no-store" });
       if (configResponse.ok) state.supabaseConfig = await configResponse.json();
