@@ -51,7 +51,7 @@ const [products, categories, subcategories, banners, pages, settings, reviews] =
   pages: (pages.data || []).map(fromPage),
   settings: storeSettings
 });
-
+}
 async function putCatalog(req, res) {
   if (!isAdmin(req)) return sendJson(res, 401, { error: "Unauthorized" });
   const supabase = getSupabase();
