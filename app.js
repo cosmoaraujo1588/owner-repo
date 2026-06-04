@@ -162,7 +162,22 @@
     if (els.trackingPortal) els.trackingPortal.href = state.settings.trackingUrl;
     if (els.footerWhatsapp) els.footerWhatsapp.href = whatsappUrl();
   }
+function renderHeroBanner() {
+  const banner = state.banners.find((item) => item.active !== false && item.placement === "main") || state.banners[0];
+  const img = document.querySelector(".hero-media img");
 
+  if (!banner || !img || !banner.image) return;
+
+  const selectedImage = banner.mobileImage && window.innerWidth < 640 ? banner.mobileImage : banner.image;
+  img.src = selectedImage;
+  img.alt = banner.title || "Banner Kairos Shopping";
+
+  const primary = document.querySelector(".hero-actions .primary-button");
+  if (primary) {
+    primary.textContent = banner.buttonText || "Ver produtos";
+    primary.href = banner.buttonLink || "#produtos";
+  }
+}
   function renderCategories() {
     const categories = ["Todos", ...unique(state.products.filter(isVisible).map((item) => item.category)).sort()];
     els.categoryRail.innerHTML = categories.map((category) => `
