@@ -136,14 +136,15 @@ state.pages = [];
   }
 
   function renderAll() {
-    applySettings();
-    renderCategories();
-    renderProducts();
-    renderReviews();
-    renderFaq();
-    renderAssistant();
-    renderSocial();
-  }
+  applySettings();
+  renderHeroBanner();
+  renderCategories();
+  renderProducts();
+  renderReviews();
+  renderFaq();
+  renderAssistant();
+  renderSocial();
+}
 
   function applySettings() {
     const promo = state.settings.promoBar || {};
