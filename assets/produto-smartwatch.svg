@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 700" role="img" aria-label="Smartwatch">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#17100a"/>
+      <stop offset="1" stop-color="#030303"/>
+    </linearGradient>
+    <linearGradient id="orange" x1="0" x2="1">
+      <stop offset="0" stop-color="#ff8c16"/>
+      <stop offset="1" stop-color="#ff4d00"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="12" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="900" height="700" fill="url(#bg)"/>
+  <path d="M120 560C270 470 364 608 520 498c142-100 178-320 300-362" fill="none" stroke="#ff6a00" stroke-width="5" opacity=".45" filter="url(#glow)"/>
+  <rect x="365" y="74" width="170" height="136" rx="42" fill="#151515" stroke="#2a2119" stroke-width="10"/>
+  <rect x="343" y="490" width="214" height="142" rx="46" fill="#151515" stroke="#2a2119" stroke-width="10"/>
+  <rect x="286" y="168" width="328" height="364" rx="82" fill="#050505" stroke="url(#orange)" stroke-width="18"/>
+  <rect x="326" y="208" width="248" height="284" rx="56" fill="#0f1114"/>
+  <circle cx="450" cy="350" r="100" fill="none" stroke="#242832" stroke-width="22"/>
+  <path d="M450 250a100 100 0 0 1 98 82" fill="none" stroke="url(#orange)" stroke-width="22" stroke-linecap="round"/>
+  <path d="M450 350V288M450 350l54 34" fill="none" stroke="#ffffff" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="450" cy="350" r="13" fill="#ff8c16"/>
+  <rect x="602" y="308" width="28" height="84" rx="12" fill="url(#orange)"/>
+</svg>

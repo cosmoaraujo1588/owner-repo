@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="900" viewBox="0 0 900 900" role="img" aria-label="Imagem do produto indisponivel">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#10161b"/>
+      <stop offset="0.55" stop-color="#080b0e"/>
+      <stop offset="1" stop-color="#17110b"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffb347"/>
+      <stop offset="1" stop-color="#f97316"/>
+    </linearGradient>
+  </defs>
+  <rect width="900" height="900" fill="url(#bg)"/>
+  <circle cx="450" cy="370" r="210" fill="none" stroke="#f97316" stroke-width="18" opacity="0.5"/>
+  <path d="M285 520h330l-58-112-68 72-78-126-126 166Z" fill="url(#accent)" opacity="0.86"/>
+  <circle cx="560" cy="315" r="42" fill="#f4c76f" opacity="0.9"/>
+  <text x="450" y="660" fill="#fff7ed" font-family="Arial, Helvetica, sans-serif" font-size="38" font-weight="700" text-anchor="middle">Kairos Shopping</text>
+  <text x="450" y="712" fill="#f4c76f" font-family="Arial, Helvetica, sans-serif" font-size="26" text-anchor="middle">Imagem do produto</text>
+</svg>

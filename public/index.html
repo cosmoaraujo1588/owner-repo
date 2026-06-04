@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Kairos Shopping | Produtos selecionados com frete gratis para todo o Brasil</title>
+    <meta name="description" content="Compre produtos selecionados na Kairos Shopping. Frete gratis para todo o Brasil, pedido com rastreamento e checkout externo oficial por produto.">
+    <meta name="keywords" content="Kairos Shopping, ofertas, produtos online, frete gratis, marketplace, eletronicos, casa, beleza">
+    <meta property="og:title" content="Kairos Shopping">
+    <meta property="og:description" content="Tudo que voce procura, em um so lugar. Produtos selecionados, frete gratis e rastreamento.">
+    <meta property="og:image" content="./assets/banner-principal-kairos.jpg">
+    <meta property="og:type" content="website">
+    <meta name="theme-color" content="#ff6b00">
+    <link rel="icon" href="./assets/logo-kairos-oficial.png">
+    <link rel="stylesheet" href="./styles.css?v=20260603-zero">
+  </head>
+  <body>
+    <div class="top-strip" id="promoBar">Frete gratis para todo o Brasil</div>
+
+    <header class="site-header">
+      <a class="brand" href="#inicio" aria-label="Kairos Shopping">
+        <img src="./assets/logo-kairos-oficial.png" alt="Logo Kairos Shopping">
+        <span>Kairos Shopping</span>
+      </a>
+      <form class="search" id="searchForm">
+        <input id="searchInput" type="search" placeholder="Buscar produtos, categorias e ofertas" autocomplete="off">
+        <button type="submit">Buscar</button>
+      </form>
+      <nav class="header-actions" aria-label="Acoes principais">
+        <a href="#produtos">Produtos</a>
+        <a href="#rastreio">Rastreio</a>
+      </nav>
+    </header>
+
+    <main id="inicio">
+      <section class="hero">
+        <div class="hero-media">
+          <img src="./assets/banner-principal-kairos.jpg" alt="Banner Kairos Shopping com categorias de produtos" fetchpriority="high">
+        </div>
+        <div class="hero-actions">
+          <a class="primary-button" href="#produtos">Ver Produtos</a>
+          <a class="secondary-button" href="#promocoes">Ver Promocoes</a>
+        </div>
+      </section>
+
+      <section class="trust-row" aria-label="Beneficios da loja">
+        <div><strong>Frete gratis</strong><span>Para todo o Brasil</span></div>
+        <div><strong>Compra segura</strong><span>Checkout externo oficial</span></div>
+        <div><strong>Rastreamento</strong><span>Acompanhe seu pedido</span></div>
+        <div><strong>Atendimento rapido</strong><span>Suporte pelo WhatsApp</span></div>
+        <div><strong>Produtos selecionados</strong><span>Ofertas organizadas</span></div>
+      </section>
+
+      <section class="section-block categories-block">
+        <div class="section-heading">
+          <span>Compre por departamento</span>
+          <h2>Categorias principais</h2>
+        </div>
+        <div class="category-rail" id="categoryRail"></div>
+      </section>
+
+      <section class="section-block split-showcase">
+        <article>
+          <span class="eyebrow">Oferta da semana</span>
+          <h2>Produtos escolhidos para facilitar sua rotina</h2>
+          <p>Encontre utilidades, tecnologia, beleza, casa, moda e presentes com compra direta no checkout oficial do produto.</p>
+          <a href="#mais-vendidos" class="text-link">Ver mais vendidos</a>
+        </article>
+        <article>
+          <span class="eyebrow">Rastreamento</span>
+          <h2>Pedido acompanhado do inicio ao fim</h2>
+          <p>Depois da compra, use o portal de rastreio para acompanhar a entrega conforme o codigo informado.</p>
+          <a href="#rastreio" class="text-link">Abrir rastreio</a>
+        </article>
+      </section>
+
+      <section class="section-block" id="mais-vendidos">
+        <div class="section-heading">
+          <span>Ranking atualizado</span>
+          <h2>Mais vendidos da semana</h2>
+        </div>
+        <div class="product-grid" id="bestSellerGrid"></div>
+      </section>
+
+      <section class="section-block" id="promocoes">
+        <div class="section-heading">
+          <span>Economia com clareza</span>
+          <h2>Promocoes e ofertas relampago</h2>
+        </div>
+        <div class="product-grid" id="flashGrid"></div>
+      </section>
+
+      <section class="section-block" id="produtos">
+        <div class="catalog-toolbar">
+          <div class="section-heading">
+            <span>Catalogo Kairos</span>
+            <h2>Produtos em destaque</h2>
+          </div>
+          <select id="sortSelect" aria-label="Ordenar produtos">
+            <option value="relevance">Mais relevantes</option>
+            <option value="price-low">Menor preco</option>
+            <option value="price-high">Maior preco</option>
+            <option value="rating">Melhor avaliacao</option>
+          </select>
+        </div>
+        <div class="product-grid catalog-grid" id="catalogGrid"></div>
+        <p class="empty-state" id="emptyProducts" hidden>Nenhum produto ativo encontrado agora. Fale com a Kairos Shopping pelo WhatsApp para receber ofertas atualizadas.</p>
+      </section>
+
+      <section class="section-block video-strip" id="videos">
+        <div class="section-heading">
+          <span>Conteudo de produto</span>
+          <h2>Produtos com video</h2>
+        </div>
+        <div class="product-grid" id="videoGrid"></div>
+      </section>
+
+      <section class="section-block reviews-section">
+        <div class="section-heading">
+          <span>Prova social</span>
+          <h2>Clientes que confiam na Kairos Shopping</h2>
+        </div>
+        <div class="review-grid" id="reviewGrid"></div>
+      </section>
+
+      <section class="section-block how-to-buy">
+        <div class="section-heading">
+          <span>Simples e transparente</span>
+          <h2>Como comprar</h2>
+        </div>
+        <div class="steps">
+          <div><strong>1</strong><h3>Escolha o produto</h3><p>Use busca, categorias e filtros para encontrar a oferta ideal.</p></div>
+          <div><strong>2</strong><h3>Abra os detalhes</h3><p>Veja descricao, avaliacao, frete e informacoes do item.</p></div>
+          <div><strong>3</strong><h3>Compre no checkout</h3><p>O botao Comprar Agora leva ao checkout externo oficial.</p></div>
+          <div><strong>4</strong><h3>Acompanhe a entrega</h3><p>Use o rastreio para seguir o pedido ate chegar.</p></div>
+        </div>
+      </section>
+
+      <section class="section-block tracking-card" id="rastreio">
+        <div>
+          <span class="eyebrow">Pedido com rastreamento</span>
+          <h2>Rastreie sua compra</h2>
+          <p>Informe o codigo recebido apos a compra ou abra o portal oficial de rastreio da Kairos Shopping.</p>
+        </div>
+        <form id="trackingForm">
+          <input id="trackingCode" type="text" placeholder="Codigo do pedido ou rastreio">
+          <button type="submit" class="primary-button">Rastrear</button>
+          <a id="trackingPortal" class="secondary-button" href="https://app.kaiross.com.br/rastreio" target="_blank" rel="noopener">Abrir portal</a>
+        </form>
+      </section>
+
+      <section class="section-block lead-section">
+        <div>
+          <span class="eyebrow">Grupo de ofertas</span>
+          <h2>Receba ofertas exclusivas da Kairos Shopping</h2>
+          <p>Cadastre seu nome e WhatsApp para receber novidades e promocoes selecionadas.</p>
+        </div>
+        <form id="leadForm" class="lead-form">
+          <input name="name" type="text" placeholder="Seu nome" required>
+          <input name="whatsapp" type="tel" placeholder="WhatsApp" required>
+          <input name="city" type="text" placeholder="Cidade">
+          <label class="consent"><input type="checkbox" required> Concordo em receber comunicacoes da Kairos pelo WhatsApp.</label>
+          <button class="primary-button" type="submit">Quero participar</button>
+        </form>
+      </section>
+
+      <section class="section-block faq-section" id="faq">
+        <div class="section-heading">
+          <span>Duvidas frequentes</span>
+          <h2>Informacoes importantes</h2>
+        </div>
+        <div class="accordion" id="faqList"></div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div>
+        <img src="./assets/logo-kairos-oficial.png" alt="Kairos Shopping">
+        <h2>Kairos Shopping</h2>
+        <p>Produtos selecionados, frete gratis para todo o Brasil, pedido com rastreamento e atendimento rapido.</p>
+        <p>E-mail: <a href="mailto:kairossshopping@gmail.com">kairossshopping@gmail.com</a></p>
+      </div>
+      <nav>
+        <h3>Institucional</h3>
+        <a href="#sobre" data-page-link="about">Quem Somos</a>
+        <a href="#privacidade" data-page-link="privacy">Politica de Privacidade</a>
+        <a href="#termos" data-page-link="terms">Termos de Uso</a>
+        <a href="#trocas" data-page-link="returns">Trocas e Devolucoes</a>
+      </nav>
+      <nav>
+        <h3>Atendimento</h3>
+        <a href="#rastreio">Rastreamento</a>
+        <a href="#faq">Perguntas Frequentes</a>
+        <a id="footerWhatsapp" href="#" target="_blank" rel="noopener">WhatsApp</a>
+      </nav>
+      <nav>
+        <h3>Redes sociais</h3>
+        <div class="social-links" id="socialLinks"></div>
+      </nav>
+    </footer>
+
+    <div class="product-modal" id="productModal" hidden></div>
+    <div class="assistant-widget" id="assistantWidget"></div>
+    <div class="activity-popup" id="activityPopup" hidden></div>
+
+    <script src="./data/seed-products.js?v=20260603-zero"></script>
+    <script src="./data/settings.js?v=20260603-zero"></script>
+    <script src="./app.js?v=20260603-zero" defer></script>
+  </body>
+</html>

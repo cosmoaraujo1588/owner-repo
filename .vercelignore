@@ -1,0 +1,15 @@
+firebase*
+*.rules
+FIREBASE_*
+PUBLICAR_FIREBASE_*
+migrate-netlify-to-firestore.cjs
+netlify/
+*.zip
+kairos-shopping-firebase-*/
+Nova pasta/
+.backup-*/
+.deploy-kairos/
+.tools/
+node_modules/
+screenshots/
+kairos-shopping-vercel-supabase-zero-*/

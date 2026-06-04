@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 700" role="img" aria-label="Urso de pelúcia">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#1b120b"/>
+      <stop offset="1" stop-color="#030303"/>
+    </linearGradient>
+    <linearGradient id="fur" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#c9843f"/>
+      <stop offset="1" stop-color="#7b421f"/>
+    </linearGradient>
+    <linearGradient id="orange" x1="0" x2="1">
+      <stop offset="0" stop-color="#ff9c22"/>
+      <stop offset="1" stop-color="#ff5a00"/>
+    </linearGradient>
+  </defs>
+  <rect width="900" height="700" fill="url(#bg)"/>
+  <path d="M118 564h664" stroke="#ff6a00" stroke-width="5" opacity=".4"/>
+  <circle cx="322" cy="190" r="76" fill="url(#fur)" stroke="#e0a365" stroke-width="8"/>
+  <circle cx="578" cy="190" r="76" fill="url(#fur)" stroke="#e0a365" stroke-width="8"/>
+  <circle cx="450" cy="264" r="164" fill="url(#fur)" stroke="#e0a365" stroke-width="9"/>
+  <circle cx="386" cy="250" r="18" fill="#17110d"/>
+  <circle cx="514" cy="250" r="18" fill="#17110d"/>
+  <ellipse cx="450" cy="306" rx="58" ry="44" fill="#e0aa76"/>
+  <circle cx="450" cy="294" r="18" fill="#120b08"/>
+  <path d="M450 312c-12 22-30 30-52 20M450 312c12 22 30 30 52 20" fill="none" stroke="#120b08" stroke-width="8" stroke-linecap="round"/>
+  <ellipse cx="450" cy="482" rx="174" ry="140" fill="url(#fur)" stroke="#e0a365" stroke-width="9"/>
+  <ellipse cx="260" cy="452" rx="78" ry="112" transform="rotate(26 260 452)" fill="url(#fur)" stroke="#e0a365" stroke-width="8"/>
+  <ellipse cx="640" cy="452" rx="78" ry="112" transform="rotate(-26 640 452)" fill="url(#fur)" stroke="#e0a365" stroke-width="8"/>
+  <path d="M390 402h120l-60 82-60-82Z" fill="url(#orange)"/>
+  <path d="M378 400c34 30 110 30 144 0" fill="none" stroke="#ffb45c" stroke-width="8" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 700" role="img" aria-label="Liquidificador">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#15120f"/>
+      <stop offset="1" stop-color="#020202"/>
+    </linearGradient>
+    <linearGradient id="orange" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#ff9c22"/>
+      <stop offset="1" stop-color="#ff5a00"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#f7fbff" stop-opacity=".78"/>
+      <stop offset="1" stop-color="#8d98a8" stop-opacity=".42"/>
+    </linearGradient>
+  </defs>
+  <rect width="900" height="700" fill="url(#bg)"/>
+  <path d="M108 544h684" stroke="#ff6a00" stroke-width="5" opacity=".42"/>
+  <path d="M338 96h226l-26 300H364L338 96Z" fill="url(#glass)" stroke="#ffffff" stroke-width="8" stroke-linejoin="round"/>
+  <path d="M370 130h160M384 190h132M394 250h112" stroke="#ffffff" stroke-width="5" opacity=".46" stroke-linecap="round"/>
+  <path d="M568 168c76 6 120 46 120 112 0 68-48 112-136 116" fill="none" stroke="#d7dde5" stroke-width="18" stroke-linecap="round"/>
+  <path d="M384 408h132c58 0 94 38 94 98v66H290v-66c0-60 36-98 94-98Z" fill="#111111" stroke="url(#orange)" stroke-width="14"/>
+  <circle cx="450" cy="500" r="48" fill="#050505" stroke="#ffffff" stroke-width="8"/>
+  <path d="M450 500l28-28" stroke="#ff8c16" stroke-width="10" stroke-linecap="round"/>
+  <rect x="254" y="572" width="392" height="42" rx="20" fill="url(#orange)"/>
+</svg>

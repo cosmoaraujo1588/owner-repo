@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 700" role="img" aria-label="Moletom">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#1c130d"/>
+      <stop offset="1" stop-color="#050505"/>
+    </linearGradient>
+    <linearGradient id="fabric" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#d1a37b"/>
+      <stop offset="1" stop-color="#8d6041"/>
+    </linearGradient>
+    <linearGradient id="orange" x1="0" x2="1">
+      <stop offset="0" stop-color="#ff9c22"/>
+      <stop offset="1" stop-color="#ff5a00"/>
+    </linearGradient>
+  </defs>
+  <rect width="900" height="700" fill="url(#bg)"/>
+  <path d="M92 570c168-86 256 50 414-62 132-94 160-254 302-328" fill="none" stroke="#ff6a00" stroke-width="5" opacity=".35"/>
+  <path d="M342 122c42-46 174-46 216 0 36 39 30 105-16 142H358c-46-37-52-103-16-142Z" fill="#b88059" stroke="#f0c6a4" stroke-width="8"/>
+  <path d="M244 246 116 336l64 132 76-36v160h388V432l76 36 64-132-128-90c-42-30-74-44-126-44H370c-52 0-84 14-126 44Z" fill="url(#fabric)" stroke="#f0c6a4" stroke-width="9" stroke-linejoin="round"/>
+  <path d="M360 202c12 82 168 82 180 0" fill="none" stroke="#6e432f" stroke-width="14" stroke-linecap="round"/>
+  <path d="M450 244v340" stroke="#72442f" stroke-width="8"/>
+  <path d="M340 424h220v120H340z" fill="#9f6e4e" stroke="#e3b48e" stroke-width="7"/>
+  <path d="M405 236c-20 40-24 84-18 132M495 236c20 40 24 84 18 132" fill="none" stroke="#f6d5bb" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="388" cy="372" r="9" fill="url(#orange)"/>
+  <circle cx="512" cy="372" r="9" fill="url(#orange)"/>
+</svg>

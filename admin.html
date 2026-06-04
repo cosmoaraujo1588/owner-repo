@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Painel Administrativo | Kairos Shopping</title>
+    <meta name="robots" content="noindex,nofollow">
+    <link rel="icon" href="./assets/logo-kairos-oficial.png">
+    <link rel="stylesheet" href="./styles.css?v=20260603-zero">
+  </head>
+  <body class="admin-body">
+    <div class="admin-shell">
+      <aside class="admin-sidebar">
+        <a class="brand" href="./admin.html">
+          <img src="./assets/logo-kairos-oficial.png" alt="Kairos Shopping">
+          <span>Painel Kairos</span>
+        </a>
+        <nav class="admin-nav" id="adminNav">
+          <button class="active" data-section="dashboard" type="button">Dashboard</button>
+          <button data-section="reports" type="button">Relatorios em Tempo Real</button>
+          <button data-section="products" type="button">Produtos</button>
+          <button data-section="categories" type="button">Categorias</button>
+          <button data-section="banners" type="button">Banners</button>
+          <button data-section="reviews" type="button">Avaliacoes</button>
+          <button data-section="content" type="button">Paginas Institucionais</button>
+          <button data-section="marketing" type="button">Marketing e Trafego Pago</button>
+          <button data-section="settings" type="button">Configuracoes da Loja</button>
+        </nav>
+      </aside>
+
+      <main class="admin-main">
+        <div class="admin-top">
+          <div>
+            <span class="eyebrow">Area administrativa</span>
+            <h1>Kairos Shopping</h1>
+          </div>
+          <div class="admin-actions">
+            <a class="secondary-button compact" href="./index.html" target="_blank">Abrir loja</a>
+            <button class="primary-button compact" type="button" id="saveAllButton">Salvar tudo</button>
+          </div>
+        </div>
+
+        <section class="admin-section active" id="section-dashboard">
+          <div class="metric-grid" id="metricGrid"></div>
+          <div class="admin-card">
+            <h2>Status da loja</h2>
+            <p id="connectionStatus">Carregando catalogo...</p>
+          </div>
+        </section>
+
+        <section class="admin-section" id="section-reports">
+          <div class="admin-card">
+            <div class="catalog-toolbar">
+              <div>
+                <span class="eyebrow">Monitoramento</span>
+                <h2>Relatorios em Tempo Real</h2>
+              </div>
+              <div class="admin-actions">
+                <select id="reportRange">
+                  <option value="today">Hoje</option>
+                  <option value="7d">Ultimos 7 dias</option>
+                  <option value="month">Mes atual</option>
+                  <option value="year">Ano atual</option>
+                </select>
+                <button class="secondary-button compact" type="button" id="refreshReports">Atualizar</button>
+                <button class="secondary-button compact" type="button" id="exportCsv">Baixar CSV</button>
+              </div>
+            </div>
+            <div class="report-grid">
+              <canvas class="chart" id="visitsChart" width="900" height="320"></canvas>
+              <div class="metric-grid" id="liveMetricGrid"></div>
+            </div>
+          </div>
+          <div class="admin-card">
+            <h2>Produtos mais acessados e clicados</h2>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Produto</th><th>Visualizacoes</th><th>Checkout</th><th>Favoritos</th><th>Taxa</th></tr></thead>
+                <tbody id="productReportRows"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="admin-section" id="section-products">
+          <div class="admin-grid">
+            <form class="admin-card form-grid" id="productForm">
+              <input type="hidden" name="id">
+              <label class="full">Nome do produto<input name="title" required></label>
+              <label>Categoria<input name="category" list="categoryOptions" required></label>
+              <label>Subcategoria<input name="subcategory" list="subcategoryOptions"></label>
+              <label>Preco atual<input name="price" type="number" step="0.01" required></label>
+              <label>Preco antigo<input name="oldPrice" type="number" step="0.01"></label>
+              <label>Selo editavel<input name="tag"></label>
+              <label>SKU<input name="sku"></label>
+              <label class="full">Descricao curta<textarea name="shortDescription"></textarea></label>
+              <label class="full">Descricao completa<textarea name="description"></textarea></label>
+              <label class="full">Link de checkout externo<input name="checkoutUrl" type="url" required></label>
+              <label>Imagem principal<input name="image" type="url" placeholder="URL da imagem ou upload abaixo"></label>
+              <label>Upload imagem<input name="imageFile" type="file" accept="image/*"></label>
+              <label>URL do video<input name="videoUrl" type="url"></label>
+              <label>Miniatura do video<input name="videoThumb" type="url"></label>
+              <label>Avaliacao<input name="reviewRating" type="number" min="1" max="5" step="0.5" value="5"></label>
+              <label>Qtd. avaliacoes<input name="reviewCount" type="number" min="0" value="120"></label>
+              <label><input name="featured" type="checkbox" checked> Produto em destaque</label>
+              <label><input name="bestSeller" type="checkbox"> Mais vendido</label>
+              <label><input name="flashOffer" type="checkbox"> Oferta relampago</label>
+              <label><input name="visible" type="checkbox" checked> Ativo na loja</label>
+              <div class="admin-actions full">
+                <button class="primary-button" type="submit">Salvar produto</button>
+                <button class="secondary-button" type="button" id="newProductButton">Novo</button>
+              </div>
+            </form>
+            <div class="admin-card">
+              <div class="catalog-toolbar">
+                <h2>Produtos cadastrados</h2>
+                <span id="productCount">0</span>
+              </div>
+              <div class="admin-list" id="productList"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="admin-section" id="section-categories">
+          <div class="admin-grid">
+            <form class="admin-card form-grid" id="categoryForm">
+              <input type="hidden" name="id">
+              <label>Nome da categoria<input name="name" required></label>
+              <label>Imagem da categoria<input name="image"></label>
+              <label>Ordem<input name="order" type="number" value="0"></label>
+              <label><input name="active" type="checkbox" checked> Ativa</label>
+              <div class="admin-actions full">
+                <button class="primary-button" type="submit">Salvar categoria</button>
+                <button class="secondary-button" type="button" id="newCategoryButton">Nova</button>
+              </div>
+            </form>
+            <div class="admin-card">
+              <h2>Categorias e subcategorias</h2>
+              <datalist id="categoryOptions"></datalist>
+              <datalist id="subcategoryOptions"></datalist>
+              <div class="admin-list" id="categoryList"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="admin-section" id="section-banners">
+          <form class="admin-card form-grid" id="bannerForm">
+            <label class="full">Banner principal desktop<input name="bannerUrl" type="url"></label>
+            <label class="full">Banner principal mobile<input name="bannerMobileUrl" type="url"></label>
+            <label>Titulo do banner<input name="heroTitle"></label>
+            <label>Subtitulo do banner<input name="heroSubtitle"></label>
+            <label>Texto do botao<input name="heroButtonText"></label>
+            <label>Link do botao<input name="heroButtonLink"></label>
+            <label>Barra promocional<input name="promoText"></label>
+            <label>Cor da barra<input name="promoColor" type="color" value="#ff6b00"></label>
+            <label><input name="promoEnabled" type="checkbox" checked> Barra ativa</label>
+            <div class="admin-actions full">
+              <button class="primary-button" type="submit">Salvar banners</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="admin-section" id="section-reviews">
+          <div class="admin-grid">
+            <form class="admin-card form-grid" id="reviewForm">
+              <input type="hidden" name="id">
+              <label>Nome do cliente<input name="name" required></label>
+              <label>Cidade/estado<input name="city"></label>
+              <label>Produto<input name="product"></label>
+              <label>Nota<select name="rating"></select></label>
+              <label class="full">Comentario<textarea name="text" required></textarea></label>
+              <label><input name="featured" type="checkbox" checked> Exibir na loja</label>
+              <div class="admin-actions full">
+                <button class="primary-button" type="submit">Salvar avaliacao</button>
+                <button class="secondary-button" type="button" id="newReviewButton">Nova</button>
+              </div>
+            </form>
+            <div class="admin-card">
+              <h2>Avaliacoes</h2>
+              <div class="admin-list" id="reviewList"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="admin-section" id="section-content">
+          <form class="admin-card form-grid" id="contentForm">
+            <label class="full">Quem Somos<textarea name="about"></textarea></label>
+            <label class="full">Politica de Privacidade<textarea name="privacy"></textarea></label>
+            <label class="full">Termos de Uso<textarea name="terms"></textarea></label>
+            <label class="full">Trocas e Devolucoes<textarea name="returns"></textarea></label>
+            <label class="full">Contato<textarea name="contact"></textarea></label>
+            <div class="admin-actions full">
+              <button class="primary-button" type="submit">Salvar paginas</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="admin-section" id="section-marketing">
+          <form class="admin-card form-grid" id="marketingForm">
+            <label>Meta Pixel<input name="metaPixelId"></label>
+            <label>Google Analytics<input name="ga4Id"></label>
+            <label>Google Tag Manager<input name="gtmId"></label>
+            <label>TikTok Pixel<input name="tiktokPixelId"></label>
+            <label class="full">Scripts personalizados<textarea name="customScripts"></textarea></label>
+            <div class="admin-actions full">
+              <button class="primary-button" type="submit">Salvar marketing</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="admin-section" id="section-settings">
+          <form class="admin-card form-grid" id="settingsForm">
+            <label>Nome da loja<input name="storeName"></label>
+            <label>E-mail<input name="storeEmail" type="email"></label>
+            <label>WhatsApp<input name="whatsapp"></label>
+            <label>Instagram<input name="instagram" type="url"></label>
+            <label>Facebook<input name="facebook" type="url"></label>
+            <label>TikTok<input name="tiktok" type="url"></label>
+            <label>YouTube<input name="youtube" type="url"></label>
+            <label>Portal de rastreio<input name="trackingUrl" type="url"></label>
+            <label class="full">Meta title<input name="metaTitle"></label>
+            <label class="full">Meta description<textarea name="metaDescription"></textarea></label>
+            <label class="full">Palavras-chave<input name="keywords"></label>
+            <div class="admin-actions full">
+              <button class="primary-button" type="submit">Salvar configuracoes</button>
+            </div>
+          </form>
+        </section>
+      </main>
+    </div>
+
+    <script src="./data/seed-products.js?v=20260603-zero"></script>
+    <script src="./data/settings.js?v=20260603-zero"></script>
+    <script src="./admin.js?v=20260603-zero" defer></script>
+  </body>
+</html>
