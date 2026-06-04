@@ -42,13 +42,15 @@ const [products, categories, subcategories, banners, pages, settings, reviews] =
   storeSettings.reviews = reviews.data?.map(fromReview) || storeSettings.reviews || [];
 
   sendJson(res, 200, {
-    source: "supabase",
-    updatedAt: new Date().toISOString(),
-    products: (products.data || []).map(fromProduct),
-    categories: (categories.data || []).map(fromCategory),
-    settings: storeSettings
-  });
-}
+  source: "supabase",
+  updatedAt: new Date().toISOString(),
+  products: (products.data || []).map(fromProduct),
+  categories: (categories.data || []).map(fromCategory),
+  subcategories: (subcategories.data || []).map(fromSubcategory),
+  banners: (banners.data || []).map(fromBanner),
+  pages: (pages.data || []).map(fromPage),
+  settings: storeSettings
+});
 
 async function putCatalog(req, res) {
   if (!isAdmin(req)) return sendJson(res, 401, { error: "Unauthorized" });
