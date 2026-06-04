@@ -19,7 +19,9 @@
     settings: window.KAIROS_DEFAULT_SETTINGS || {},
     categories: [],
     token: localStorage.getItem(TOKEN_KEY) || "",
-    reports: []
+    reports: [],
+    leads: [],
+    reportTimer: null
   };
 
   const forms = {};
@@ -34,7 +36,15 @@
     bindForms();
     await loadCatalog();
     await loadReports();
+    await loadLeads();
     renderAll();
+    state.reportTimer = setInterval(async () => {
+      await loadReports();
+      await loadLeads();
+      renderReports();
+      renderMetrics();
+      renderLeads();
+    }, 60000);
   }
 
   async function ensureAdminAccess() {
@@ -65,7 +75,8 @@
     [
       "metricGrid", "connectionStatus", "productList", "productCount", "categoryList",
       "reviewList", "categoryOptions", "subcategoryOptions", "productReportRows",
-      "visitsChart", "liveMetricGrid"
+      "visitsChart", "liveMetricGrid", "storeHealthGrid", "topProductRows",
+      "leadRows", "leadCount", "bannerList"
     ].forEach((id) => els[id] = document.getElementById(id));
 
     [
@@ -137,6 +148,20 @@
     }
   }
 
+  async function loadLeads() {
+    try {
+      const response = await fetch(`/api/leads?t=${Date.now()}`, {
+        headers: state.token ? { Authorization: `Bearer ${state.token}` } : {},
+        cache: "no-store"
+      });
+      if (!response.ok) throw new Error("leads unavailable");
+      const data = await response.json();
+      state.leads = Array.isArray(data.leads) ? data.leads : [];
+    } catch {
+      state.leads = readJson("kairos:local-leads", []);
+    }
+  }
+
   function bindNavigation() {
     document.getElementById("adminNav")?.addEventListener("click", (event) => {
       const button = event.target.closest("[data-section]");
@@ -145,17 +170,27 @@
       document.querySelectorAll(".admin-section").forEach((section) => section.classList.remove("active"));
       button.classList.add("active");
       document.getElementById(`section-${button.dataset.section}`)?.classList.add("active");
+      document.body.classList.remove("admin-menu-open");
     });
 
+    document.getElementById("adminMenuToggle")?.addEventListener("click", () => {
+      document.body.classList.toggle("admin-menu-open");
+    });
     document.getElementById("saveAllButton")?.addEventListener("click", saveCatalog);
     document.getElementById("newProductButton")?.addEventListener("click", () => forms.productForm.reset());
     document.getElementById("newCategoryButton")?.addEventListener("click", () => forms.categoryForm.reset());
     document.getElementById("newReviewButton")?.addEventListener("click", () => forms.reviewForm.reset());
+    document.getElementById("newBannerButton")?.addEventListener("click", () => resetBannerCarouselFields());
     document.getElementById("refreshReports")?.addEventListener("click", async () => {
       await loadReports();
       renderReports();
     });
+    document.getElementById("refreshLeads")?.addEventListener("click", async () => {
+      await loadLeads();
+      renderLeads();
+    });
     document.getElementById("exportCsv")?.addEventListener("click", exportReportsCsv);
+    document.getElementById("exportLeadsCsv")?.addEventListener("click", exportLeadsCsv);
   }
 
   function bindForms() {
@@ -239,8 +274,27 @@
         ...(state.settings.promoBar || {}),
         enabled: Boolean(event.currentTarget.elements.promoEnabled.checked),
         text: clean(data.promoText) || "Frete gratis para todo o Brasil",
-        backgroundColor: data.promoColor || "#ff6b00"
+        backgroundColor: data.promoColor || "#ff6b00",
+        textColor: data.promoTextColor || "#111827",
+        speedSeconds: number(data.promoSpeed) || 22
       };
+      const desktopImage = clean(data.carouselDesktopImage);
+      const mobileImage = clean(data.carouselMobileImage);
+      if (desktopImage || mobileImage || clean(data.bannerId)) {
+        const banners = Array.isArray(state.settings.banners) ? state.settings.banners : [];
+        upsert(banners, {
+          id: clean(data.bannerId) || slugify(`${data.carouselTitle || "banner"}-${Date.now()}`),
+          title: clean(data.carouselTitle) || "Kairos Shopping",
+          subtitle: clean(data.carouselSubtitle),
+          desktopImage: desktopImage || state.settings.bannerUrl,
+          mobileImage: mobileImage || desktopImage || state.settings.bannerMobileUrl,
+          link: clean(data.carouselLink) || "#produtos",
+          order: number(data.carouselOrder) || banners.length + 1,
+          active: Boolean(event.currentTarget.elements.carouselActive.checked)
+        });
+        state.settings.banners = banners;
+        resetBannerCarouselFields();
+      }
       await saveCatalog();
     });
 
@@ -280,6 +334,7 @@
       const data = Object.fromEntries(new FormData(event.currentTarget).entries());
       state.settings.storeName = clean(data.storeName);
       state.settings.storeEmail = clean(data.storeEmail);
+      state.settings.siteUrl = clean(data.siteUrl);
       state.settings.trackingUrl = clean(data.trackingUrl);
       state.settings.social = {
         ...(state.settings.social || {}),
@@ -330,21 +385,50 @@
     renderMetrics();
     renderProducts();
     renderCategories();
+    renderBanners();
     renderReviews();
     renderReports();
+    renderLeads();
     fillDatalists();
   }
 
   function renderMetrics() {
     const active = state.products.filter((item) => item.visible !== false);
+    const inactive = state.products.filter((item) => item.visible === false);
     const flash = active.filter((item) => item.flashOffer);
-    const clicks = state.reports.filter((event) => event.type === "checkout_click");
-    els.metricGrid.innerHTML = [
+    const views = state.reports.filter((event) => event.type === "page_view" || event.type === "product_view");
+    const clicks = state.reports.filter((event) => ["checkout_click", "buy_click", "product_click", "whatsapp_click", "whatsapp_group_click", "share_product"].includes(event.type));
+    const checkoutClicks = state.reports.filter((event) => event.type === "checkout_click");
+    const subs = unique(state.products.map((item) => item.subcategory).filter(Boolean));
+    const conversion = views.length ? Math.round((checkoutClicks.length / views.length) * 100) : 0;
+    if (els.metricGrid) els.metricGrid.innerHTML = [
       ["Produtos ativos", active.length],
+      ["Produtos inativos", inactive.length],
       ["Promocoes", flash.length],
-      ["Cliques checkout", clicks.length],
-      ["Categorias", state.categories.length]
-    ].map(([label, value]) => `<div class="metric-card"><span>${label}</span><strong>${formatNumber(value)}</strong></div>`).join("");
+      ["Categorias", state.categories.length],
+      ["Subcategorias", subs.length],
+      ["Leads", state.leads.length],
+      ["Visitas", views.length],
+      ["Cliques", clicks.length],
+      ["Conversao", `${conversion}%`]
+    ].map(([label, value]) => `<div class="metric-card"><span>${label}</span><strong>${typeof value === "number" ? formatNumber(value) : escapeHtml(value)}</strong></div>`).join("");
+
+    const missingImage = active.filter((item) => !item.image || item.image === FALLBACK_IMAGE).length;
+    const missingCheckout = active.filter((item) => !item.checkoutUrl).length;
+    const missingDescription = active.filter((item) => !item.description && !item.shortDescription).length;
+    const missingCategory = active.filter((item) => !item.category).length;
+    if (els.storeHealthGrid) els.storeHealthGrid.innerHTML = [
+      ["Sem imagem", missingImage],
+      ["Sem checkout", missingCheckout],
+      ["Sem descricao", missingDescription],
+      ["Sem categoria", missingCategory]
+    ].map(([label, value]) => `<div class="metric-card ${value ? "warning" : "ok"}"><span>${label}</span><strong>${formatNumber(value)}</strong></div>`).join("");
+
+    if (els.topProductRows) {
+      els.topProductRows.innerHTML = productStats(state.reports).slice(0, 10).map((item) => `
+        <tr><td>${escapeHtml(item.name)}</td><td>${formatNumber(item.views)}</td><td>${formatNumber(item.checkouts)}</td><td>${item.rate}%</td></tr>
+      `).join("");
+    }
   }
 
   function renderProducts() {
@@ -405,6 +489,38 @@
     });
   }
 
+  function renderBanners() {
+    if (!els.bannerList) return;
+    const banners = Array.isArray(state.settings.banners) ? state.settings.banners : [];
+    els.bannerList.innerHTML = banners
+      .slice()
+      .sort((a, b) => Number(a.order || 0) - Number(b.order || 0))
+      .map((banner) => `
+        <article class="admin-item">
+          <img src="${escapeHtml(banner.desktopImage || banner.mobileImage || state.settings.bannerUrl || "./assets/banner-principal-kairos.jpg")}" alt="${escapeHtml(banner.title || "Banner")}" onerror="this.onerror=null;this.src='./assets/banner-principal-kairos.jpg'">
+          <div>
+            <h3>${escapeHtml(banner.title || "Banner Kairos")}</h3>
+            <p>${banner.active === false ? "Inativo" : "Ativo"} - ordem ${banner.order || 0}</p>
+          </div>
+          <div class="admin-item-actions">
+            <button class="secondary-button compact" type="button" data-banner-edit="${escapeHtml(banner.id)}">Editar</button>
+            <button class="danger-button compact" type="button" data-banner-delete="${escapeHtml(banner.id)}">Excluir</button>
+          </div>
+        </article>
+      `).join("");
+
+    els.bannerList.querySelectorAll("[data-banner-edit]").forEach((button) => {
+      button.addEventListener("click", () => fillBannerForm(banners.find((item) => item.id === button.dataset.bannerEdit)));
+    });
+    els.bannerList.querySelectorAll("[data-banner-delete]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        if (!confirm("Excluir este banner do carrossel?")) return;
+        state.settings.banners = banners.filter((item) => item.id !== button.dataset.bannerDelete);
+        await saveCatalog();
+      });
+    });
+  }
+
   function renderReviews() {
     const reviews = Array.isArray(state.settings.reviews) ? state.settings.reviews : [];
     els.reviewList.innerHTML = reviews.map((review) => `
@@ -459,6 +575,20 @@
     drawLineChart(events);
   }
 
+  function renderLeads() {
+    if (els.leadCount) els.leadCount.textContent = `${formatNumber(state.leads.length)} leads`;
+    if (!els.leadRows) return;
+    els.leadRows.innerHTML = state.leads.map((lead) => `
+      <tr>
+        <td>${escapeHtml(lead.name || "")}</td>
+        <td>${escapeHtml(lead.whatsapp || "")}</td>
+        <td>${escapeHtml(lead.city || "")}</td>
+        <td>${formatDateTime(lead.created_at || lead.date || "")}</td>
+        <td>${escapeHtml(lead.source || "home")}</td>
+      </tr>
+    `).join("");
+  }
+
   function drawLineChart(events) {
     const canvas = els.visitsChart;
     if (!canvas) return;
@@ -477,18 +607,21 @@
       ctx.stroke();
     }
 
-    const buckets = Array.from({ length: 12 }, () => 0);
+    const minuteMap = new Map();
     events.forEach((event) => {
       const date = new Date(event.created_at || Date.now());
-      const index = Math.min(11, Math.max(0, Math.floor(date.getHours() / 2)));
-      buckets[index] += 1;
+      if (Number.isNaN(date.getTime())) return;
+      const key = `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+      minuteMap.set(key, (minuteMap.get(key) || 0) + 1);
     });
-    const max = Math.max(1, ...buckets);
+    const buckets = Array.from(minuteMap.entries()).sort((a, b) => a[0].localeCompare(b[0])).slice(-14);
+    if (!buckets.length) buckets.push([new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), 0]);
+    const max = Math.max(1, ...buckets.map(([, value]) => value));
     ctx.strokeStyle = "#ff6b00";
     ctx.lineWidth = 4;
     ctx.beginPath();
-    buckets.forEach((value, index) => {
-      const x = 42 + index * ((width - 80) / 11);
+    buckets.forEach(([, value], index) => {
+      const x = 42 + index * ((width - 80) / Math.max(1, buckets.length - 1));
       const y = height - 34 - (value / max) * (height - 70);
       if (index === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
@@ -496,7 +629,12 @@
     ctx.stroke();
     ctx.fillStyle = "#102a43";
     ctx.font = "700 18px sans-serif";
-    ctx.fillText("Visitas e eventos por horario", 42, 28);
+    ctx.fillText("Visitas e eventos por minuto", 42, 28);
+    ctx.font = "12px sans-serif";
+    buckets.forEach(([label], index) => {
+      const x = 42 + index * ((width - 80) / Math.max(1, buckets.length - 1));
+      ctx.fillText(label, Math.max(8, x - 16), height - 10);
+    });
   }
 
   function fillForms() {
@@ -510,6 +648,8 @@
       forms.bannerForm.elements.heroButtonLink.value = s.heroButtonLink || "#produtos";
       forms.bannerForm.elements.promoText.value = s.promoBar?.text || "Frete gratis para todo o Brasil";
       forms.bannerForm.elements.promoColor.value = s.promoBar?.backgroundColor || "#ff6b00";
+      forms.bannerForm.elements.promoTextColor.value = s.promoBar?.textColor || "#111827";
+      forms.bannerForm.elements.promoSpeed.value = s.promoBar?.speedSeconds || 22;
       forms.bannerForm.elements.promoEnabled.checked = s.promoBar?.enabled !== false;
     }
 
@@ -518,6 +658,7 @@
     fillObjectForm(forms.settingsForm, {
       storeName: s.storeName,
       storeEmail: s.storeEmail,
+      siteUrl: s.siteUrl,
       trackingUrl: s.trackingUrl,
       whatsapp: s.social?.whatsapp,
       instagram: s.social?.instagram,
@@ -558,6 +699,28 @@
   function fillReviewForm(review) {
     fillObjectForm(forms.reviewForm, review || {});
     forms.reviewForm.elements.featured.checked = review?.featured !== false;
+  }
+
+  function fillBannerForm(banner) {
+    if (!banner || !forms.bannerForm) return;
+    forms.bannerForm.elements.bannerId.value = banner.id || "";
+    forms.bannerForm.elements.carouselTitle.value = banner.title || "";
+    forms.bannerForm.elements.carouselSubtitle.value = banner.subtitle || "";
+    forms.bannerForm.elements.carouselDesktopImage.value = banner.desktopImage || banner.image || "";
+    forms.bannerForm.elements.carouselMobileImage.value = banner.mobileImage || "";
+    forms.bannerForm.elements.carouselLink.value = banner.link || "#produtos";
+    forms.bannerForm.elements.carouselOrder.value = banner.order || 1;
+    forms.bannerForm.elements.carouselActive.checked = banner.active !== false;
+    forms.bannerForm.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function resetBannerCarouselFields() {
+    if (!forms.bannerForm) return;
+    ["bannerId", "carouselTitle", "carouselSubtitle", "carouselDesktopImage", "carouselMobileImage", "carouselLink"].forEach((name) => {
+      if (forms.bannerForm.elements[name]) forms.bannerForm.elements[name].value = "";
+    });
+    if (forms.bannerForm.elements.carouselOrder) forms.bannerForm.elements.carouselOrder.value = (state.settings.banners || []).length + 1;
+    if (forms.bannerForm.elements.carouselActive) forms.bannerForm.elements.carouselActive.checked = true;
   }
 
   function fillObjectForm(form, values) {
@@ -623,6 +786,28 @@
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.download = `kairos-relatorio-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
+
+  function exportLeadsCsv() {
+    const rows = [["nome", "whatsapp", "cidade", "data", "origem"]];
+    state.leads.forEach((lead) => rows.push([
+      lead.name || "",
+      lead.whatsapp || "",
+      lead.city || "",
+      lead.created_at || lead.date || "",
+      lead.source || "home"
+    ]));
+    downloadCsv(rows, `kairos-leads-${new Date().toISOString().slice(0, 10)}.csv`);
+  }
+
+  function downloadCsv(rows, filename) {
+    const csv = rows.map((row) => row.map((cell) => `"${String(cell || "").replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
     link.click();
     URL.revokeObjectURL(link.href);
   }
@@ -726,6 +911,12 @@
 
   function formatNumber(value) {
     return Number(value || 0).toLocaleString("pt-BR");
+  }
+
+  function formatDateTime(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
   }
 
   function escapeHtml(value) {

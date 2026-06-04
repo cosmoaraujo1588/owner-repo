@@ -1,6 +1,7 @@
-import { getSupabase, sendJson, cleanText } from "./_supabase.js";
+import { getSupabase, isAdmin, sendJson, cleanText } from "./_supabase.js";
 
 export default async function handler(req, res) {
+  if (req.method === "GET") return listLeads(req, res);
   if (req.method !== "POST") return sendJson(res, 405, { error: "Method not allowed" });
   const supabase = getSupabase();
   if (!supabase) return sendJson(res, 202, { ok: true, local: true });
@@ -15,6 +16,19 @@ export default async function handler(req, res) {
   });
   if (result.error) return sendJson(res, 500, { error: result.error.message });
   sendJson(res, 200, { ok: true });
+}
+
+async function listLeads(req, res) {
+  if (!isAdmin(req)) return sendJson(res, 401, { error: "Unauthorized" });
+  const supabase = getSupabase();
+  if (!supabase) return sendJson(res, 503, { error: "Supabase not configured" });
+  const { data, error } = await supabase
+    .from("leads")
+    .select("id,name,whatsapp,city,source,status,created_at")
+    .order("created_at", { ascending: false })
+    .limit(2000);
+  if (error) return sendJson(res, 500, { error: error.message });
+  sendJson(res, 200, { leads: data || [] });
 }
 
 function readBody(req) {

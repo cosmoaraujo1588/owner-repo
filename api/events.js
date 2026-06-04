@@ -5,6 +5,7 @@ const CLICK_EVENT_TYPES = new Set([
   "buy_click",
   "product_click",
   "whatsapp_click",
+  "whatsapp_group_click",
   "share_product",
   "tracking_open",
   "category_filter",

@@ -6,7 +6,7 @@
     <title>Painel Administrativo | Kairos Shopping</title>
     <meta name="robots" content="noindex,nofollow">
     <link rel="icon" href="./assets/logo-kairos-oficial.png">
-    <link rel="stylesheet" href="./styles.css?v=20260603-zero">
+    <link rel="stylesheet" href="./styles.css?v=20260604-priority">
   </head>
   <body class="admin-body">
     <div class="admin-shell">
@@ -18,6 +18,7 @@
         <nav class="admin-nav" id="adminNav">
           <button class="active" data-section="dashboard" type="button">Dashboard</button>
           <button data-section="reports" type="button">Relatorios em Tempo Real</button>
+          <button data-section="leads" type="button">Leads</button>
           <button data-section="products" type="button">Produtos</button>
           <button data-section="categories" type="button">Categorias</button>
           <button data-section="banners" type="button">Banners</button>
@@ -35,6 +36,7 @@
             <h1>Kairos Shopping</h1>
           </div>
           <div class="admin-actions">
+            <button class="secondary-button compact admin-menu-toggle" type="button" id="adminMenuToggle">Menu</button>
             <a class="secondary-button compact" href="./index.html" target="_blank">Abrir loja</a>
             <button class="primary-button compact" type="button" id="saveAllButton">Salvar tudo</button>
           </div>
@@ -42,9 +44,19 @@
 
         <section class="admin-section active" id="section-dashboard">
           <div class="metric-grid" id="metricGrid"></div>
+          <div class="metric-grid health-grid" id="storeHealthGrid"></div>
           <div class="admin-card">
             <h2>Status da loja</h2>
             <p id="connectionStatus">Carregando catalogo...</p>
+          </div>
+          <div class="admin-card">
+            <h2>Top 10 produtos</h2>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Produto</th><th>Visualizacoes</th><th>Cliques</th><th>Conversao</th></tr></thead>
+                <tbody id="topProductRows"></tbody>
+              </table>
+            </div>
           </div>
         </section>
 
@@ -77,6 +89,28 @@
               <table>
                 <thead><tr><th>Produto</th><th>Visualizacoes</th><th>Checkout</th><th>Favoritos</th><th>Taxa</th></tr></thead>
                 <tbody id="productReportRows"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="admin-section" id="section-leads">
+          <div class="admin-card">
+            <div class="catalog-toolbar">
+              <div>
+                <span class="eyebrow">Contatos capturados</span>
+                <h2>Leads da loja</h2>
+              </div>
+              <div class="admin-actions">
+                <span class="pill" id="leadCount">0 leads</span>
+                <button class="secondary-button compact" type="button" id="refreshLeads">Atualizar</button>
+                <button class="secondary-button compact" type="button" id="exportLeadsCsv">Baixar CSV</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Nome</th><th>WhatsApp</th><th>Cidade</th><th>Data</th><th>Origem</th></tr></thead>
+                <tbody id="leadRows"></tbody>
               </table>
             </div>
           </div>
@@ -145,19 +179,34 @@
 
         <section class="admin-section" id="section-banners">
           <form class="admin-card form-grid" id="bannerForm">
+            <input type="hidden" name="bannerId">
             <label class="full">Banner principal desktop<input name="bannerUrl" type="url"></label>
             <label class="full">Banner principal mobile<input name="bannerMobileUrl" type="url"></label>
             <label>Titulo do banner<input name="heroTitle"></label>
             <label>Subtitulo do banner<input name="heroSubtitle"></label>
             <label>Texto do botao<input name="heroButtonText"></label>
             <label>Link do botao<input name="heroButtonLink"></label>
+            <label class="full">Carrossel: titulo<input name="carouselTitle"></label>
+            <label class="full">Carrossel: subtitulo<input name="carouselSubtitle"></label>
+            <label class="full">Carrossel: imagem desktop<input name="carouselDesktopImage" type="url"></label>
+            <label class="full">Carrossel: imagem mobile<input name="carouselMobileImage" type="url"></label>
+            <label>Carrossel: link<input name="carouselLink"></label>
+            <label>Ordem<input name="carouselOrder" type="number" value="1"></label>
+            <label><input name="carouselActive" type="checkbox" checked> Banner ativo no carrossel</label>
             <label>Barra promocional<input name="promoText"></label>
             <label>Cor da barra<input name="promoColor" type="color" value="#ff6b00"></label>
+            <label>Cor do texto<input name="promoTextColor" type="color" value="#111827"></label>
+            <label>Velocidade (segundos)<input name="promoSpeed" type="number" min="8" value="22"></label>
             <label><input name="promoEnabled" type="checkbox" checked> Barra ativa</label>
             <div class="admin-actions full">
               <button class="primary-button" type="submit">Salvar banners</button>
+              <button class="secondary-button" type="button" id="newBannerButton">Novo banner</button>
             </div>
           </form>
+          <div class="admin-card">
+            <h2>Banners do carrossel</h2>
+            <div class="admin-list" id="bannerList"></div>
+          </div>
         </section>
 
         <section class="admin-section" id="section-reviews">
@@ -212,6 +261,7 @@
           <form class="admin-card form-grid" id="settingsForm">
             <label>Nome da loja<input name="storeName"></label>
             <label>E-mail<input name="storeEmail" type="email"></label>
+            <label>URL publica da loja<input name="siteUrl" type="url" placeholder="https://kairosshopping.com.br"></label>
             <label>WhatsApp<input name="whatsapp"></label>
             <label>Instagram<input name="instagram" type="url"></label>
             <label>Facebook<input name="facebook" type="url"></label>
@@ -229,8 +279,8 @@
       </main>
     </div>
 
-    <script src="./data/seed-products.js?v=20260603-zero"></script>
-    <script src="./data/settings.js?v=20260603-zero"></script>
-    <script src="./admin.js?v=20260603-zero" defer></script>
+    <script src="./data/seed-products.js?v=20260604-priority"></script>
+    <script src="./data/settings.js?v=20260604-priority"></script>
+    <script src="./admin.js?v=20260604-priority" defer></script>
   </body>
 </html>

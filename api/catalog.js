@@ -18,23 +18,23 @@ async function getCatalog(req, res) {
   if (!includeInactive) categoriesQuery = categoriesQuery.eq("active", true);
 
   let subcategoriesQuery = supabase.from("subcategories").select("*").order("display_order", { ascending: true });
-if (!includeInactive) subcategoriesQuery = subcategoriesQuery.eq("active", true);
+  if (!includeInactive) subcategoriesQuery = subcategoriesQuery.eq("active", true);
 
-let bannersQuery = supabase.from("banners").select("*").order("display_order", { ascending: true });
-if (!includeInactive) bannersQuery = bannersQuery.eq("active", true);
+  let bannersQuery = supabase.from("banners").select("*").order("display_order", { ascending: true });
+  if (!includeInactive) bannersQuery = bannersQuery.eq("active", true);
 
-let pagesQuery = supabase.from("pages").select("*").order("created_at", { ascending: true });
-if (!includeInactive) pagesQuery = pagesQuery.eq("active", true);
+  let pagesQuery = supabase.from("pages").select("*").order("created_at", { ascending: true });
+  if (!includeInactive) pagesQuery = pagesQuery.eq("active", true);
 
-const [products, categories, subcategories, banners, pages, settings, reviews] = await Promise.all([
-  productsQuery,
-  categoriesQuery,
-  subcategoriesQuery,
-  bannersQuery,
-  pagesQuery,
-  supabase.from("settings").select("*").eq("key", "store").maybeSingle(),
-  supabase.from("reviews").select("*").eq("active", true).order("created_at", { ascending: false }).limit(50)
-]);
+  const [products, categories, subcategories, banners, pages, settings, reviews] = await Promise.all([
+    productsQuery,
+    categoriesQuery,
+    subcategoriesQuery,
+    bannersQuery,
+    pagesQuery,
+    supabase.from("settings").select("*").eq("key", "store").maybeSingle(),
+    supabase.from("reviews").select("*").eq("active", true).order("created_at", { ascending: false }).limit(500)
+  ]);
 
   if (products.error) return sendJson(res, 500, { error: products.error.message });
 
@@ -42,15 +42,15 @@ const [products, categories, subcategories, banners, pages, settings, reviews] =
   storeSettings.reviews = reviews.data?.map(fromReview) || storeSettings.reviews || [];
 
   sendJson(res, 200, {
-  source: "supabase",
-  updatedAt: new Date().toISOString(),
-  products: (products.data || []).map(fromProduct),
-  categories: (categories.data || []).map(fromCategory),
-  subcategories: (subcategories.data || []).map(fromSubcategory),
-  banners: (banners.data || []).map(fromBanner),
-  pages: (pages.data || []).map(fromPage),
-  settings: storeSettings
-});
+    source: "supabase",
+    updatedAt: new Date().toISOString(),
+    products: (products.data || []).map(fromProduct),
+    categories: (categories.data || []).map(fromCategory),
+    subcategories: (subcategories.data || []).map(fromSubcategory),
+    banners: (banners.data || []).map(fromBanner),
+    pages: (pages.data || []).map(fromPage),
+    settings: storeSettings
+  });
 }
 async function putCatalog(req, res) {
   if (!isAdmin(req)) return sendJson(res, 401, { error: "Unauthorized" });
@@ -172,6 +172,7 @@ function fromReview(row) {
     product: row.product_name || "",
     rating: Number(row.rating || 5),
     text: row.comment || "",
+    date: row.created_at || row.updated_at || "",
     featured: row.active !== false
   };
 }
@@ -229,9 +230,11 @@ function fromBanner(row) {
     title: row.title || "",
     subtitle: row.subtitle || "",
     image: row.image_url || "",
+    desktopImage: row.image_url || "",
     mobileImage: row.mobile_image_url || "",
     buttonText: row.button_text || "Ver produtos",
     buttonLink: row.button_link || "#produtos",
+    link: row.button_link || "#produtos",
     placement: row.placement || "main",
     active: row.active !== false,
     order: Number(row.display_order || 0)

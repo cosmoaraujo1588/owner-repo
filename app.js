@@ -4,36 +4,42 @@
   const FALLBACK_IMAGE = "./images/placeholder.svg";
   const FAVORITES_KEY = "kairos:favorites";
   const SESSION_KEY = "kairos:session";
+  const WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/EOzxSL6u8QP6LPXmXO6Ym7?s=cl&p=a&mlu=0";
   const DEFAULT_SETTINGS = window.KAIROS_DEFAULT_SETTINGS || {};
   const SEED_PRODUCTS = Array.isArray(window.KAIROS_SEED_PRODUCTS) ? window.KAIROS_SEED_PRODUCTS : [];
 
   const state = {
-  products: [],
-  settings: normalizeSettings(DEFAULT_SETTINGS),
-  banners: [],
-  subcategories: [],
-  pages: [],
-  category: "Todos",
-  subcategory: "Todas",
-  search: "",
-  sort: "relevance",
-  favorites: readJson(FAVORITES_KEY, []),
-  sessionId: getSessionId(),
-  supabaseConfig: null
-};
+    products: [],
+    settings: normalizeSettings(DEFAULT_SETTINGS),
+    category: "Todos",
+    categoryKey: "todos",
+    search: "",
+    sort: "relevance",
+    favorites: readJson(FAVORITES_KEY, []),
+    sessionId: getSessionId(),
+    supabaseConfig: null,
+    bannerTimer: null,
+    bannerIndex: 0,
+    reviewTimer: null
+  };
 
   const els = {
     promoBar: document.getElementById("promoBar"),
+    footerPromoBar: document.getElementById("footerPromoBar"),
+    heroCarousel: document.getElementById("heroCarousel"),
     categoryRail: document.getElementById("categoryRail"),
     bestSellerGrid: document.getElementById("bestSellerGrid"),
     flashGrid: document.getElementById("flashGrid"),
     catalogGrid: document.getElementById("catalogGrid"),
+    catalogCount: document.getElementById("catalogCount"),
     videoGrid: document.getElementById("videoGrid"),
     emptyProducts: document.getElementById("emptyProducts"),
     searchForm: document.getElementById("searchForm"),
     searchInput: document.getElementById("searchInput"),
+    searchSuggestions: document.getElementById("searchSuggestions"),
     sortSelect: document.getElementById("sortSelect"),
     productModal: document.getElementById("productModal"),
+    shareMenu: document.getElementById("shareMenu"),
     reviewGrid: document.getElementById("reviewGrid"),
     faqList: document.getElementById("faqList"),
     trackingForm: document.getElementById("trackingForm"),
@@ -52,50 +58,55 @@
     bindEvents();
     await loadCatalog();
     renderAll();
+    openProductFromLocation();
     trackEvent("page_view", { page: location.pathname || "/" });
     startPresence();
     startActivityPopup();
     startRealtimeRefresh();
+    window.addEventListener("popstate", openProductFromLocation);
   }
 
   async function loadCatalog() {
-  try {
-    const response = await fetch(`/api/catalog?t=${Date.now()}`, { cache: "no-store" });
-    if (!response.ok) throw new Error("Catalog API unavailable");
-    const catalog = await response.json();
+    try {
+      const response = await fetch(`/api/catalog?t=${Date.now()}`, { cache: "no-store" });
+      if (!response.ok) throw new Error("Catalog API unavailable");
+      const catalog = await response.json();
+      state.products = sanitizeProducts(catalog.products || []);
+      const settingsBanners = Array.isArray(catalog.settings?.banners) ? catalog.settings.banners : [];
+      const tableBanners = Array.isArray(catalog.banners) ? catalog.banners : [];
+      state.settings = normalizeSettings({ ...DEFAULT_SETTINGS, ...(catalog.settings || {}), banners: [...settingsBanners, ...tableBanners] });
+    } catch {
+      const localProducts = readJson("kairos:local-products", null);
+      const localSettings = readJson("kairos:local-settings", null);
+      state.products = sanitizeProducts(localProducts || SEED_PRODUCTS);
+      state.settings = normalizeSettings({ ...DEFAULT_SETTINGS, ...(localSettings || {}) });
+    }
 
-    state.products = sanitizeProducts(catalog.products || []);
-    state.settings = normalizeSettings({ ...DEFAULT_SETTINGS, ...(catalog.settings || {}) });
-    state.banners = Array.isArray(catalog.banners) ? catalog.banners : [];
-    state.subcategories = Array.isArray(catalog.subcategories) ? catalog.subcategories : [];
-    state.pages = Array.isArray(catalog.pages) ? catalog.pages : [];
-  } catch {
-    const localProducts = readJson("kairos:local-products", null);
-    const localSettings = readJson("kairos:local-settings", null);
-
-    state.products = sanitizeProducts(localProducts || SEED_PRODUCTS);
-    state.settings = normalizeSettings({ ...DEFAULT_SETTINGS, ...(localSettings || {}) });
-    state.banners = [];
-    state.subcategories = [];
-    state.pages = [];
+    try {
+      const configResponse = await fetch("/api/config", { cache: "no-store" });
+      if (configResponse.ok) state.supabaseConfig = await configResponse.json();
+    } catch {
+      state.supabaseConfig = null;
+    }
   }
-
-  try {
-    const configResponse = await fetch("/api/config", { cache: "no-store" });
-    if (configResponse.ok) state.supabaseConfig = await configResponse.json();
-  } catch {
-    state.supabaseConfig = null;
-  }
-}
 
   function bindEvents() {
     els.searchForm?.addEventListener("submit", (event) => {
       event.preventDefault();
       state.search = (els.searchInput?.value || "").trim();
       trackEvent("search", { query: state.search });
+      hideSuggestions();
       renderProducts();
       document.getElementById("produtos")?.scrollIntoView({ behavior: "smooth" });
     });
+
+    els.searchInput?.addEventListener("input", () => {
+      state.search = (els.searchInput.value || "").trim();
+      renderSearchSuggestions();
+      renderProducts();
+    });
+
+    els.searchInput?.addEventListener("focus", renderSearchSuggestions);
 
     els.sortSelect?.addEventListener("change", () => {
       state.sort = els.sortSelect.value;
@@ -113,6 +124,30 @@
     });
 
     document.addEventListener("click", (event) => {
+      const groupLink = event.target.closest("[data-whatsapp-group]");
+      if (groupLink) {
+        trackEvent("whatsapp_group_click", { source: groupLink.dataset.whatsappGroup || "home" });
+        return;
+      }
+
+      if (els.shareMenu && !event.target.closest(".share-menu") && !event.target.closest("[data-action='share']") && !event.target.closest("[data-modal-action='share']")) {
+        hideShareMenu();
+      }
+
+      const suggestion = event.target.closest("[data-suggestion]");
+      if (suggestion) {
+        event.preventDefault();
+        applySuggestion(suggestion.dataset.suggestion, suggestion.dataset.kind);
+        return;
+      }
+
+      const shareButton = event.target.closest("[data-share-network]");
+      if (shareButton) {
+        event.preventDefault();
+        handleShareNetwork(shareButton.dataset.shareNetwork, shareButton.dataset.productId);
+        return;
+      }
+
       const button = event.target.closest("[data-action]");
       if (!button) return;
       const id = button.dataset.productId;
@@ -133,65 +168,109 @@
     els.leadForm?.addEventListener("submit", async (event) => {
       event.preventDefault();
       const data = Object.fromEntries(new FormData(els.leadForm).entries());
-      await sendLead(data);
-      els.leadForm.reset();
-      toast("Cadastro recebido. Obrigado por fazer parte da Kairos Shopping.");
+      try {
+        await sendLead(data);
+        els.leadForm.reset();
+        toast("Cadastro recebido. Obrigado por fazer parte da Kairos Shopping.");
+      } catch (error) {
+        toast(error.message || "Nao foi possivel salvar seu cadastro agora.");
+      }
     });
   }
 
   function renderAll() {
-  applySettings();
-  renderHeroBanner();
-  renderCategories();
-  renderProducts();
-  renderReviews();
-  renderFaq();
-  renderAssistant();
-  renderSocial();
-}
+    applySettings();
+    renderBanners();
+    renderCategories();
+    renderProducts();
+    renderReviews();
+    renderFaq();
+    renderAssistant();
+    renderSocial();
+  }
 
   function applySettings() {
     const promo = state.settings.promoBar || {};
-    if (els.promoBar) {
-      els.promoBar.textContent = promo.enabled === false ? "" : (promo.text || "Frete gratis para todo o Brasil");
-      els.promoBar.hidden = promo.enabled === false;
-      els.promoBar.style.background = promo.backgroundColor || "#ff6b00";
-      els.promoBar.style.color = promo.textColor || "#111827";
-    }
+    setMarquee(els.promoBar, promo, "FRETE GRATIS PARA TODO O BRASIL");
+    setMarquee(els.footerPromoBar, promo, "FRETE GRATIS PARA TODO O BRASIL");
 
     if (els.trackingPortal) els.trackingPortal.href = state.settings.trackingUrl;
     if (els.footerWhatsapp) els.footerWhatsapp.href = whatsappUrl();
   }
-function renderHeroBanner() {
-  const banner = state.banners.find((item) => item.active !== false && item.placement === "main") || state.banners[0];
-  const img = document.querySelector(".hero-media img");
 
-  if (!banner || !img || !banner.image) return;
-
-  const selectedImage = banner.mobileImage && window.innerWidth < 640 ? banner.mobileImage : banner.image;
-  img.src = selectedImage;
-  img.alt = banner.title || "Banner Kairos Shopping";
-
-  const primary = document.querySelector(".hero-actions .primary-button");
-  if (primary) {
-    primary.textContent = banner.buttonText || "Ver produtos";
-    primary.href = banner.buttonLink || "#produtos";
+  function setMarquee(container, promo, fallbackText) {
+    if (!container) return;
+    const enabled = promo.enabled !== false;
+    const text = promo.text || fallbackText;
+    container.hidden = !enabled;
+    container.style.background = promo.backgroundColor || "#ff6b00";
+    container.style.color = promo.textColor || "#111827";
+    container.style.setProperty("--marquee-speed", `${Math.max(8, Number(promo.speedSeconds || promo.speed || 22))}s`);
+    container.innerHTML = `
+      <div class="marquee-track">
+        <span>&#128666; ${escapeHtml(text)}</span>
+        <span>&#9889; ${escapeHtml(text)}</span>
+        <span>&#128230; ${escapeHtml(text)}</span>
+        <span>&#128666; ${escapeHtml(text)}</span>
+      </div>
+    `;
   }
-}
+
+  function renderBanners() {
+    if (!els.heroCarousel) return;
+    const banners = normalizeBanners();
+    if (!banners.length) return;
+    els.heroCarousel.innerHTML = banners.map((banner, index) => {
+      const desktop = banner.desktopImage || banner.image || state.settings.bannerUrl;
+      const mobile = banner.mobileImage || desktop;
+      const href = banner.link || banner.buttonLink || "#produtos";
+      return `
+        <a class="hero-slide ${index === state.bannerIndex ? "active" : ""}" href="${escapeHtml(href)}" ${href.startsWith("http") ? 'target="_blank" rel="noopener"' : ""}>
+          <picture>
+            <source media="(max-width: 640px)" srcset="${escapeHtml(mobile)}">
+            <img src="${escapeHtml(desktop)}" alt="${escapeHtml(banner.title || "Banner Kairos Shopping")}" ${index === 0 ? 'fetchpriority="high"' : 'loading="lazy"'} onerror="this.onerror=null;this.src='./assets/banner-principal-kairos.jpg'">
+          </picture>
+        </a>
+      `;
+    }).join("");
+
+    if (state.bannerTimer) clearInterval(state.bannerTimer);
+    if (banners.length > 1) {
+      state.bannerTimer = setInterval(() => {
+        state.bannerIndex = (state.bannerIndex + 1) % banners.length;
+        els.heroCarousel.querySelectorAll(".hero-slide").forEach((slide, index) => {
+          slide.classList.toggle("active", index === state.bannerIndex);
+        });
+      }, 5000);
+    }
+  }
+
   function renderCategories() {
-    const categories = ["Todos", ...unique(state.products.filter(isVisible).map((item) => item.category)).sort()];
+    const visible = state.products.filter(isVisible);
+    const counts = visible.reduce((acc, product) => {
+      const label = product.category || "Ofertas";
+      const key = categoryKey(label);
+      if (!acc[key]) acc[key] = { label, count: 0 };
+      acc[key].count += 1;
+      return acc;
+    }, {});
+    const categories = [{ label: "Todos", key: "todos", count: visible.length }, ...Object.values(counts).sort((a, b) => a.label.localeCompare(b.label, "pt-BR"))];
     els.categoryRail.innerHTML = categories.map((category) => `
-      <button class="category-chip ${state.category === category ? "active" : ""}" type="button" data-category="${escapeHtml(category)}">
-        <span>${categoryIcon(category)}</span>${escapeHtml(category)}
+      <button class="category-chip ${state.categoryKey === category.key ? "active" : ""}" type="button" data-category="${escapeHtml(category.label)}" data-category-key="${escapeHtml(category.key)}">
+        <span>${categoryIcon(category.label)}</span>
+        <strong>${escapeHtml(category.label)}</strong>
+        <small>${formatNumber(category.count)}</small>
       </button>
     `).join("");
 
-    els.categoryRail.querySelectorAll("[data-category]").forEach((button) => {
+    els.categoryRail.querySelectorAll("[data-category-key]").forEach((button) => {
       button.addEventListener("click", () => {
         state.category = button.dataset.category;
+        state.categoryKey = button.dataset.categoryKey || categoryKey(state.category);
         trackEvent("category_filter", { category: state.category });
         renderCategories();
         renderProducts();
+        document.getElementById("produtos")?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
     });
   }
@@ -202,17 +281,21 @@ function renderHeroBanner() {
     const flash = visible.filter((item) => item.flashOffer || item.oldPrice).slice(0, 8);
     const videos = visible.filter((item) => item.videoUrl).slice(0, 8);
     const catalog = sortProducts(filterProducts(visible));
+    const bestSection = els.bestSellerGrid?.closest(".section-block");
+    const flashSection = els.flashGrid?.closest(".section-block");
+    const videoSection = els.videoGrid?.closest(".section-block");
 
-    renderGrid(els.bestSellerGrid, best.length ? best : visible.slice(0, 8), "Nenhum produto em ranking agora.");
+    renderGrid(els.bestSellerGrid, best.length ? best : visible.slice(0, 8), "Novos produtos serao destacados em breve.");
     renderGrid(els.flashGrid, flash, "");
     renderGrid(els.videoGrid, videos, "Videos serao exibidos aqui quando cadastrados no painel.");
     renderGrid(els.catalogGrid, catalog, "");
 
-    if (els.flashGrid.closest(".section-block")) {
-      els.flashGrid.closest(".section-block").hidden = flash.length === 0;
-    }
-    if (els.videoGrid.closest(".section-block")) {
-      els.videoGrid.closest(".section-block").hidden = videos.length === 0;
+    if (bestSection) bestSection.hidden = visible.length === 0;
+    if (flashSection) flashSection.hidden = flash.length === 0;
+    if (videoSection) videoSection.hidden = videos.length === 0;
+    if (els.catalogCount) {
+      const label = state.categoryKey === "todos" ? "produtos ativos" : `em ${state.category}`;
+      els.catalogCount.textContent = `${formatNumber(catalog.length)} ${label}`;
     }
     els.emptyProducts.hidden = catalog.length > 0;
   }
@@ -260,11 +343,17 @@ function renderHeroBanner() {
     `;
   }
 
-  function openProduct(id) {
+  function openProduct(id, options = {}) {
     const product = findProduct(id);
     if (!product) return;
+    if (!options.keepUrl) {
+      const url = productUrl(product);
+      history.pushState({ productId: product.id }, "", url);
+      applyProductSeo(product);
+    }
     trackEvent("product_view", { product_id: product.id, product_name: product.title, category: product.category });
     const favorite = state.favorites.includes(product.id);
+    const related = relatedProducts(product);
     els.productModal.hidden = false;
     els.productModal.innerHTML = `
       <div class="modal-backdrop" data-modal-action="close"></div>
@@ -288,6 +377,20 @@ function renderHeroBanner() {
           ${accordion("Descricao completa", product.description)}
           ${accordion("Entrega", "Logo apos o pagamento, o pedido sera processado em ate 2 dias uteis. O tempo total de envio geralmente varia entre 3 e 15 dias uteis, dependendo do fornecedor e da sua localidade.")}
           ${accordion("Trocas e devolucoes", state.settings.content?.returns || "Consulte a politica de trocas e devolucoes da loja.")}
+          ${related.length ? `
+            <section class="related-products">
+              <h3>Voce tambem pode gostar</h3>
+              <div class="related-grid">
+                ${related.map((item) => `
+                  <button type="button" class="related-card" data-action="details" data-product-id="${escapeHtml(item.id)}">
+                    <img src="${escapeHtml(item.image || FALLBACK_IMAGE)}" alt="${escapeHtml(item.title)}" loading="lazy" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'">
+                    <span>${escapeHtml(item.title)}</span>
+                    <strong>${formatCurrency(item.price)}</strong>
+                  </button>
+                `).join("")}
+              </div>
+            </section>
+          ` : ""}
         </div>
       </article>
     `;
@@ -296,6 +399,10 @@ function renderHeroBanner() {
   function closeModal() {
     els.productModal.hidden = true;
     els.productModal.innerHTML = "";
+    if (location.pathname.startsWith("/produto/")) {
+      history.pushState({}, "", "/");
+      applyProductSeo(null);
+    }
   }
 
   async function buyProduct(id) {
@@ -317,18 +424,69 @@ function renderHeroBanner() {
   async function shareProduct(id) {
     const product = findProduct(id);
     if (!product) return;
-    const url = `${location.origin}${location.pathname}?produto=${encodeURIComponent(product.id)}`;
+    const url = productUrl(product);
     await trackEvent("share_product", { product_id: product.id, product_name: product.title });
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: product.title, text: product.shortDescription, url });
-        return;
-      } catch {
-        // The user may cancel native sharing.
-      }
+    showShareMenu(product, url);
+  }
+
+  function showShareMenu(product, url) {
+    if (!els.shareMenu) return;
+    els.shareMenu.hidden = false;
+    els.shareMenu.innerHTML = `
+      <div class="share-menu-card">
+        <button class="share-close" type="button" data-share-network="close" data-product-id="${escapeHtml(product.id)}">x</button>
+        <div class="share-product">
+          <img src="${escapeHtml(product.image || FALLBACK_IMAGE)}" alt="${escapeHtml(product.title)}" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'">
+          <div>
+            <strong>${escapeHtml(product.title)}</strong>
+            <span>${formatCurrency(product.price)}</span>
+          </div>
+        </div>
+        <div class="share-options">
+          ${["whatsapp", "facebook", "x", "telegram", "pinterest", "copy"].map((network) => `
+            <button type="button" data-share-network="${network}" data-product-id="${escapeHtml(product.id)}">${shareLabel(network)}</button>
+          `).join("")}
+        </div>
+        <input readonly value="${escapeHtml(url)}" aria-label="Link do produto">
+      </div>
+    `;
+  }
+
+  async function handleShareNetwork(network, id) {
+    if (network === "close") {
+      hideShareMenu();
+      return;
     }
-    await navigator.clipboard?.writeText(url);
-    toast("Link do produto copiado.");
+    const product = findProduct(id);
+    if (!product) return;
+    const url = productUrl(product);
+    const text = `${product.title} - ${product.shortDescription || "Oferta Kairos Shopping"}`;
+    const image = product.image || "";
+    const shareUrls = {
+      whatsapp: `https://wa.me/?text=${encodeURIComponent(`${text} ${url}`)}`,
+      facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
+      x: `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`,
+      telegram: `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`,
+      pinterest: `https://www.pinterest.com/pin/create/button/?url=${encodeURIComponent(url)}&media=${encodeURIComponent(image)}&description=${encodeURIComponent(text)}`
+    };
+    if (network === "copy") {
+      await navigator.clipboard?.writeText(url);
+      toast("Link do produto copiado.");
+      hideShareMenu();
+      return;
+    }
+    if (shareUrls[network]) window.open(shareUrls[network], "_blank", "noopener");
+    hideShareMenu();
+  }
+
+  function hideShareMenu() {
+    if (!els.shareMenu) return;
+    els.shareMenu.hidden = true;
+    els.shareMenu.innerHTML = "";
+  }
+
+  function shareLabel(network) {
+    return { whatsapp: "WhatsApp", facebook: "Facebook", x: "X", telegram: "Telegram", pinterest: "Pinterest", copy: "Copiar link" }[network] || network;
   }
 
   function toggleFavorite(id) {
@@ -343,13 +501,21 @@ function renderHeroBanner() {
 
   function renderReviews() {
     const reviews = normalizeReviews(state.settings.reviews);
+    if (!els.reviewGrid) return;
     els.reviewGrid.innerHTML = reviews.map((review) => `
       <article class="review-card">
         <div>${stars(review.rating)} <strong>${escapeHtml(review.name)}</strong></div>
         <p>${escapeHtml(review.text)}</p>
-        <span>${escapeHtml(review.product || "Compra Kairos")}${review.city ? ` · ${escapeHtml(review.city)}` : ""}</span>
+        <span>${escapeHtml(review.product || "Compra Kairos")}${review.city ? ` - ${escapeHtml(review.city)}` : ""}${review.date ? ` - ${formatReviewDate(review.date)}` : ""}</span>
       </article>
     `).join("");
+    if (state.reviewTimer) clearInterval(state.reviewTimer);
+    state.reviewTimer = setInterval(() => {
+      if (!els.reviewGrid || els.reviewGrid.scrollWidth <= els.reviewGrid.clientWidth) return;
+      const next = els.reviewGrid.scrollLeft + Math.min(320, els.reviewGrid.clientWidth);
+      const resetAt = els.reviewGrid.scrollWidth - els.reviewGrid.clientWidth - 8;
+      els.reviewGrid.scrollTo({ left: next >= resetAt ? 0 : next, behavior: "smooth" });
+    }, 5000);
   }
 
   function renderFaq() {
@@ -418,15 +584,19 @@ function renderHeroBanner() {
   }
 
   function showActivityPopup() {
-    const products = state.products.filter(isVisible);
+    const products = state.products.filter(isVisible).slice(0, 20);
     if (!products.length || !els.activityPopup) return;
     const product = products[Math.floor(Math.random() * products.length)];
+    const soldToday = soldCount(product);
     els.activityPopup.hidden = false;
     els.activityPopup.innerHTML = `
-      <button type="button" aria-label="Fechar">×</button>
-      <strong>Produto em destaque</strong>
-      <span>${escapeHtml(product.title)}</span>
-      <a href="#produtos" data-action="details" data-product-id="${escapeHtml(product.id)}">Ver</a>
+      <button type="button" class="activity-close" aria-label="Fechar">x</button>
+      <img src="${escapeHtml(product.image || FALLBACK_IMAGE)}" alt="${escapeHtml(product.title)}" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'">
+      <div>
+        <strong>${formatNumber(soldToday)} clientes compraram</strong>
+        <span>${escapeHtml(shortTitle(product.title))}</span>
+      </div>
+      <button type="button" class="activity-link" data-action="details" data-product-id="${escapeHtml(product.id)}">Ver produto</button>
     `;
     els.activityPopup.querySelector("button").onclick = () => els.activityPopup.hidden = true;
     setTimeout(() => { if (els.activityPopup) els.activityPopup.hidden = true; }, Math.max(4, Number(state.settings.purchasePopup?.visibleSeconds || 6)) * 1000);
@@ -446,11 +616,12 @@ function renderHeroBanner() {
   }
 
   async function sendLead(data) {
-    await fetch("/api/leads", {
+    const response = await fetch("/api/leads", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...data, source: "home", session_id: state.sessionId })
-    }).catch(() => null);
+    });
+    if (!response.ok) throw new Error("Nao foi possivel salvar o cadastro agora.");
     await trackEvent("lead", { source: "whatsapp_group" });
   }
 
@@ -479,10 +650,10 @@ function renderHeroBanner() {
   }
 
   function filterProducts(products) {
-    const term = state.search.toLowerCase();
+    const term = normalizeTerm(state.search);
     return products.filter((product) => {
-      const matchCategory = state.category === "Todos" || product.category === state.category;
-      const searchText = `${product.title} ${product.category} ${product.subcategory} ${product.description}`.toLowerCase();
+      const matchCategory = state.categoryKey === "todos" || categoryKey(product.category) === state.categoryKey;
+      const searchText = searchIndex(product);
       return matchCategory && (!term || searchText.includes(term));
     });
   }
@@ -508,6 +679,9 @@ function renderHeroBanner() {
       image: safeImage(product.image || product.imageUrl),
       gallery: Array.isArray(product.gallery) ? product.gallery : [],
       checkoutUrl: String(product.checkoutUrl || ""),
+      slug: product.slug || slugify(product.title || product.name || `produto-${index + 1}`),
+      keywords: Array.isArray(product.keywords) ? product.keywords : String(product.keywords || product.tags || "").split(",").map((item) => item.trim()).filter(Boolean),
+      tag: String(product.tag || ""),
       reviewRating: Number(product.reviewRating || product.rating || 4.8),
       reviewCount: Number(product.reviewCount || product.reviewsCount || 0),
       visible: product.visible !== false && product.active !== false,
@@ -524,8 +698,11 @@ function renderHeroBanner() {
     return {
       storeName: settings.storeName || "Kairos Shopping",
       storeEmail: settings.storeEmail || "kairossshopping@gmail.com",
+      siteUrl: settings.siteUrl || "",
       logoUrl: settings.logoUrl || "./assets/logo-kairos-oficial.png",
       bannerUrl: settings.bannerUrl || "./assets/banner-principal-kairos.jpg",
+      bannerMobileUrl: settings.bannerMobileUrl || settings.bannerUrl || "./assets/banner-principal-kairos.jpg",
+      banners: Array.isArray(settings.banners) ? settings.banners : [],
       trackingUrl: settings.trackingUrl || "https://app.kaiross.com.br/rastreio",
       promoBar: settings.promoBar || { enabled: true, text: "Frete gratis para todo o Brasil", backgroundColor: "#ff6b00", textColor: "#111827" },
       assistant: settings.assistant || {},
@@ -538,7 +715,9 @@ function renderHeroBanner() {
 
   function normalizeReviews(value) {
     const reviews = Array.isArray(value) ? value : [];
-    return reviews.filter((item) => item.featured !== false).slice(0, 6);
+    return reviews
+      .filter((item) => item.featured !== false)
+      .sort((a, b) => new Date(b.date || b.created_at || 0) - new Date(a.date || a.created_at || 0));
   }
 
   function defaultReviews() {
@@ -551,12 +730,13 @@ function renderHeroBanner() {
 
   function safeImage(value) {
     const src = String(value || "");
-    if (!src || src.startsWith("data:") || /\/images\/products\//.test(src)) return FALLBACK_IMAGE;
+    if (!src || /^(data:|blob:|file:)/i.test(src) || /^[a-z]:\\/i.test(src)) return FALLBACK_IMAGE;
     return src;
   }
 
   function findProduct(id) {
-    return state.products.find((product) => product.id === id);
+    const value = String(id || "");
+    return state.products.find((product) => product.id === value || product.slug === value || slugify(product.title) === value);
   }
 
   function isVisible(product) {
@@ -580,7 +760,7 @@ function renderHeroBanner() {
   function whatsappUrl(product) {
     const phone = String(state.settings.social?.whatsapp || "").replace(/\D/g, "");
     const text = product
-      ? `Ola, tenho interesse no produto: ${product.title} - ${location.origin}${location.pathname}?produto=${product.id}`
+      ? `Ola, tenho interesse no produto: ${product.title} - ${productUrl(product)}`
       : state.settings.whatsappMessage || "Ola, vim pelo site da Kairos Shopping e gostaria de atendimento.";
     return `https://wa.me/${phone || ""}?text=${encodeURIComponent(text)}`;
   }
@@ -597,7 +777,161 @@ function renderHeroBanner() {
   }
 
   function currentProductFromUrl() {
+    const pathMatch = location.pathname.match(/^\/produto\/([^/?#]+)/);
+    if (pathMatch) return decodeURIComponent(pathMatch[1]);
     return new URLSearchParams(location.search).get("produto") || "";
+  }
+
+  function productUrl(product) {
+    const base = (state.settings.siteUrl || location.origin).replace(/\/+$/, "");
+    return `${base}/produto/${encodeURIComponent(product.slug || slugify(product.title || product.id))}`;
+  }
+
+  function slugify(value) {
+    return normalizeTerm(value)
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 90) || "produto";
+  }
+
+  function categoryKey(value) {
+    return value === "Todos" ? "todos" : slugify(value || "ofertas");
+  }
+
+  function normalizeTerm(value) {
+    return String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
+  }
+
+  function searchIndex(product) {
+    return normalizeTerm([
+      product.title,
+      product.category,
+      product.subcategory,
+      product.description,
+      product.shortDescription,
+      product.tag,
+      ...(product.keywords || [])
+    ].join(" "));
+  }
+
+  function renderSearchSuggestions() {
+    if (!els.searchSuggestions) return;
+    const term = normalizeTerm(els.searchInput?.value || "");
+    if (term.length < 2) {
+      hideSuggestions();
+      return;
+    }
+    const products = state.products.filter(isVisible).filter((product) => searchIndex(product).includes(term)).slice(0, 6);
+    const categories = unique(state.products.filter(isVisible).map((product) => product.category))
+      .filter((category) => normalizeTerm(category).includes(term))
+      .slice(0, 3);
+    const rows = [
+      ...products.map((product) => ({ kind: "product", value: product.id, label: product.title, meta: formatCurrency(product.price) })),
+      ...categories.map((category) => ({ kind: "category", value: category, label: category, meta: "Categoria" }))
+    ];
+    els.searchSuggestions.hidden = rows.length === 0;
+    els.searchSuggestions.innerHTML = rows.map((row) => `
+      <button type="button" data-suggestion="${escapeHtml(row.value)}" data-kind="${escapeHtml(row.kind)}">
+        <span>${escapeHtml(row.label)}</span>
+        <small>${escapeHtml(row.meta)}</small>
+      </button>
+    `).join("");
+  }
+
+  function applySuggestion(value, kind) {
+    if (kind === "product") {
+      hideSuggestions();
+      openProduct(value);
+      return;
+    }
+    state.category = value;
+    state.categoryKey = categoryKey(value);
+    state.search = "";
+    if (els.searchInput) els.searchInput.value = "";
+    hideSuggestions();
+    renderCategories();
+    renderProducts();
+    document.getElementById("produtos")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function hideSuggestions() {
+    if (!els.searchSuggestions) return;
+    els.searchSuggestions.hidden = true;
+    els.searchSuggestions.innerHTML = "";
+  }
+
+  function openProductFromLocation() {
+    const value = currentProductFromUrl();
+    if (!value) return;
+    const product = findProduct(value);
+    if (product) {
+      openProduct(product.id, { keepUrl: true });
+      applyProductSeo(product);
+    }
+  }
+
+  function relatedProducts(product) {
+    return state.products
+      .filter((item) => isVisible(item) && item.id !== product.id && categoryKey(item.category) === categoryKey(product.category))
+      .slice(0, 4);
+  }
+
+  function normalizeBanners() {
+    const active = (state.settings.banners || [])
+      .filter((banner) => banner && banner.active !== false)
+      .sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
+    if (active.length) return active.slice(0, 4);
+    return [{
+      title: "Kairos Shopping",
+      desktopImage: state.settings.bannerUrl || "./assets/banner-principal-kairos.jpg",
+      mobileImage: state.settings.bannerMobileUrl || state.settings.bannerUrl || "./assets/banner-principal-kairos.jpg",
+      link: "#produtos",
+      active: true,
+      order: 1
+    }];
+  }
+
+  function applyProductSeo(product) {
+    document.title = product ? `${product.title} | Kairos Shopping` : "Kairos Shopping | Produtos selecionados com frete gratis para todo o Brasil";
+    setMeta("description", product ? (product.shortDescription || product.description || "Produto Kairos Shopping").slice(0, 155) : "Compre produtos selecionados na Kairos Shopping. Frete gratis para todo o Brasil, pedido com rastreamento e checkout externo oficial por produto.");
+    setMeta("og:title", product ? product.title : "Kairos Shopping", true);
+    setMeta("og:description", product ? (product.shortDescription || product.description || "Produto Kairos Shopping").slice(0, 180) : "Tudo que voce procura, em um so lugar. Produtos selecionados, frete gratis e rastreamento.", true);
+    setMeta("og:image", absoluteUrl(product?.image || "./assets/banner-principal-kairos.jpg"), true);
+    setMeta("og:url", product ? productUrl(product) : `${location.origin}/`, true);
+  }
+
+  function setMeta(name, content, property = false) {
+    const selector = property ? `meta[property="${name}"]` : `meta[name="${name}"]`;
+    const node = document.querySelector(selector);
+    if (node) node.setAttribute("content", content);
+  }
+
+  function absoluteUrl(value) {
+    try {
+      return new URL(value || "/", location.origin).href;
+    } catch {
+      return `${location.origin}/assets/banner-principal-kairos.jpg`;
+    }
+  }
+
+  function soldCount(product) {
+    const base = Array.from(String(product.id || product.title || "")).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+    return 18 + (base % 43);
+  }
+
+  function shortTitle(value) {
+    const text = String(value || "");
+    return text.length > 42 ? `${text.slice(0, 39)}...` : text;
+  }
+
+  function formatReviewDate(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
   }
 
   function getDevice() {

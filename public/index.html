@@ -8,14 +8,34 @@
     <meta name="keywords" content="Kairos Shopping, ofertas, produtos online, frete gratis, marketplace, eletronicos, casa, beleza">
     <meta property="og:title" content="Kairos Shopping">
     <meta property="og:description" content="Tudo que voce procura, em um so lugar. Produtos selecionados, frete gratis e rastreamento.">
-    <meta property="og:image" content="./assets/banner-principal-kairos.jpg">
+    <meta property="og:image" content="https://kairosshopping.vercel.app/assets/banner-principal-kairos.jpg">
+    <meta property="og:url" content="https://kairosshopping.vercel.app/">
     <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="canonical" href="https://kairosshopping.vercel.app/">
     <meta name="theme-color" content="#ff6b00">
     <link rel="icon" href="./assets/logo-kairos-oficial.png">
-    <link rel="stylesheet" href="./styles.css?v=20260603-zero">
+    <link rel="stylesheet" href="./styles.css?v=20260604-priority">
+    <script type="application/ld+json" id="structuredData">
+      {
+        "@context": "https://schema.org",
+        "@type": "OnlineStore",
+        "name": "Kairos Shopping",
+        "url": "https://kairosshopping.vercel.app/",
+        "email": "kairossshopping@gmail.com",
+        "logo": "https://kairosshopping.vercel.app/assets/logo-kairos-oficial.png",
+        "sameAs": []
+      }
+    </script>
   </head>
   <body>
-    <div class="top-strip" id="promoBar">Frete gratis para todo o Brasil</div>
+    <div class="top-strip" id="promoBar" aria-label="Promocao da loja">
+      <div class="marquee-track">
+        <span>&#128666; FRETE GRATIS PARA TODO O BRASIL</span>
+        <span>&#128666; FRETE GRATIS PARA TODO O BRASIL</span>
+        <span>&#128666; FRETE GRATIS PARA TODO O BRASIL</span>
+      </div>
+    </div>
 
     <header class="site-header">
       <a class="brand" href="#inicio" aria-label="Kairos Shopping">
@@ -25,6 +45,7 @@
       <form class="search" id="searchForm">
         <input id="searchInput" type="search" placeholder="Buscar produtos, categorias e ofertas" autocomplete="off">
         <button type="submit">Buscar</button>
+        <div class="search-suggestions" id="searchSuggestions" hidden></div>
       </form>
       <nav class="header-actions" aria-label="Acoes principais">
         <a href="#produtos">Produtos</a>
@@ -34,7 +55,7 @@
 
     <main id="inicio">
       <section class="hero">
-        <div class="hero-media">
+        <div class="hero-media" id="heroCarousel">
           <img src="./assets/banner-principal-kairos.jpg" alt="Banner Kairos Shopping com categorias de produtos" fetchpriority="high">
         </div>
         <div class="hero-actions">
@@ -95,6 +116,7 @@
           <div class="section-heading">
             <span>Catalogo Kairos</span>
             <h2>Produtos em destaque</h2>
+            <p class="catalog-count" id="catalogCount"></p>
           </div>
           <select id="sortSelect" aria-label="Ordenar produtos">
             <option value="relevance">Mais relevantes</option>
@@ -164,6 +186,15 @@
         </form>
       </section>
 
+      <section class="section-block whatsapp-group-section">
+        <div>
+          <span class="eyebrow">&#128717; Receba ofertas exclusivas</span>
+          <h2>Receba ofertas exclusivas no WhatsApp</h2>
+          <p>Entre no grupo oficial da Kairos Shopping e receba promocoes, novidades e produtos selecionados em primeira mao.</p>
+        </div>
+        <a class="primary-button" href="https://chat.whatsapp.com/EOzxSL6u8QP6LPXmXO6Ym7?s=cl&p=a&mlu=0" target="_blank" rel="noopener" data-whatsapp-group="home">Entrar no grupo</a>
+      </section>
+
       <section class="section-block faq-section" id="faq">
         <div class="section-heading">
           <span>Duvidas frequentes</span>
@@ -172,6 +203,14 @@
         <div class="accordion" id="faqList"></div>
       </section>
     </main>
+
+    <div class="bottom-strip" id="footerPromoBar" aria-hidden="true">
+      <div class="marquee-track reverse">
+        <span>&#128666; FRETE GRATIS PARA TODO O BRASIL</span>
+        <span>&#9889; OFERTAS SELECIONADAS TODOS OS DIAS</span>
+        <span>&#128230; PEDIDO COM RASTREAMENTO</span>
+      </div>
+    </div>
 
     <footer class="site-footer">
       <div>
@@ -199,12 +238,21 @@
       </nav>
     </footer>
 
+    <nav class="mobile-bottom-nav" aria-label="Atalhos rapidos">
+      <a href="#inicio"><span>⌂</span>Inicio</a>
+      <a href="#produtos"><span>▦</span>Produtos</a>
+      <a href="#categoryRail"><span>◇</span>Categorias</a>
+      <a href="#rastreio"><span>⌖</span>Rastreio</a>
+      <a href="https://chat.whatsapp.com/EOzxSL6u8QP6LPXmXO6Ym7?s=cl&p=a&mlu=0" target="_blank" rel="noopener" data-whatsapp-group="mobile_bottom_nav"><span>&#128172;</span>Ofertas</a>
+    </nav>
+
     <div class="product-modal" id="productModal" hidden></div>
+    <div class="share-menu" id="shareMenu" hidden></div>
     <div class="assistant-widget" id="assistantWidget"></div>
     <div class="activity-popup" id="activityPopup" hidden></div>
 
-    <script src="./data/seed-products.js?v=20260603-zero"></script>
-    <script src="./data/settings.js?v=20260603-zero"></script>
-    <script src="./app.js?v=20260603-zero" defer></script>
+    <script src="./data/seed-products.js?v=20260604-priority"></script>
+    <script src="./data/settings.js?v=20260604-priority"></script>
+    <script src="./app.js?v=20260604-priority" defer></script>
   </body>
 </html>

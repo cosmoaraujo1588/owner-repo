@@ -25,6 +25,7 @@
     }
   ],
   "rewrites": [
+    { "source": "/produto/:slug", "destination": "/api/product-page?slug=:slug" },
     { "source": "/admin", "destination": "/admin.html" }
   ]
 }
