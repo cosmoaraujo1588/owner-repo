@@ -17,12 +17,24 @@ async function getCatalog(req, res) {
   let categoriesQuery = supabase.from("categories").select("*").order("display_order", { ascending: true });
   if (!includeInactive) categoriesQuery = categoriesQuery.eq("active", true);
 
-  const [products, categories, settings, reviews] = await Promise.all([
-    productsQuery,
-    categoriesQuery,
-    supabase.from("settings").select("*").eq("key", "store").maybeSingle(),
-    supabase.from("reviews").select("*").eq("active", true).order("created_at", { ascending: false }).limit(50)
-  ]);
+  let subcategoriesQuery = supabase.from("subcategories").select("*").order("display_order", { ascending: true });
+if (!includeInactive) subcategoriesQuery = subcategoriesQuery.eq("active", true);
+
+let bannersQuery = supabase.from("banners").select("*").order("display_order", { ascending: true });
+if (!includeInactive) bannersQuery = bannersQuery.eq("active", true);
+
+let pagesQuery = supabase.from("pages").select("*").order("created_at", { ascending: true });
+if (!includeInactive) pagesQuery = pagesQuery.eq("active", true);
+
+const [products, categories, subcategories, banners, pages, settings, reviews] = await Promise.all([
+  productsQuery,
+  categoriesQuery,
+  subcategoriesQuery,
+  bannersQuery,
+  pagesQuery,
+  supabase.from("settings").select("*").eq("key", "store").maybeSingle(),
+  supabase.from("reviews").select("*").eq("active", true).order("created_at", { ascending: false }).limit(50)
+]);
 
   if (products.error) return sendJson(res, 500, { error: products.error.message });
 
