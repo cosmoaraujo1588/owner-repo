@@ -59,30 +59,34 @@
   }
 
   async function loadCatalog() {
-    try {
-      const response = await fetch(`/api/catalog?t=${Date.now()}`, { cache: "no-store" });
-      if (!response.ok) throw new Error("Catalog API unavailable");
-      const catalog = await response.json();
-      state.products = sanitizeProducts(catalog.products || []);
-      state.settings = normalizeSettings({ ...DEFAULT_SETTINGS, ...(catalog.settings || {}) });
-    } catch {
-      const localProducts = readJson("kairos:local-products", null);
-      const localSettings = readJson("kairos:local-settings", null);
-      state.products = sanitizeProducts(localProducts || SEED_PRODUCTS);
-      state.settings = normalizeSettings({ ...DEFAULT_SETTINGS, ...(localSettings || {}) });
-    }
-state.banners = Array.isArray(catalog.banners) ? catalog.banners : [];
-state.subcategories = Array.isArray(catalog.subcategories) ? catalog.subcategories : [];
-state.pages = Array.isArray(catalog.pages) ? catalog.pages : [];
-    try {
-      const configResponse = await fetch("/api/config", { cache: "no-store" });
-      if (configResponse.ok) state.supabaseConfig = await configResponse.json();
-    } catch { state.banners = [];
-state.subcategories = [];
-state.pages = [];
-      state.supabaseConfig = null;
-    }
+  try {
+    const response = await fetch(`/api/catalog?t=${Date.now()}`, { cache: "no-store" });
+    if (!response.ok) throw new Error("Catalog API unavailable");
+    const catalog = await response.json();
+
+    state.products = sanitizeProducts(catalog.products || []);
+    state.settings = normalizeSettings({ ...DEFAULT_SETTINGS, ...(catalog.settings || {}) });
+    state.banners = Array.isArray(catalog.banners) ? catalog.banners : [];
+    state.subcategories = Array.isArray(catalog.subcategories) ? catalog.subcategories : [];
+    state.pages = Array.isArray(catalog.pages) ? catalog.pages : [];
+  } catch {
+    const localProducts = readJson("kairos:local-products", null);
+    const localSettings = readJson("kairos:local-settings", null);
+
+    state.products = sanitizeProducts(localProducts || SEED_PRODUCTS);
+    state.settings = normalizeSettings({ ...DEFAULT_SETTINGS, ...(localSettings || {}) });
+    state.banners = [];
+    state.subcategories = [];
+    state.pages = [];
   }
+
+  try {
+    const configResponse = await fetch("/api/config", { cache: "no-store" });
+    if (configResponse.ok) state.supabaseConfig = await configResponse.json();
+  } catch {
+    state.supabaseConfig = null;
+  }
+}
 
   function bindEvents() {
     els.searchForm?.addEventListener("submit", (event) => {
