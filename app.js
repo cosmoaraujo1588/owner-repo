@@ -77,7 +77,9 @@ state.pages = Array.isArray(catalog.pages) ? catalog.pages : [];
     try {
       const configResponse = await fetch("/api/config", { cache: "no-store" });
       if (configResponse.ok) state.supabaseConfig = await configResponse.json();
-    } catch {
+    } catch { state.banners = [];
+state.subcategories = [];
+state.pages = [];
       state.supabaseConfig = null;
     }
   }
