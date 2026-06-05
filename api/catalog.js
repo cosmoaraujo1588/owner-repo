@@ -65,14 +65,14 @@ async function putCatalog(req, res) {
   let categories = [];
   let subcategories = [];
   try {
-    products = Array.isArray(body.products) ? body.products.map(toProduct) : [];
-    categories = Array.isArray(body.categories) ? body.categories.map(toCategory) : [];
-    subcategories = Array.isArray(body.subcategories) ? body.subcategories.map(toSubcategory) : [];
+    products = uniqueById(Array.isArray(body.products) ? body.products.map(toProduct) : []);
+    categories = uniqueById(Array.isArray(body.categories) ? body.categories.map(toCategory) : []);
+    subcategories = uniqueById(Array.isArray(body.subcategories) ? body.subcategories.map(toSubcategory) : []);
   } catch (error) {
     return sendJson(res, 400, { error: error.message || "Dados invalidos no catalogo" });
   }
   const settings = body.settings || {};
-  const reviews = Array.isArray(settings.reviews) ? settings.reviews.map(toReview) : [];
+  const reviews = uniqueById(Array.isArray(settings.reviews) ? settings.reviews.map(toReview) : []);
 
   const [productResult, categoryResult, subcategoryResult, settingsResult] = await Promise.all([
     products.length ? supabase.from("products").upsert(products, { onConflict: "id" }) : Promise.resolve({ error: null }),
@@ -133,7 +133,7 @@ function fromProduct(row) {
 }
 
 function toProduct(product, index) {
-  const id = cleanText(product.id) || slugify(product.title || `produto-${index}`);
+  const id = cleanText(product.id) || `${slugify(product.title || "produto")}-${Date.now()}-${index}`;
   return {
     id,
     title: cleanText(product.title, 240) || "Produto sem titulo",
@@ -218,6 +218,17 @@ function toReview(review) {
     active: review.featured !== false,
     updated_at: new Date().toISOString()
   };
+}
+
+function uniqueById(items) {
+  const map = new Map();
+
+  for (const item of items || []) {
+    if (!item || !item.id) continue;
+    map.set(String(item.id), item);
+  }
+
+  return Array.from(map.values());
 }
 
 function publicImageUrl(value, title = "produto") {
