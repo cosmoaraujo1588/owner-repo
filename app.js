@@ -114,6 +114,7 @@
       event.preventDefault();
       state.search = (els.searchInput?.value || "").trim();
       trackEvent("search", { query: state.search });
+      if(typeof fbq !== 'undefined') fbq('track','Search',{search_string: state.search});
       hideSuggestions();
       renderProducts();
       document.getElementById("produtos")?.scrollIntoView({ behavior: "smooth" });
@@ -132,13 +133,7 @@
       renderProducts();
     });
 
-    els.productModalfbq('track','ViewContent',{
-  content_name: produto.nome || produto.title || '',
-  content_ids: [produto.id || produto.slug || ''],
-  content_type: 'product',
-  value: parseFloat(produto.preco || produto.price || 0),
-  currency: 'BRL'
-});?.addEventListener("click", (event) => {
+    els.productModal?.addEventListener("click", (event) => {
       const target = event.target.closest("[data-modal-action]");
       if (!target) return;
       const action = target.dataset.modalAction;
@@ -390,6 +385,13 @@
       applyProductSeo(product);
     }
     trackEvent("product_view", { product_id: product.id, product_name: product.title, category: product.category });
+    if(typeof fbq !== 'undefined') fbq('track','ViewContent',{
+      content_name: product.title,
+      content_ids: [product.id],
+      content_type: 'product',
+      value: product.price || 0,
+      currency: 'BRL'
+    });
     const favorite = state.favorites.includes(product.id);
     const related = relatedProducts(product);
     els.productModal.hidden = false;
@@ -456,6 +458,13 @@
       toast("Checkout ainda nao configurado para este produto.");
       return;
     }
+    if(typeof fbq !== 'undefined') fbq('track','InitiateCheckout',{
+      content_name: product.title,
+      content_ids: [product.id],
+      value: product.price || 0,
+      currency: 'BRL',
+      num_items: 1
+    });
     window.open(product.checkoutUrl, "_blank", "noopener");
   }
 
@@ -661,6 +670,7 @@
     });
     if (!response.ok) throw new Error("Nao foi possivel salvar o cadastro agora.");
     await trackEvent("lead", { source: "whatsapp_group" });
+    if(typeof fbq !== 'undefined') fbq('track','Lead',{content_name:'WhatsApp Kairos Shopping'});
   }
 
   async function trackEvent(type, payload = {}) {
