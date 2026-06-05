@@ -1,12 +1,14 @@
 import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
+import WebSocket from "ws";
 
 export function getSupabase() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return null;
   return createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false }
+    auth: { persistSession: false, autoRefreshToken: false },
+    realtime: { transport: WebSocket }
   });
 }
 
