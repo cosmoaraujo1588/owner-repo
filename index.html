@@ -264,13 +264,18 @@ src="https://www.facebook.com/tr?id=897410516544780&ev=PageView&noscript=1"/></n
       </nav>
     </footer>
 
-    <nav class="mobile-bottom-nav" aria-label="Atalhos rapidos">
-      <a href="#inicio"><span>âŒ‚</span>Inicio</a>
-      <a href="#produtos"><span>â–¦</span>Produtos</a>
-      <a href="#categoryRail"><span>â—‡</span>Categorias</a>
-      <a href="#rastreio"><span>âŒ–</span>Rastreio</a>
-      <a href="https://chat.whatsapp.com/EOzxSL6u8QP6LPXmXO6Ym7?s=cl&p=a&mlu=0" target="_blank" rel="noopener" data-whatsapp-group="mobile_bottom_nav"><span>&#128172;</span>Ofertas</a>
-    </nav>
+    .mobile-bottom-nav span {
+  display: block;
+  font-size: 1.25rem;
+  line-height: 1;
+  margin-bottom: 3px;
+}
+
+.mobile-bottom-nav a {
+  font-size: 0.72rem;
+  text-align: center;
+  line-height: 1.1;
+}
 
     <div class="product-modal" id="productModal" hidden></div>
     <div class="share-menu" id="shareMenu" hidden></div>
