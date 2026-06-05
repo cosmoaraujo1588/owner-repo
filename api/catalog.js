@@ -7,6 +7,7 @@ export default async function handler(req, res) {
 }
 
 async function getCatalog(req, res) {
+  res.setHeader("Cache-Control", "no-store, max-age=0, must-revalidate");
   const supabase = getSupabase();
   if (!supabase) return sendJson(res, 503, { error: "Supabase not configured" });
   const includeInactive = req.query?.includeInactive === "1";
@@ -39,7 +40,8 @@ async function getCatalog(req, res) {
   if (products.error) return sendJson(res, 500, { error: products.error.message });
 
   const storeSettings = settings.data?.value || {};
-  storeSettings.reviews = reviews.data?.map(fromReview) || storeSettings.reviews || [];
+  const reviewList = reviews.data?.map(fromReview) || [];
+  storeSettings.reviews = reviewList.length ? reviewList : storeSettings.reviews || [];
 
   sendJson(res, 200, {
     source: "supabase",
@@ -49,6 +51,7 @@ async function getCatalog(req, res) {
     subcategories: (subcategories.data || []).map(fromSubcategory),
     banners: (banners.data || []).map(fromBanner),
     pages: (pages.data || []).map(fromPage),
+    reviews: storeSettings.reviews,
     settings: storeSettings
   });
 }
@@ -60,31 +63,46 @@ async function putCatalog(req, res) {
   const body = await readBody(req);
   let products = [];
   let categories = [];
+  let subcategories = [];
   try {
     products = Array.isArray(body.products) ? body.products.map(toProduct) : [];
     categories = Array.isArray(body.categories) ? body.categories.map(toCategory) : [];
+    subcategories = Array.isArray(body.subcategories) ? body.subcategories.map(toSubcategory) : [];
   } catch (error) {
     return sendJson(res, 400, { error: error.message || "Dados invalidos no catalogo" });
   }
   const settings = body.settings || {};
   const reviews = Array.isArray(settings.reviews) ? settings.reviews.map(toReview) : [];
 
-  const [productResult, categoryResult, settingsResult] = await Promise.all([
+  const [productResult, categoryResult, subcategoryResult, settingsResult] = await Promise.all([
     products.length ? supabase.from("products").upsert(products, { onConflict: "id" }) : Promise.resolve({ error: null }),
     categories.length ? supabase.from("categories").upsert(categories, { onConflict: "id" }) : Promise.resolve({ error: null }),
+    subcategories.length ? supabase.from("subcategories").upsert(subcategories, { onConflict: "id" }) : Promise.resolve({ error: null }),
     supabase.from("settings").upsert({ key: "store", value: settings, updated_at: new Date().toISOString() }, { onConflict: "key" })
   ]);
 
   if (productResult.error) return sendJson(res, 500, { error: productResult.error.message });
   if (categoryResult.error) return sendJson(res, 500, { error: categoryResult.error.message });
+  if (subcategoryResult.error) return sendJson(res, 500, { error: subcategoryResult.error.message });
   if (settingsResult.error) return sendJson(res, 500, { error: settingsResult.error.message });
+
+  if (Array.isArray(settings.reviews)) {
+    const existingReviews = await supabase.from("reviews").select("id");
+    if (existingReviews.error) return sendJson(res, 500, { error: existingReviews.error.message });
+    const activeReviewIds = new Set(reviews.map((review) => review.id));
+    const inactiveIds = (existingReviews.data || []).map((review) => review.id).filter((id) => !activeReviewIds.has(id));
+    if (inactiveIds.length) {
+      const inactiveResult = await supabase.from("reviews").update({ active: false, updated_at: new Date().toISOString() }).in("id", inactiveIds);
+      if (inactiveResult.error) return sendJson(res, 500, { error: inactiveResult.error.message });
+    }
+  }
 
   if (reviews.length) {
     const reviewResult = await supabase.from("reviews").upsert(reviews, { onConflict: "id" });
     if (reviewResult.error) return sendJson(res, 500, { error: reviewResult.error.message });
   }
 
-  sendJson(res, 200, { ok: true, products: products.length, categories: categories.length });
+  sendJson(res, 200, { ok: true, products: products.length, categories: categories.length, subcategories: subcategories.length, reviews: reviews.length });
 }
 
 function fromProduct(row) {
@@ -160,6 +178,18 @@ function toCategory(category, index) {
     image_url: cleanText(category.image || category.imageUrl, 1200),
     active: category.active !== false,
     display_order: Number.isFinite(Number(category.order)) ? Number(category.order) : index,
+    updated_at: new Date().toISOString()
+  };
+}
+
+function toSubcategory(subcategory, index) {
+  return {
+    id: cleanText(subcategory.id) || slugify(subcategory.name || `subcategoria-${index}`),
+    category_id: cleanText(subcategory.categoryId || subcategory.category_id, 120),
+    name: cleanText(subcategory.name, 120),
+    image_url: cleanText(subcategory.image || subcategory.imageUrl, 1200),
+    active: subcategory.active !== false,
+    display_order: Number.isFinite(Number(subcategory.order)) ? Number(subcategory.order) : index,
     updated_at: new Date().toISOString()
   };
 }

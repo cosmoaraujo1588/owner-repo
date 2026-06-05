@@ -2,34 +2,6 @@
 <html lang="pt-BR">
   <head>
     <meta charset="utf-8">
-    <!-- Meta Pixel | Kairos Shopping | 897410516544780 -->
-    <script>
-    !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-    n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
-    n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
-    t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}
-    (window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
-    fbq('init','897410516544780');
-    fbq('track','PageView');
-    </script>
-    <noscript><img height="1" width="1" style="display:none"
-    src="https://www.facebook.com/tr?id=897410516544780&ev=PageView&noscript=1"/></noscript>
-    <!-- /Meta Pixel --><!-- Meta Pixel | Kairos Shopping | ID: 897410516544780 -->
-<script>
-!function(f,b,e,v,n,t,s)
-{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-n.queue=[];t=b.createElement(e);t.async=!0;
-t.src=v;s=b.getElementsByTagName(e)[0];
-s.parentNode.insertBefore(t,s)}(window,document,'script',
-'https://connect.facebook.net/en_US/fbevents.js');
-fbq('init','897410516544780');
-fbq('track','PageView');
-</script>
-<noscript><img height="1" width="1" style="display:none"
-src="https://www.facebook.com/tr?id=897410516544780&ev=PageView&noscript=1"/></noscript>
-<!-- Fim Meta Pixel Base -->
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Kairos Shopping | Produtos selecionados com frete gratis para todo o Brasil</title>
     <meta name="description" content="Compre produtos selecionados na Kairos Shopping. Frete gratis para todo o Brasil, pedido com rastreamento e checkout externo oficial por produto.">
@@ -43,17 +15,26 @@ src="https://www.facebook.com/tr?id=897410516544780&ev=PageView&noscript=1"/></n
     <link rel="canonical" href="https://kairosshopping.vercel.app/">
     <meta name="theme-color" content="#ff6b00">
     <link rel="icon" href="./assets/logo-kairos-oficial.png">
-    <link rel="stylesheet" href="./styles.css?v=20260604-banner-video">
+    <link rel="stylesheet" href="./styles.css?v=20260605-sync-grid">
     <script type="application/ld+json" id="structuredData">
       {
         "@context": "https://schema.org",
         "@type": "OnlineStore",
         "name": "Kairos Shopping",
         "url": "https://kairosshopping.vercel.app/",
-        "email": "kairosShopping@gmail.com",
+        "email": "kairossshopping@gmail.com",
         "logo": "https://kairosshopping.vercel.app/assets/logo-kairos-oficial.png",
         "sameAs": []
       }
+    </script>
+    <script>
+      !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+      n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+      n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+      t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}
+      (window, document,'script','https://connect.facebook.net/en_US/fbevents.js');
+      fbq('init', '897410516544780');
+      fbq('track', 'PageView');
     </script>
   </head>
   <body>
@@ -84,8 +65,8 @@ src="https://www.facebook.com/tr?id=897410516544780&ev=PageView&noscript=1"/></n
     <main id="inicio">
       <section class="hero">
         <div class="hero-media" id="heroCarousel">
-  <img src="./assets/banner-kairos-claro-1.png" ...>
-</div>
+          <img src="./assets/banner-kairos-claro-1.png" alt="Banner Kairos Shopping com produtos selecionados" fetchpriority="high">
+        </div>
         <div class="hero-actions">
           <a class="primary-button" href="#produtos">Ver Produtos</a>
           <a class="secondary-button" href="#promocoes">Ver Promocoes</a>
@@ -98,6 +79,7 @@ src="https://www.facebook.com/tr?id=897410516544780&ev=PageView&noscript=1"/></n
           <h2>Categorias principais</h2>
         </div>
         <div class="category-rail" id="categoryRail"></div>
+        <div class="subcategory-rail" id="subcategoryRail" hidden></div>
       </section>
 
       <section class="trust-row" aria-label="Beneficios da loja">
@@ -139,6 +121,7 @@ src="https://www.facebook.com/tr?id=897410516544780&ev=PageView&noscript=1"/></n
           </select>
         </div>
         <div class="product-grid catalog-grid" id="catalogGrid"></div>
+        <div class="pagination-controls" id="catalogPagination"></div>
         <p class="empty-state" id="emptyProducts" hidden>Nenhum produto ativo encontrado agora. Fale com a Kairos Shopping pelo WhatsApp para receber ofertas atualizadas.</p>
       </section>
 
@@ -243,7 +226,7 @@ src="https://www.facebook.com/tr?id=897410516544780&ev=PageView&noscript=1"/></n
         <img src="./assets/logo-kairos-oficial.png" alt="Kairos Shopping">
         <h2>Kairos Shopping</h2>
         <p>Produtos selecionados, frete gratis para todo o Brasil, pedido com rastreamento e atendimento rapido.</p>
-        <p>E-mail: <a href="mailto:kairosShopping@gmail.com">kairosShopping@gmail.com</a></p>
+        <p>E-mail: <a href="mailto:kairossshopping@gmail.com">kairossshopping@gmail.com</a></p>
       </div>
       <nav>
         <h3>Institucional</h3>
@@ -264,27 +247,22 @@ src="https://www.facebook.com/tr?id=897410516544780&ev=PageView&noscript=1"/></n
       </nav>
     </footer>
 
-    .mobile-bottom-nav span {
-  display: block;
-  font-size: 1.25rem;
-  line-height: 1;
-  margin-bottom: 3px;
-}
-
-.mobile-bottom-nav a {
-  font-size: 0.72rem;
-  text-align: center;
-  line-height: 1.1;
-}
+    <nav class="mobile-bottom-nav" aria-label="Atalhos rapidos">
+      <a href="#inicio"><span aria-hidden="true">&#127968;</span><small>Inicio</small></a>
+      <a href="#produtos"><span aria-hidden="true">&#128717;&#65039;</span><small>Produtos</small></a>
+      <a href="#categoryRail"><span aria-hidden="true">&#128194;</span><small>Categorias</small></a>
+      <a href="#rastreio"><span aria-hidden="true">&#128230;</span><small>Rastreio</small></a>
+      <a href="https://chat.whatsapp.com/EOzxSL6u8QP6LPXmXO6Ym7?s=cl&p=a&mlu=0" target="_blank" rel="noopener" data-whatsapp-group="mobile_bottom_nav"><span aria-hidden="true">&#128172;</span><small>Ofertas</small></a>
+    </nav>
 
     <div class="product-modal" id="productModal" hidden></div>
     <div class="share-menu" id="shareMenu" hidden></div>
     <div class="assistant-widget" id="assistantWidget"></div>
     <div class="activity-popup" id="activityPopup" hidden></div>
 
-    <script src="./data/seed-products.js?v=20260604-banner-video"></script>
-    <script src="./data/settings.js?v=20260604-banner-video"></script>
-    <script src="./app.js?v=20260604-banner-video" defer></script>
+    <script src="./data/seed-products.js?v=20260605-sync-grid"></script>
+    <script src="./data/settings.js?v=20260605-sync-grid"></script>
+    <script src="./app.js?v=20260605-sync-grid" defer></script>
   </body>
 </html>
 

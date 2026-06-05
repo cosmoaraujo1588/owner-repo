@@ -6,7 +6,7 @@
     <title>Painel Administrativo | Kairos Shopping</title>
     <meta name="robots" content="noindex,nofollow">
     <link rel="icon" href="./assets/logo-kairos-oficial.png">
-    <link rel="stylesheet" href="./styles.css?v=20260604-banner-video">
+    <link rel="stylesheet" href="./styles.css?v=20260605-sync-grid">
   </head>
   <body class="admin-body">
     <div class="admin-shell">
@@ -168,11 +168,24 @@
                 <button class="secondary-button" type="button" id="newCategoryButton">Nova</button>
               </div>
             </form>
+            <form class="admin-card form-grid" id="subcategoryForm">
+              <input type="hidden" name="id">
+              <label>Categoria principal<input name="category" list="categoryOptions" required></label>
+              <label>Nome da subcategoria<input name="name" required></label>
+              <label>Imagem da subcategoria<input name="image"></label>
+              <label>Ordem<input name="order" type="number" value="0"></label>
+              <label><input name="active" type="checkbox" checked> Ativa</label>
+              <div class="admin-actions full">
+                <button class="primary-button" type="submit">Salvar subcategoria</button>
+                <button class="secondary-button" type="button" id="newSubcategoryButton">Nova subcategoria</button>
+              </div>
+            </form>
             <div class="admin-card">
               <h2>Categorias e subcategorias</h2>
               <datalist id="categoryOptions"></datalist>
               <datalist id="subcategoryOptions"></datalist>
               <div class="admin-list" id="categoryList"></div>
+              <div class="admin-list" id="subcategoryList"></div>
             </div>
           </div>
         </section>
@@ -283,6 +296,21 @@
             <label class="full">Meta title<input name="metaTitle"></label>
             <label class="full">Meta description<textarea name="metaDescription"></textarea></label>
             <label class="full">Palavras-chave<input name="keywords"></label>
+            <div class="admin-subsection full">
+              <h2>Configuracao da Vitrine</h2>
+              <p>Controle quantos produtos aparecem por pagina e como os cards aparecem na loja.</p>
+            </div>
+            <label>Produtos desktop<input name="desktopPerPage" type="number" min="4" value="12"></label>
+            <label>Produtos tablet<input name="tabletPerPage" type="number" min="3" value="9"></label>
+            <label>Produtos mobile<input name="mobilePerPage" type="number" min="2" value="6"></label>
+            <label>Colunas desktop<input name="desktopColumns" type="number" min="3" max="6" value="4"></label>
+            <label>Colunas tablet<input name="tabletColumns" type="number" min="2" max="4" value="3"></label>
+            <label>Colunas mobile<input name="mobileColumns" type="number" min="2" max="3" value="2"></label>
+            <label><input name="paginationEnabled" type="checkbox" checked> Ativar paginacao</label>
+            <label><input name="loadMoreEnabled" type="checkbox" checked> Ativar Ver mais no mobile</label>
+            <label><input name="showCardDescription" type="checkbox" checked> Mostrar descricao no card</label>
+            <label><input name="showCardRating" type="checkbox" checked> Mostrar avaliacao no card</label>
+            <label><input name="showCardBadge" type="checkbox" checked> Mostrar selos no card</label>
             <div class="admin-actions full">
               <button class="primary-button" type="submit">Salvar configuracoes</button>
             </div>
@@ -291,9 +319,9 @@
       </main>
     </div>
 
-    <script src="./data/seed-products.js?v=20260604-banner-video"></script>
-    <script src="./data/settings.js?v=20260604-banner-video"></script>
-    <script src="./admin.js?v=20260604-banner-video" defer></script>
+    <script src="./data/seed-products.js?v=20260605-sync-grid"></script>
+    <script src="./data/settings.js?v=20260605-sync-grid"></script>
+    <script src="./admin.js?v=20260605-sync-grid" defer></script>
   </body>
 </html>
 

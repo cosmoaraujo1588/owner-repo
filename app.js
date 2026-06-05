@@ -31,10 +31,16 @@
   const state = {
     products: [],
     settings: normalizeSettings(DEFAULT_SETTINGS),
+    categories: [],
+    subcategories: [],
     category: "Todos",
     categoryKey: "todos",
+    subcategory: "Todas",
+    subcategoryKey: "todas",
     search: "",
     sort: "relevance",
+    catalogPage: 1,
+    loadedPages: 1,
     favorites: readJson(FAVORITES_KEY, []),
     sessionId: getSessionId(),
     supabaseConfig: null,
@@ -48,9 +54,11 @@
     footerPromoBar: document.getElementById("footerPromoBar"),
     heroCarousel: document.getElementById("heroCarousel"),
     categoryRail: document.getElementById("categoryRail"),
+    subcategoryRail: document.getElementById("subcategoryRail"),
     bestSellerGrid: document.getElementById("bestSellerGrid"),
     flashGrid: document.getElementById("flashGrid"),
     catalogGrid: document.getElementById("catalogGrid"),
+    catalogPagination: document.getElementById("catalogPagination"),
     catalogCount: document.getElementById("catalogCount"),
     videoGrid: document.getElementById("videoGrid"),
     emptyProducts: document.getElementById("emptyProducts"),
@@ -92,12 +100,18 @@
       if (!response.ok) throw new Error("Catalog API unavailable");
       const catalog = await response.json();
       state.products = sanitizeProducts(catalog.products || []);
+      state.categories = normalizeCategories(catalog.categories || []);
+      state.subcategories = normalizeSubcategories(catalog.subcategories || []);
       const settingsBanners = Array.isArray(catalog.settings?.banners) ? catalog.settings.banners : [];
-      state.settings = normalizeSettings({ ...DEFAULT_SETTINGS, ...(catalog.settings || {}), banners: settingsBanners });
+      const apiReviews = Array.isArray(catalog.reviews) ? catalog.reviews : [];
+      const settingsReviews = Array.isArray(catalog.settings?.reviews) ? catalog.settings.reviews : [];
+      state.settings = normalizeSettings({ ...DEFAULT_SETTINGS, ...(catalog.settings || {}), banners: settingsBanners, reviews: apiReviews.length ? apiReviews : settingsReviews });
     } catch {
       const localProducts = readJson("kairos:local-products", null);
       const localSettings = readJson("kairos:local-settings", null);
       state.products = sanitizeProducts(localProducts || SEED_PRODUCTS);
+      state.categories = normalizeCategories([]);
+      state.subcategories = normalizeSubcategories([]);
       state.settings = normalizeSettings({ ...DEFAULT_SETTINGS, ...(localSettings || {}) });
     }
 
@@ -114,7 +128,8 @@
       event.preventDefault();
       state.search = (els.searchInput?.value || "").trim();
       trackEvent("search", { query: state.search });
-      if(typeof fbq !== 'undefined') fbq('track','Search',{search_string: state.search});
+      if (state.search) trackPixel("Search", { search_string: state.search });
+      resetCatalogPagination();
       hideSuggestions();
       renderProducts();
       document.getElementById("produtos")?.scrollIntoView({ behavior: "smooth" });
@@ -122,6 +137,7 @@
 
     els.searchInput?.addEventListener("input", () => {
       state.search = (els.searchInput.value || "").trim();
+      resetCatalogPagination();
       renderSearchSuggestions();
       renderProducts();
     });
@@ -130,6 +146,7 @@
 
     els.sortSelect?.addEventListener("change", () => {
       state.sort = els.sortSelect.value;
+      resetCatalogPagination();
       renderProducts();
     });
 
@@ -190,6 +207,7 @@
       const data = Object.fromEntries(new FormData(els.leadForm).entries());
       try {
         await sendLead(data);
+        trackPixel("Lead");
         els.leadForm.reset();
         toast("Cadastro recebido. Obrigado por fazer parte da Kairos Shopping.");
       } catch (error) {
@@ -385,13 +403,7 @@
       applyProductSeo(product);
     }
     trackEvent("product_view", { product_id: product.id, product_name: product.title, category: product.category });
-    if(typeof fbq !== 'undefined') fbq('track','ViewContent',{
-      content_name: product.title,
-      content_ids: [product.id],
-      content_type: 'product',
-      value: product.price || 0,
-      currency: 'BRL'
-    });
+    trackPixel("ViewContent", { content_ids: [product.id], content_name: product.title, content_category: product.category, value: Number(product.price || 0), currency: "BRL" });
     const favorite = state.favorites.includes(product.id);
     const related = relatedProducts(product);
     els.productModal.hidden = false;
@@ -458,13 +470,7 @@
       toast("Checkout ainda nao configurado para este produto.");
       return;
     }
-    if(typeof fbq !== 'undefined') fbq('track','InitiateCheckout',{
-      content_name: product.title,
-      content_ids: [product.id],
-      value: product.price || 0,
-      currency: 'BRL',
-      num_items: 1
-    });
+    trackPixel("InitiateCheckout", { content_ids: [product.id], content_name: product.title, content_category: product.category, value: Number(product.price || 0), currency: "BRL" });
     window.open(product.checkoutUrl, "_blank", "noopener");
   }
 
@@ -670,7 +676,6 @@
     });
     if (!response.ok) throw new Error("Nao foi possivel salvar o cadastro agora.");
     await trackEvent("lead", { source: "whatsapp_group" });
-    if(typeof fbq !== 'undefined') fbq('track','Lead',{content_name:'WhatsApp Kairos Shopping'});
   }
 
   async function trackEvent(type, payload = {}) {
@@ -759,7 +764,8 @@
       purchasePopup: settings.purchasePopup || { enabled: true, delaySeconds: 8, intervalSeconds: 36, visibleSeconds: 6 },
       social: settings.social || {},
       content: settings.content || {},
-      reviews: settings.reviews || defaultReviews()
+      storefront: settings.storefront || {},
+      reviews: Array.isArray(settings.reviews) ? settings.reviews : defaultReviews()
     };
   }
 
@@ -1020,6 +1026,309 @@
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#039;");
+  }
+
+  function renderCategories() {
+    if (!els.categoryRail) return;
+    const visible = state.products.filter(isVisible);
+    const counts = visible.reduce((acc, product) => {
+      const label = product.category || "Ofertas";
+      const key = categoryKey(label);
+      if (!acc[key]) acc[key] = { label, count: 0 };
+      acc[key].count += 1;
+      return acc;
+    }, {});
+    const merged = new Map();
+    state.categories
+      .filter((category) => category.active !== false)
+      .sort((a, b) => Number(a.order || 0) - Number(b.order || 0))
+      .forEach((category) => {
+        const key = categoryKey(category.name);
+        merged.set(key, { id: category.id, label: category.name, key, count: counts[key]?.count || 0 });
+      });
+    Object.values(counts).forEach((category) => {
+      const key = categoryKey(category.label);
+      if (!merged.has(key)) merged.set(key, { label: category.label, key, count: category.count });
+    });
+    const categories = [
+      { label: "Todos", key: "todos", count: visible.length },
+      ...Array.from(merged.values()).sort((a, b) => (b.count || 0) - (a.count || 0) || a.label.localeCompare(b.label, "pt-BR"))
+    ];
+    els.categoryRail.innerHTML = categories.map((category) => `
+      <button class="category-chip ${state.categoryKey === category.key ? "active" : ""}" type="button" data-category="${escapeHtml(category.label)}" data-category-key="${escapeHtml(category.key)}">
+        <span>${categoryIcon(category.label)}</span>
+        <strong>${escapeHtml(category.label)}</strong>
+        <small>${formatNumber(category.count)}</small>
+      </button>
+    `).join("");
+    els.categoryRail.querySelectorAll("[data-category-key]").forEach((button) => {
+      button.addEventListener("click", () => {
+        state.category = button.dataset.category;
+        state.categoryKey = button.dataset.categoryKey || categoryKey(state.category);
+        state.subcategory = "Todas";
+        state.subcategoryKey = "todas";
+        resetCatalogPagination();
+        trackEvent("category_filter", { category: state.category });
+        renderCategories();
+        renderSubcategories();
+        renderProducts();
+        document.getElementById("produtos")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
+    renderSubcategories();
+  }
+
+  function renderSubcategories() {
+    if (!els.subcategoryRail) return;
+    const visible = state.products.filter(isVisible);
+    const selectedCategory = state.categories.find((category) => categoryKey(category.name) === state.categoryKey);
+    const productsInCategory = visible.filter((product) => state.categoryKey === "todos" || categoryKey(product.category) === state.categoryKey);
+    const counts = productsInCategory.reduce((acc, product) => {
+      if (!product.subcategory) return acc;
+      const key = categoryKey(product.subcategory);
+      if (!acc[key]) acc[key] = { label: product.subcategory, count: 0 };
+      acc[key].count += 1;
+      return acc;
+    }, {});
+    const merged = new Map();
+    state.subcategories
+      .filter((subcategory) => subcategory.active !== false)
+      .filter((subcategory) => state.categoryKey === "todos" || !subcategory.categoryId || subcategory.categoryId === selectedCategory?.id)
+      .sort((a, b) => Number(a.order || 0) - Number(b.order || 0))
+      .forEach((subcategory) => {
+        const key = categoryKey(subcategory.name);
+        merged.set(key, { label: subcategory.name, key, count: counts[key]?.count || 0 });
+      });
+    Object.values(counts).forEach((subcategory) => {
+      const key = categoryKey(subcategory.label);
+      if (!merged.has(key)) merged.set(key, { label: subcategory.label, key, count: subcategory.count });
+    });
+    const subcategories = [
+      { label: "Todas", key: "todas", count: productsInCategory.length },
+      ...Array.from(merged.values()).sort((a, b) => (b.count || 0) - (a.count || 0) || a.label.localeCompare(b.label, "pt-BR"))
+    ];
+    els.subcategoryRail.hidden = subcategories.length <= 1;
+    els.subcategoryRail.innerHTML = subcategories.map((subcategory) => `
+      <button class="subcategory-chip ${state.subcategoryKey === subcategory.key ? "active" : ""}" type="button" data-subcategory="${escapeHtml(subcategory.label)}" data-subcategory-key="${escapeHtml(subcategory.key)}">
+        ${escapeHtml(subcategory.label)}
+        <small>${formatNumber(subcategory.count)}</small>
+      </button>
+    `).join("");
+    els.subcategoryRail.querySelectorAll("[data-subcategory-key]").forEach((button) => {
+      button.addEventListener("click", () => {
+        state.subcategory = button.dataset.subcategory || "Todas";
+        state.subcategoryKey = button.dataset.subcategoryKey || categoryKey(state.subcategory);
+        resetCatalogPagination();
+        trackEvent("category_filter", { category: state.category, subcategory: state.subcategory });
+        renderSubcategories();
+        renderProducts();
+        document.getElementById("produtos")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
+  }
+
+  function renderProducts() {
+    const visible = state.products.filter(isVisible);
+    const best = visible.filter((item) => item.bestSeller).slice(0, 8);
+    const flash = visible.filter((item) => item.flashOffer || item.oldPrice).slice(0, 8);
+    const videos = visible.filter((item) => item.videoUrl).slice(0, 8);
+    const catalog = sortProducts(filterProducts(visible));
+    const pagedCatalog = paginateProducts(catalog);
+    const bestSection = els.bestSellerGrid?.closest(".section-block");
+    const flashSection = els.flashGrid?.closest(".section-block");
+    const videoSection = els.videoGrid?.closest(".section-block");
+    renderGrid(els.bestSellerGrid, best.length ? best : visible.slice(0, 8), "Novos produtos serao destacados em breve.");
+    renderGrid(els.flashGrid, flash, "");
+    renderGrid(els.videoGrid, videos, "Videos serao exibidos aqui quando cadastrados no painel.");
+    renderGrid(els.catalogGrid, pagedCatalog, "");
+    renderPagination(catalog.length, pagedCatalog.length);
+    if (bestSection) bestSection.hidden = visible.length === 0;
+    if (flashSection) flashSection.hidden = flash.length === 0;
+    if (videoSection) videoSection.hidden = videos.length === 0;
+    if (els.catalogCount) {
+      const scope = state.subcategoryKey !== "todas" ? `em ${state.subcategory}` : state.categoryKey === "todos" ? "produtos ativos" : `em ${state.category}`;
+      els.catalogCount.textContent = `${formatNumber(catalog.length)} ${scope}`;
+    }
+    if (els.emptyProducts) els.emptyProducts.hidden = catalog.length > 0;
+  }
+
+  function productCard(product) {
+    const discount = getDiscount(product);
+    const favorite = state.favorites.includes(product.id);
+    const storefront = storefrontConfig();
+    const showBadges = storefront.showCardBadge !== false;
+    const showRating = storefront.showCardRating !== false;
+    const showDescription = storefront.showCardDescription !== false;
+    return `
+      <article class="product-card" data-product-id="${escapeHtml(product.id)}">
+        <div class="product-image-wrap">
+          <img src="${escapeHtml(product.image || FALLBACK_IMAGE)}" alt="${escapeHtml(product.title)}" loading="lazy" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'">
+          <button class="icon-button favorite ${favorite ? "active" : ""}" type="button" data-action="favorite" data-product-id="${escapeHtml(product.id)}" aria-label="Favoritar produto">♡</button>
+          ${showBadges ? `<div class="badges">
+            ${product.videoUrl ? "<span>Video disponivel</span>" : ""}
+            ${discount ? `<span>${discount}% OFF</span>` : ""}
+            ${product.tag ? `<span>${escapeHtml(product.tag)}</span>` : ""}
+          </div>` : ""}
+        </div>
+        <div class="product-info">
+          <span class="product-category">${escapeHtml(product.category)}</span>
+          <h3>${escapeHtml(product.title)}</h3>
+          ${showDescription ? `<p>${escapeHtml(product.shortDescription || product.description || "").slice(0, 120)}</p>` : ""}
+          ${showRating ? `<div class="rating">${stars(product.reviewRating)} <span>${formatNumber(product.reviewCount)} avaliacoes</span></div>` : ""}
+          <div class="price-row">
+            <strong>${formatCurrency(product.price)}</strong>
+            ${product.oldPrice ? `<del>${formatCurrency(product.oldPrice)}</del>` : ""}
+          </div>
+          <span class="free-shipping">Frete gratis</span>
+          <div class="product-actions">
+            <button type="button" class="secondary-button compact" data-action="details" data-product-id="${escapeHtml(product.id)}">Ver detalhes</button>
+            <button type="button" class="primary-button compact" data-action="buy" data-product-id="${escapeHtml(product.id)}">Comprar agora</button>
+          </div>
+          <button type="button" class="share-link" data-action="share" data-product-id="${escapeHtml(product.id)}">Compartilhar produto</button>
+        </div>
+      </article>
+    `;
+  }
+
+  function filterProducts(products) {
+    const term = normalizeTerm(state.search);
+    return products.filter((product) => {
+      const matchCategory = state.categoryKey === "todos" || categoryKey(product.category) === state.categoryKey;
+      const matchSubcategory = state.subcategoryKey === "todas" || categoryKey(product.subcategory) === state.subcategoryKey;
+      const searchText = searchIndex(product);
+      return matchCategory && matchSubcategory && (!term || searchText.includes(term));
+    });
+  }
+
+  function paginateProducts(products) {
+    const config = storefrontConfig();
+    applyCatalogGridLayout(config);
+    if (config.paginationEnabled === false) return products;
+    const size = pageSizeForViewport(config);
+    const totalPages = Math.max(1, Math.ceil(products.length / size));
+    state.catalogPage = Math.min(Math.max(1, state.catalogPage), totalPages);
+    if (config.loadMoreEnabled && getDevice() === "mobile") {
+      return products.slice(0, size * Math.max(1, state.loadedPages));
+    }
+    const start = (state.catalogPage - 1) * size;
+    return products.slice(start, start + size);
+  }
+
+  function renderPagination(total, shown) {
+    if (!els.catalogPagination) return;
+    const config = storefrontConfig();
+    const size = pageSizeForViewport(config);
+    const totalPages = Math.max(1, Math.ceil(total / size));
+    if (config.paginationEnabled === false || total <= size) {
+      els.catalogPagination.innerHTML = "";
+      return;
+    }
+    if (config.loadMoreEnabled && getDevice() === "mobile") {
+      els.catalogPagination.innerHTML = shown < total
+        ? `<button class="secondary-button" type="button" data-page-action="more">Ver mais produtos</button>`
+        : `<span class="pagination-status">Todos os produtos carregados</span>`;
+    } else {
+      const pages = Array.from({ length: totalPages }, (_, index) => index + 1)
+        .map((page) => `<button class="${page === state.catalogPage ? "active" : ""}" type="button" data-page="${page}">${page}</button>`)
+        .join("");
+      els.catalogPagination.innerHTML = `
+        <button type="button" data-page-action="prev" ${state.catalogPage <= 1 ? "disabled" : ""}>Anterior</button>
+        ${pages}
+        <button type="button" data-page-action="next" ${state.catalogPage >= totalPages ? "disabled" : ""}>Proxima</button>
+      `;
+    }
+    els.catalogPagination.querySelectorAll("[data-page], [data-page-action]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const action = button.dataset.pageAction;
+        if (action === "more") state.loadedPages += 1;
+        if (action === "prev") state.catalogPage -= 1;
+        if (action === "next") state.catalogPage += 1;
+        if (button.dataset.page) state.catalogPage = Number(button.dataset.page);
+        renderProducts();
+        document.getElementById("produtos")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
+  }
+
+  function resetCatalogPagination() {
+    state.catalogPage = 1;
+    state.loadedPages = 1;
+  }
+
+  function storefrontConfig() {
+    return {
+      desktopPerPage: 12,
+      tabletPerPage: 9,
+      mobilePerPage: 6,
+      desktopColumns: 4,
+      tabletColumns: 3,
+      mobileColumns: 2,
+      paginationEnabled: true,
+      loadMoreEnabled: true,
+      showCardDescription: true,
+      showCardRating: true,
+      showCardBadge: true,
+      ...(state.settings.storefront || {})
+    };
+  }
+
+  function pageSizeForViewport(config) {
+    const device = getDevice();
+    if (device === "mobile") return Math.max(2, Number(config.mobilePerPage || 6));
+    if (device === "tablet") return Math.max(3, Number(config.tabletPerPage || 9));
+    return Math.max(4, Number(config.desktopPerPage || 12));
+  }
+
+  function applyCatalogGridLayout(config) {
+    if (!els.catalogGrid) return;
+    const device = getDevice();
+    const columns = device === "mobile"
+      ? Math.max(2, Math.min(3, Number(config.mobileColumns || 2)))
+      : device === "tablet"
+        ? Math.max(2, Math.min(4, Number(config.tabletColumns || 3)))
+        : Math.max(3, Math.min(6, Number(config.desktopColumns || 4)));
+    els.catalogGrid.style.setProperty("--catalog-columns", columns);
+  }
+
+  function normalizeCategories(categories) {
+    return (Array.isArray(categories) ? categories : []).map((category, index) => ({
+      id: String(category.id || slugify(category.name || `categoria-${index + 1}`)),
+      name: String(category.name || category.title || `Categoria ${index + 1}`),
+      image: safeImage(category.image || category.imageUrl),
+      active: category.active !== false,
+      order: Number(category.order || category.position || index)
+    }));
+  }
+
+  function normalizeSubcategories(subcategories) {
+    return (Array.isArray(subcategories) ? subcategories : []).map((subcategory, index) => ({
+      id: String(subcategory.id || slugify(subcategory.name || `subcategoria-${index + 1}`)),
+      categoryId: String(subcategory.categoryId || subcategory.category_id || ""),
+      name: String(subcategory.name || subcategory.title || `Subcategoria ${index + 1}`),
+      image: safeImage(subcategory.image || subcategory.imageUrl),
+      active: subcategory.active !== false,
+      order: Number(subcategory.order || subcategory.position || index)
+    }));
+  }
+
+  function categoryIcon(category) {
+    const text = normalizeTerm(category);
+    if (text.includes("eletr")) return "&#128241;";
+    if (text.includes("roup") || text.includes("moda")) return "&#128085;";
+    if (text.includes("util") || text.includes("casa")) return "&#127968;";
+    if (text.includes("brinqu") || text.includes("infantil")) return "&#129528;";
+    if (text.includes("auto")) return "&#128663;";
+    if (text.includes("promo") || text.includes("oferta")) return "&#9889;";
+    return "&#128717;";
+  }
+
+  function stars(value) {
+    const rating = Math.round(Number(value || 5) * 2) / 2;
+    return `<span class="stars" aria-label="${rating} de 5">&#9733;&#9733;&#9733;&#9733;&#9733;</span>`;
+  }
+
+  function trackPixel(event, payload) {
+    if (typeof window.fbq === "function") window.fbq("track", event, payload || {});
   }
 
   function toast(message) {

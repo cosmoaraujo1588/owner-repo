@@ -22,7 +22,7 @@ export function publicConfig() {
 export function sendJson(res, status, data) {
   res.statusCode = status;
   res.setHeader("Content-Type", "application/json; charset=utf-8");
-  res.setHeader("Cache-Control", "no-store");
+  if (!res.getHeader("Cache-Control")) res.setHeader("Cache-Control", "no-store");
   res.end(JSON.stringify(data));
 }
 

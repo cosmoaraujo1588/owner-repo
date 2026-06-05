@@ -15,7 +15,7 @@
     <link rel="canonical" href="https://kairosshopping.vercel.app/">
     <meta name="theme-color" content="#ff6b00">
     <link rel="icon" href="./assets/logo-kairos-oficial.png">
-    <link rel="stylesheet" href="./styles.css?v=20260604-banner-video">
+    <link rel="stylesheet" href="./styles.css?v=20260605-sync-grid">
     <script type="application/ld+json" id="structuredData">
       {
         "@context": "https://schema.org",
@@ -26,6 +26,15 @@
         "logo": "https://kairosshopping.vercel.app/assets/logo-kairos-oficial.png",
         "sameAs": []
       }
+    </script>
+    <script>
+      !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+      n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+      n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+      t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}
+      (window, document,'script','https://connect.facebook.net/en_US/fbevents.js');
+      fbq('init', '897410516544780');
+      fbq('track', 'PageView');
     </script>
   </head>
   <body>
@@ -70,6 +79,7 @@
           <h2>Categorias principais</h2>
         </div>
         <div class="category-rail" id="categoryRail"></div>
+        <div class="subcategory-rail" id="subcategoryRail" hidden></div>
       </section>
 
       <section class="trust-row" aria-label="Beneficios da loja">
@@ -111,6 +121,7 @@
           </select>
         </div>
         <div class="product-grid catalog-grid" id="catalogGrid"></div>
+        <div class="pagination-controls" id="catalogPagination"></div>
         <p class="empty-state" id="emptyProducts" hidden>Nenhum produto ativo encontrado agora. Fale com a Kairos Shopping pelo WhatsApp para receber ofertas atualizadas.</p>
       </section>
 
@@ -237,11 +248,11 @@
     </footer>
 
     <nav class="mobile-bottom-nav" aria-label="Atalhos rapidos">
-      <a href="#inicio"><span>âŒ‚</span>Inicio</a>
-      <a href="#produtos"><span>â–¦</span>Produtos</a>
-      <a href="#categoryRail"><span>â—‡</span>Categorias</a>
-      <a href="#rastreio"><span>âŒ–</span>Rastreio</a>
-      <a href="https://chat.whatsapp.com/EOzxSL6u8QP6LPXmXO6Ym7?s=cl&p=a&mlu=0" target="_blank" rel="noopener" data-whatsapp-group="mobile_bottom_nav"><span>&#128172;</span>Ofertas</a>
+      <a href="#inicio"><span aria-hidden="true">&#127968;</span><small>Inicio</small></a>
+      <a href="#produtos"><span aria-hidden="true">&#128717;&#65039;</span><small>Produtos</small></a>
+      <a href="#categoryRail"><span aria-hidden="true">&#128194;</span><small>Categorias</small></a>
+      <a href="#rastreio"><span aria-hidden="true">&#128230;</span><small>Rastreio</small></a>
+      <a href="https://chat.whatsapp.com/EOzxSL6u8QP6LPXmXO6Ym7?s=cl&p=a&mlu=0" target="_blank" rel="noopener" data-whatsapp-group="mobile_bottom_nav"><span aria-hidden="true">&#128172;</span><small>Ofertas</small></a>
     </nav>
 
     <div class="product-modal" id="productModal" hidden></div>
@@ -249,9 +260,9 @@
     <div class="assistant-widget" id="assistantWidget"></div>
     <div class="activity-popup" id="activityPopup" hidden></div>
 
-    <script src="./data/seed-products.js?v=20260604-banner-video"></script>
-    <script src="./data/settings.js?v=20260604-banner-video"></script>
-    <script src="./app.js?v=20260604-banner-video" defer></script>
+    <script src="./data/seed-products.js?v=20260605-sync-grid"></script>
+    <script src="./data/settings.js?v=20260605-sync-grid"></script>
+    <script src="./app.js?v=20260605-sync-grid" defer></script>
   </body>
 </html>
 

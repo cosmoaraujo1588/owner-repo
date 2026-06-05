@@ -18,6 +18,7 @@
     products: [],
     settings: window.KAIROS_DEFAULT_SETTINGS || {},
     categories: [],
+    subcategories: [],
     token: localStorage.getItem(TOKEN_KEY) || "",
     reports: [],
     reportSummary: {},
@@ -75,13 +76,13 @@
   function cacheEls() {
     [
       "metricGrid", "connectionStatus", "productList", "productCount", "categoryList",
-      "reviewList", "categoryOptions", "subcategoryOptions", "productReportRows",
+      "reviewList", "categoryOptions", "subcategoryOptions", "subcategoryList", "productReportRows",
       "visitsChart", "liveMetricGrid", "storeHealthGrid", "topProductRows",
       "leadRows", "leadCount", "bannerList"
     ].forEach((id) => els[id] = document.getElementById(id));
 
     [
-      "productForm", "categoryForm", "bannerForm", "reviewForm", "contentForm",
+      "productForm", "categoryForm", "subcategoryForm", "bannerForm", "reviewForm", "contentForm",
       "marketingForm", "settingsForm"
     ].forEach((id) => forms[id] = document.getElementById(id));
   }
@@ -92,17 +93,22 @@
       if (!response.ok) throw new Error("API indisponivel");
       const catalog = await response.json();
       state.products = normalizeProducts(catalog.products || []);
+      const apiReviews = Array.isArray(catalog.reviews) ? catalog.reviews : [];
       state.settings = { ...(window.KAIROS_DEFAULT_SETTINGS || {}), ...(catalog.settings || {}) };
+      if (apiReviews.length) state.settings.reviews = apiReviews;
       state.categories = normalizeCategories(catalog.categories || []);
+      state.subcategories = normalizeSubcategories(catalog.subcategories || []);
       setStatus("Conectado ao backend Supabase/Vercel quando as variaveis estiverem configuradas. Produtos carregados.");
     } catch {
       state.products = normalizeProducts(readJson(LOCAL_PRODUCTS_KEY, window.KAIROS_SEED_PRODUCTS || []));
       state.settings = { ...(window.KAIROS_DEFAULT_SETTINGS || {}), ...readJson(LOCAL_SETTINGS_KEY, {}) };
       state.categories = normalizeCategories([]);
+      state.subcategories = normalizeSubcategories([]);
       setStatus("Modo local ativo. O painel funciona para edicao local e esta pronto para Supabase/Vercel quando as variaveis forem configuradas.");
     }
 
     ensureCategoriesFromProducts();
+    ensureSubcategoriesFromProducts();
     fillForms();
   }
 
@@ -111,6 +117,7 @@
     const payload = {
       products: state.products,
       categories: state.categories,
+      subcategories: state.subcategories,
       settings: state.settings
     };
 
@@ -124,8 +131,13 @@
         body: JSON.stringify(payload)
       });
       if (!response.ok) throw new Error(await response.text());
+      await loadCatalog();
       toast("Alteracoes salvas no backend.");
-    } catch {
+    } catch (error) {
+      if (location.protocol === "https:") {
+        alert(`Nao foi possivel salvar no Supabase/Vercel. Nada foi publicado para os clientes. Erro: ${error.message || "falha desconhecida"}`);
+        throw error;
+      }
       localStorage.setItem(LOCAL_PRODUCTS_KEY, JSON.stringify(state.products));
       localStorage.setItem(LOCAL_SETTINGS_KEY, JSON.stringify(state.settings));
       toast("Alteracoes salvas localmente. Configure Supabase/Vercel para salvar em producao.");
@@ -182,6 +194,7 @@
     document.getElementById("saveAllButton")?.addEventListener("click", saveCatalog);
     document.getElementById("newProductButton")?.addEventListener("click", () => forms.productForm.reset());
     document.getElementById("newCategoryButton")?.addEventListener("click", () => forms.categoryForm.reset());
+    document.getElementById("newSubcategoryButton")?.addEventListener("click", () => forms.subcategoryForm?.reset());
     document.getElementById("newReviewButton")?.addEventListener("click", () => forms.reviewForm.reset());
     document.getElementById("newBannerButton")?.addEventListener("click", () => resetBannerCarouselFields());
     document.getElementById("refreshReports")?.addEventListener("click", async () => {
@@ -245,6 +258,7 @@
       };
       upsert(state.products, product);
       ensureCategoriesFromProducts();
+      ensureSubcategoriesFromProducts();
       form.reset();
       await saveCatalog();
     });
@@ -255,6 +269,24 @@
       const data = Object.fromEntries(new FormData(form).entries());
       upsert(state.categories, {
         id: data.id || slugify(data.name),
+        name: clean(data.name),
+        image: clean(data.image),
+        order: number(data.order),
+        active: Boolean(form.elements.active.checked)
+      });
+      form.reset();
+      await saveCatalog();
+    });
+
+    forms.subcategoryForm?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const data = Object.fromEntries(new FormData(form).entries());
+      const category = state.categories.find((item) => item.name === clean(data.category) || item.id === clean(data.category));
+      upsert(state.subcategories, {
+        id: data.id || slugify(`${data.category}-${data.name}`),
+        categoryId: category?.id || slugify(data.category),
+        categoryName: clean(data.category),
         name: clean(data.name),
         image: clean(data.image),
         order: number(data.order),
@@ -333,6 +365,7 @@
         product: clean(data.product),
         rating: number(data.rating),
         text: clean(data.text),
+        date: new Date().toISOString(),
         featured: Boolean(form.elements.featured.checked)
       });
       state.settings.reviews = reviews;
@@ -372,6 +405,19 @@
         metaTitle: clean(data.metaTitle),
         metaDescription: clean(data.metaDescription),
         keywords: clean(data.keywords)
+      };
+      state.settings.storefront = {
+        desktopPerPage: number(data.desktopPerPage) || 12,
+        tabletPerPage: number(data.tabletPerPage) || 9,
+        mobilePerPage: number(data.mobilePerPage) || 6,
+        desktopColumns: number(data.desktopColumns) || 4,
+        tabletColumns: number(data.tabletColumns) || 3,
+        mobileColumns: number(data.mobileColumns) || 2,
+        paginationEnabled: Boolean(event.currentTarget.elements.paginationEnabled.checked),
+        loadMoreEnabled: Boolean(event.currentTarget.elements.loadMoreEnabled.checked),
+        showCardDescription: Boolean(event.currentTarget.elements.showCardDescription.checked),
+        showCardRating: Boolean(event.currentTarget.elements.showCardRating.checked),
+        showCardBadge: Boolean(event.currentTarget.elements.showCardBadge.checked)
       };
       await saveCatalog();
     });
@@ -423,6 +469,7 @@
     renderMetrics();
     renderProducts();
     renderCategories();
+    renderSubcategories();
     renderBanners();
     renderReviews();
     renderReports();
@@ -524,6 +571,34 @@
       button.addEventListener("click", async () => {
         if (!confirm("Excluir esta categoria?")) return;
         state.categories = state.categories.filter((item) => item.id !== button.dataset.categoryDelete);
+        await saveCatalog();
+      });
+    });
+  }
+
+  function renderSubcategories() {
+    if (!els.subcategoryList) return;
+    els.subcategoryList.innerHTML = state.subcategories.map((subcategory) => `
+      <article class="admin-item">
+        <img src="${escapeHtml(subcategory.image || "./assets/logo-kairos-oficial.png")}" alt="${escapeHtml(subcategory.name)}">
+        <div>
+          <h3>${escapeHtml(subcategory.name)}</h3>
+          <p>${escapeHtml(categoryNameById(subcategory.categoryId) || subcategory.categoryName || "Categoria")} - ${subcategory.active === false ? "Inativa" : "Ativa"} - ordem ${subcategory.order || 0}</p>
+        </div>
+        <div class="admin-item-actions">
+          <button class="secondary-button compact" type="button" data-subcategory-edit="${escapeHtml(subcategory.id)}">Editar</button>
+          <button class="danger-button compact" type="button" data-subcategory-delete="${escapeHtml(subcategory.id)}">Excluir</button>
+        </div>
+      </article>
+    `).join("");
+
+    els.subcategoryList.querySelectorAll("[data-subcategory-edit]").forEach((button) => {
+      button.addEventListener("click", () => fillSubcategoryForm(state.subcategories.find((item) => item.id === button.dataset.subcategoryEdit)));
+    });
+    els.subcategoryList.querySelectorAll("[data-subcategory-delete]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        if (!confirm("Excluir esta subcategoria?")) return;
+        state.subcategories = state.subcategories.filter((item) => item.id !== button.dataset.subcategoryDelete);
         await saveCatalog();
       });
     });
@@ -711,8 +786,21 @@
       youtube: s.social?.youtube,
       metaTitle: s.seo?.metaTitle,
       metaDescription: s.seo?.metaDescription,
-      keywords: s.seo?.keywords
+      keywords: s.seo?.keywords,
+      desktopPerPage: s.storefront?.desktopPerPage || 12,
+      tabletPerPage: s.storefront?.tabletPerPage || 9,
+      mobilePerPage: s.storefront?.mobilePerPage || 6,
+      desktopColumns: s.storefront?.desktopColumns || 4,
+      tabletColumns: s.storefront?.tabletColumns || 3,
+      mobileColumns: s.storefront?.mobileColumns || 2
     });
+    if (forms.settingsForm) {
+      forms.settingsForm.elements.paginationEnabled.checked = s.storefront?.paginationEnabled !== false;
+      forms.settingsForm.elements.loadMoreEnabled.checked = s.storefront?.loadMoreEnabled !== false;
+      forms.settingsForm.elements.showCardDescription.checked = s.storefront?.showCardDescription !== false;
+      forms.settingsForm.elements.showCardRating.checked = s.storefront?.showCardRating !== false;
+      forms.settingsForm.elements.showCardBadge.checked = s.storefront?.showCardBadge !== false;
+    }
 
     const rating = forms.reviewForm?.elements.rating;
     if (rating && !rating.options.length) {
@@ -738,6 +826,14 @@
   function fillCategoryForm(category) {
     fillObjectForm(forms.categoryForm, category || {});
     forms.categoryForm.elements.active.checked = category?.active !== false;
+  }
+
+  function fillSubcategoryForm(subcategory) {
+    fillObjectForm(forms.subcategoryForm, {
+      ...(subcategory || {}),
+      category: categoryNameById(subcategory?.categoryId) || subcategory?.categoryName || ""
+    });
+    if (forms.subcategoryForm?.elements.active) forms.subcategoryForm.elements.active.checked = subcategory?.active !== false;
   }
 
   function fillReviewForm(review) {
@@ -783,7 +879,10 @@
 
   function fillDatalists() {
     els.categoryOptions.innerHTML = state.categories.map((cat) => `<option value="${escapeHtml(cat.name)}"></option>`).join("");
-    const subs = unique(state.products.map((product) => product.subcategory).filter(Boolean));
+    const subs = unique([
+      ...state.subcategories.map((subcategory) => subcategory.name),
+      ...state.products.map((product) => product.subcategory)
+    ].filter(Boolean));
     els.subcategoryOptions.innerHTML = subs.map((sub) => `<option value="${escapeHtml(sub)}"></option>`).join("");
   }
 
@@ -801,6 +900,30 @@
         existing.add(name);
       }
     });
+  }
+
+  function ensureSubcategoriesFromProducts() {
+    const existing = new Set(state.subcategories.map((item) => `${item.categoryId}:${item.name}`));
+    state.products.forEach((product, index) => {
+      if (!product.subcategory) return;
+      const category = state.categories.find((item) => item.name === product.category) || { id: slugify(product.category), name: product.category };
+      const key = `${category.id}:${product.subcategory}`;
+      if (existing.has(key)) return;
+      state.subcategories.push({
+        id: slugify(`${category.id}-${product.subcategory}`),
+        categoryId: category.id,
+        categoryName: category.name,
+        name: product.subcategory,
+        image: "",
+        order: state.subcategories.length + index,
+        active: true
+      });
+      existing.add(key);
+    });
+  }
+
+  function categoryNameById(id) {
+    return state.categories.find((category) => category.id === id)?.name || "";
   }
 
   function productStats(events) {
@@ -882,6 +1005,19 @@
       image: clean(category.image || category.imageUrl),
       order: number(category.order || category.position || index),
       active: category.active !== false
+    }));
+  }
+
+  function normalizeSubcategories(subcategories) {
+    const list = Array.isArray(subcategories) ? subcategories : [];
+    return list.map((subcategory, index) => ({
+      id: subcategory.id || slugify(subcategory.name || `subcategoria-${index}`),
+      categoryId: clean(subcategory.categoryId || subcategory.category_id),
+      categoryName: clean(subcategory.categoryName || subcategory.category),
+      name: clean(subcategory.name || subcategory.title || `Subcategoria ${index + 1}`),
+      image: clean(subcategory.image || subcategory.imageUrl),
+      order: number(subcategory.order || subcategory.position || index),
+      active: subcategory.active !== false
     }));
   }
 
