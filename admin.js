@@ -20,6 +20,7 @@
     categories: [],
     token: localStorage.getItem(TOKEN_KEY) || "",
     reports: [],
+    reportSummary: {},
     leads: [],
     reportTimer: null
   };
@@ -143,8 +144,10 @@
       if (!response.ok) throw new Error("reports unavailable");
       const data = await response.json();
       state.reports = Array.isArray(data.events) ? data.events : [];
+      state.reportSummary = data.summary || {};
     } catch {
       state.reports = readJson("kairos:local-events", []);
+      state.reportSummary = {};
     }
   }
 
@@ -202,7 +205,7 @@
       let productImage = clean(data.image);
       try {
         if (file) {
-          productImage = await uploadImage(file, data.title);
+          productImage = await uploadMedia(file, data.title, "product-image");
           form.elements.image.value = productImage;
         } else {
           productImage = normalizePublicImageUrl(productImage || FALLBACK_IMAGE);
@@ -263,16 +266,32 @@
 
     forms.bannerForm?.addEventListener("submit", async (event) => {
       event.preventDefault();
-      const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+      const form = event.currentTarget;
+      const data = Object.fromEntries(new FormData(form).entries());
+      try {
+        data.bannerUrl = await mediaValue(form, "bannerFile", data.bannerUrl, "banner-principal-desktop", "banner-image");
+        data.bannerMobileUrl = await mediaValue(form, "bannerMobileFile", data.bannerMobileUrl, "banner-principal-mobile", "banner-image");
+        data.bannerVideoUrl = await mediaValue(form, "bannerVideoFile", data.bannerVideoUrl, "video-banner-principal-desktop", "banner-video");
+        data.bannerMobileVideoUrl = await mediaValue(form, "bannerMobileVideoFile", data.bannerMobileVideoUrl, "video-banner-principal-mobile", "banner-video");
+        data.carouselDesktopImage = await mediaValue(form, "carouselDesktopFile", data.carouselDesktopImage, data.carouselTitle || "banner-desktop", "banner-image");
+        data.carouselMobileImage = await mediaValue(form, "carouselMobileFile", data.carouselMobileImage, data.carouselTitle || "banner-mobile", "banner-image");
+        data.carouselVideoUrl = await mediaValue(form, "carouselVideoFile", data.carouselVideoUrl, data.carouselTitle || "video-banner-desktop", "banner-video");
+        data.carouselMobileVideoUrl = await mediaValue(form, "carouselMobileVideoFile", data.carouselMobileVideoUrl, data.carouselTitle || "video-banner-mobile", "banner-video");
+      } catch (error) {
+        alert(error.message || "Nao foi possivel enviar a midia do banner.");
+        return;
+      }
       state.settings.bannerUrl = clean(data.bannerUrl) || state.settings.bannerUrl;
       state.settings.bannerMobileUrl = clean(data.bannerMobileUrl);
+      state.settings.bannerVideoUrl = clean(data.bannerVideoUrl);
+      state.settings.bannerMobileVideoUrl = clean(data.bannerMobileVideoUrl);
       state.settings.heroTitle = clean(data.heroTitle);
       state.settings.heroSubtitle = clean(data.heroSubtitle);
       state.settings.heroButtonText = clean(data.heroButtonText);
       state.settings.heroButtonLink = clean(data.heroButtonLink);
       state.settings.promoBar = {
         ...(state.settings.promoBar || {}),
-        enabled: Boolean(event.currentTarget.elements.promoEnabled.checked),
+        enabled: Boolean(form.elements.promoEnabled.checked),
         text: clean(data.promoText) || "Frete gratis para todo o Brasil",
         backgroundColor: data.promoColor || "#ff6b00",
         textColor: data.promoTextColor || "#111827",
@@ -280,7 +299,9 @@
       };
       const desktopImage = clean(data.carouselDesktopImage);
       const mobileImage = clean(data.carouselMobileImage);
-      if (desktopImage || mobileImage || clean(data.bannerId)) {
+      const videoUrl = clean(data.carouselVideoUrl);
+      const mobileVideoUrl = clean(data.carouselMobileVideoUrl);
+      if (desktopImage || mobileImage || videoUrl || mobileVideoUrl || clean(data.bannerId)) {
         const banners = Array.isArray(state.settings.banners) ? state.settings.banners : [];
         upsert(banners, {
           id: clean(data.bannerId) || slugify(`${data.carouselTitle || "banner"}-${Date.now()}`),
@@ -288,9 +309,11 @@
           subtitle: clean(data.carouselSubtitle),
           desktopImage: desktopImage || state.settings.bannerUrl,
           mobileImage: mobileImage || desktopImage || state.settings.bannerMobileUrl,
+          videoUrl,
+          mobileVideoUrl: mobileVideoUrl || videoUrl,
           link: clean(data.carouselLink) || "#produtos",
           order: number(data.carouselOrder) || banners.length + 1,
-          active: Boolean(event.currentTarget.elements.carouselActive.checked)
+          active: Boolean(form.elements.carouselActive.checked)
         });
         state.settings.banners = banners;
         resetBannerCarouselFields();
@@ -354,17 +377,19 @@
     });
   }
 
-  async function uploadImage(file, title = "produto") {
-    if (!file || !file.size) throw new Error("Selecione uma imagem valida para enviar.");
-    if (!file.type || !file.type.startsWith("image/")) {
-      throw new Error("O arquivo selecionado precisa ser uma imagem.");
+  async function uploadMedia(file, title = "arquivo", purpose = "product-image") {
+    if (!file || !file.size) throw new Error("Selecione um arquivo valido para enviar.");
+    const isVideo = purpose.includes("video");
+    const expectedType = isVideo ? "video/" : "image/";
+    if (!file.type || !file.type.startsWith(expectedType)) {
+      throw new Error(isVideo ? "O arquivo selecionado precisa ser um video." : "O arquivo selecionado precisa ser uma imagem.");
     }
-    if (file.size > 4 * 1024 * 1024) {
-      throw new Error("Imagem muito grande. Use uma imagem de ate 4MB.");
-    }
+    if (!isVideo && file.size > 4 * 1024 * 1024) throw new Error("Imagem muito grande. Use uma imagem de ate 4MB.");
+    if (isVideo && file.size > 25 * 1024 * 1024) throw new Error("Video muito grande. Use um video curto ate 25MB.");
     const formData = new FormData();
     formData.append("file", file);
     formData.append("title", title);
+    formData.append("purpose", purpose);
     const response = await fetch("/api/upload", {
       method: "POST",
       headers: state.token ? { Authorization: `Bearer ${state.token}` } : {},
@@ -372,11 +397,24 @@
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(data.error || "Falha ao enviar imagem para o storage publico.");
+      throw new Error(data.error || "Falha ao enviar arquivo para o storage publico.");
     }
-    const publicUrl = normalizePublicImageUrl(data.url);
+    const publicUrl = normalizePublicMediaUrl(data.url, isVideo ? "video" : "image");
     if (!publicUrl) {
-      throw new Error("O storage nao retornou uma URL publica https para a imagem.");
+      throw new Error("O storage nao retornou uma URL publica https para o arquivo.");
+    }
+    return publicUrl;
+  }
+
+  async function mediaValue(form, fileField, urlValue, title, purpose) {
+    const file = form.elements[fileField]?.files?.[0];
+    if (file) return uploadMedia(file, title, purpose);
+    const value = clean(urlValue);
+    if (!value) return "";
+    const type = purpose.includes("video") ? "video" : "image";
+    const publicUrl = normalizePublicMediaUrl(value, type);
+    if (!publicUrl) {
+      throw new Error(type === "video" ? "Use uma URL publica https para o video do banner." : "Use uma URL publica https para a imagem do banner.");
     }
     return publicUrl;
   }
@@ -402,13 +440,15 @@
     const subs = unique(state.products.map((item) => item.subcategory).filter(Boolean));
     const conversion = views.length ? Math.round((checkoutClicks.length / views.length) * 100) : 0;
     if (els.metricGrid) els.metricGrid.innerHTML = [
+      ["Online agora", Number(state.reportSummary.onlineNow || 0)],
+      ["Visitas do dia", Number(state.reportSummary.visitsToday || views.length)],
+      ["Total geral de visitas", Number(state.reportSummary.visitsTotal || views.length)],
       ["Produtos ativos", active.length],
       ["Produtos inativos", inactive.length],
       ["Promocoes", flash.length],
       ["Categorias", state.categories.length],
       ["Subcategorias", subs.length],
       ["Leads", state.leads.length],
-      ["Visitas", views.length],
       ["Cliques", clicks.length],
       ["Conversao", `${conversion}%`]
     ].map(([label, value]) => `<div class="metric-card"><span>${label}</span><strong>${typeof value === "number" ? formatNumber(value) : escapeHtml(value)}</strong></div>`).join("");
@@ -556,11 +596,13 @@
     const checkouts = events.filter((event) => event.type === "checkout_click").length;
     const leads = events.filter((event) => event.type === "lead").length;
     els.liveMetricGrid.innerHTML = [
-      ["Online agora", online],
-      ["Visitas/eventos", views],
+      ["Online agora", Number(state.reportSummary.onlineNow || online)],
+      ["Visitas do dia", Number(state.reportSummary.visitsToday || views)],
+      ["Total geral", Number(state.reportSummary.visitsTotal || views)],
       ["Cliques checkout", checkouts],
-      ["Leads", leads]
-    ].map(([label, value]) => `<div class="metric-card"><span>${label}</span><strong>${formatNumber(value)}</strong></div>`).join("");
+      ["Leads", leads],
+      ["Fuso horario", "Brasilia"]
+    ].map(([label, value]) => `<div class="metric-card"><span>${label}</span><strong>${typeof value === "number" ? formatNumber(value) : escapeHtml(value)}</strong></div>`).join("");
 
     const stats = productStats(events);
     els.productReportRows.innerHTML = stats.map((item) => `
@@ -640,8 +682,10 @@
   function fillForms() {
     const s = state.settings || {};
     if (forms.bannerForm) {
-      forms.bannerForm.elements.bannerUrl.value = s.bannerUrl || "./assets/banner-principal-kairos.jpg";
+      forms.bannerForm.elements.bannerUrl.value = s.bannerUrl || "./assets/banner-kairos-claro-1.png";
       forms.bannerForm.elements.bannerMobileUrl.value = s.bannerMobileUrl || "";
+      forms.bannerForm.elements.bannerVideoUrl.value = s.bannerVideoUrl || "";
+      forms.bannerForm.elements.bannerMobileVideoUrl.value = s.bannerMobileVideoUrl || "";
       forms.bannerForm.elements.heroTitle.value = s.heroTitle || "";
       forms.bannerForm.elements.heroSubtitle.value = s.heroSubtitle || "";
       forms.bannerForm.elements.heroButtonText.value = s.heroButtonText || "Ver produtos";
@@ -708,6 +752,8 @@
     forms.bannerForm.elements.carouselSubtitle.value = banner.subtitle || "";
     forms.bannerForm.elements.carouselDesktopImage.value = banner.desktopImage || banner.image || "";
     forms.bannerForm.elements.carouselMobileImage.value = banner.mobileImage || "";
+    forms.bannerForm.elements.carouselVideoUrl.value = banner.videoUrl || banner.desktopVideoUrl || "";
+    forms.bannerForm.elements.carouselMobileVideoUrl.value = banner.mobileVideoUrl || "";
     forms.bannerForm.elements.carouselLink.value = banner.link || "#produtos";
     forms.bannerForm.elements.carouselOrder.value = banner.order || 1;
     forms.bannerForm.elements.carouselActive.checked = banner.active !== false;
@@ -716,7 +762,10 @@
 
   function resetBannerCarouselFields() {
     if (!forms.bannerForm) return;
-    ["bannerId", "carouselTitle", "carouselSubtitle", "carouselDesktopImage", "carouselMobileImage", "carouselLink"].forEach((name) => {
+    ["bannerId", "carouselTitle", "carouselSubtitle", "carouselDesktopImage", "carouselMobileImage", "carouselVideoUrl", "carouselMobileVideoUrl", "carouselLink"].forEach((name) => {
+      if (forms.bannerForm.elements[name]) forms.bannerForm.elements[name].value = "";
+    });
+    ["carouselDesktopFile", "carouselMobileFile", "carouselVideoFile", "carouselMobileVideoFile"].forEach((name) => {
       if (forms.bannerForm.elements[name]) forms.bannerForm.elements[name].value = "";
     });
     if (forms.bannerForm.elements.carouselOrder) forms.bannerForm.elements.carouselOrder.value = (state.settings.banners || []).length + 1;
@@ -860,11 +909,16 @@
   }
 
   function normalizePublicImageUrl(value) {
+    return normalizePublicMediaUrl(value, "image");
+  }
+
+  function normalizePublicMediaUrl(value, type = "image") {
     const image = clean(value);
     if (!image) return "";
     if (isBlockedImageUrl(image)) return "";
     if (/^https:\/\//i.test(image)) return image;
-    if (/^(?:\.\/|\/)?(?:assets|images)\//i.test(image) && location.protocol === "https:") {
+    const localFolderPattern = type === "video" ? /^(?:\.\/|\/)?(?:assets|videos)\//i : /^(?:\.\/|\/)?(?:assets|images)\//i;
+    if (localFolderPattern.test(image) && location.protocol === "https:") {
       return new URL(image, location.origin).href;
     }
     return "";

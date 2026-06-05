@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="pt-BR">
   <head>
     <meta charset="utf-8">
@@ -6,7 +6,7 @@
     <title>Painel Administrativo | Kairos Shopping</title>
     <meta name="robots" content="noindex,nofollow">
     <link rel="icon" href="./assets/logo-kairos-oficial.png">
-    <link rel="stylesheet" href="./styles.css?v=20260604-priority">
+    <link rel="stylesheet" href="./styles.css?v=20260604-banner-video">
   </head>
   <body class="admin-body">
     <div class="admin-shell">
@@ -180,16 +180,28 @@
         <section class="admin-section" id="section-banners">
           <form class="admin-card form-grid" id="bannerForm">
             <input type="hidden" name="bannerId">
-            <label class="full">Banner principal desktop<input name="bannerUrl" type="url"></label>
-            <label class="full">Banner principal mobile<input name="bannerMobileUrl" type="url"></label>
+            <label class="full">Banner principal desktop - URL<input name="bannerUrl" type="url"></label>
+            <label class="full">Banner principal desktop - upload<input name="bannerFile" type="file" accept="image/*"></label>
+            <label class="full">Banner principal mobile - URL<input name="bannerMobileUrl" type="url"></label>
+            <label class="full">Banner principal mobile - upload<input name="bannerMobileFile" type="file" accept="image/*"></label>
+            <label class="full">Video principal desktop - URL<input name="bannerVideoUrl" type="url"></label>
+            <label class="full">Video principal desktop - upload<input name="bannerVideoFile" type="file" accept="video/*"></label>
+            <label class="full">Video principal mobile - URL<input name="bannerMobileVideoUrl" type="url"></label>
+            <label class="full">Video principal mobile - upload<input name="bannerMobileVideoFile" type="file" accept="video/*"></label>
             <label>Titulo do banner<input name="heroTitle"></label>
             <label>Subtitulo do banner<input name="heroSubtitle"></label>
             <label>Texto do botao<input name="heroButtonText"></label>
             <label>Link do botao<input name="heroButtonLink"></label>
             <label class="full">Carrossel: titulo<input name="carouselTitle"></label>
             <label class="full">Carrossel: subtitulo<input name="carouselSubtitle"></label>
-            <label class="full">Carrossel: imagem desktop<input name="carouselDesktopImage" type="url"></label>
-            <label class="full">Carrossel: imagem mobile<input name="carouselMobileImage" type="url"></label>
+            <label class="full">Carrossel: imagem desktop - URL<input name="carouselDesktopImage" type="url"></label>
+            <label class="full">Carrossel: imagem desktop - upload<input name="carouselDesktopFile" type="file" accept="image/*"></label>
+            <label class="full">Carrossel: imagem mobile - URL<input name="carouselMobileImage" type="url"></label>
+            <label class="full">Carrossel: imagem mobile - upload<input name="carouselMobileFile" type="file" accept="image/*"></label>
+            <label class="full">Carrossel: video desktop - URL<input name="carouselVideoUrl" type="url"></label>
+            <label class="full">Carrossel: video desktop - upload<input name="carouselVideoFile" type="file" accept="video/*"></label>
+            <label class="full">Carrossel: video mobile - URL<input name="carouselMobileVideoUrl" type="url"></label>
+            <label class="full">Carrossel: video mobile - upload<input name="carouselMobileVideoFile" type="file" accept="video/*"></label>
             <label>Carrossel: link<input name="carouselLink"></label>
             <label>Ordem<input name="carouselOrder" type="number" value="1"></label>
             <label><input name="carouselActive" type="checkbox" checked> Banner ativo no carrossel</label>
@@ -279,8 +291,9 @@
       </main>
     </div>
 
-    <script src="./data/seed-products.js?v=20260604-priority"></script>
-    <script src="./data/settings.js?v=20260604-priority"></script>
-    <script src="./admin.js?v=20260604-priority" defer></script>
+    <script src="./data/seed-products.js?v=20260604-banner-video"></script>
+    <script src="./data/settings.js?v=20260604-banner-video"></script>
+    <script src="./admin.js?v=20260604-banner-video" defer></script>
   </body>
 </html>
+

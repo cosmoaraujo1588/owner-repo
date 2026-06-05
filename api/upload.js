@@ -1,12 +1,20 @@
 import { getSupabase, isAdmin, sendJson, slugify } from "./_supabase.js";
 
-const MAX_SIZE = 4 * 1024 * 1024;
+const MAX_IMAGE_SIZE = 4 * 1024 * 1024;
+const MAX_VIDEO_SIZE = 25 * 1024 * 1024;
+const MAX_SIZE = MAX_VIDEO_SIZE;
 const ALLOWED_IMAGE_TYPES = new Map([
   ["image/jpeg", "jpg"],
   ["image/jpg", "jpg"],
   ["image/png", "png"],
   ["image/webp", "webp"],
   ["image/gif", "gif"]
+]);
+const ALLOWED_VIDEO_TYPES = new Map([
+  ["video/mp4", "mp4"],
+  ["video/webm", "webm"],
+  ["video/quicktime", "mov"],
+  ["video/x-m4v", "m4v"]
 ]);
 
 export const config = {
@@ -25,7 +33,7 @@ export default async function handler(req, res) {
   let size = 0;
   for await (const chunk of req) {
     size += chunk.length;
-    if (size > MAX_SIZE) return sendJson(res, 413, { error: "Imagem muito grande. Use ate 4MB." });
+    if (size > MAX_SIZE) return sendJson(res, 413, { error: "Arquivo muito grande. Use imagem ate 4MB ou video curto ate 25MB." });
     chunks.push(chunk);
   }
   const raw = Buffer.concat(chunks);
@@ -35,15 +43,24 @@ export default async function handler(req, res) {
   if (!parsed.buffer?.length) return sendJson(res, 400, { error: "Imagem vazia ou invalida" });
 
   const mime = String(parsed.mime || "").toLowerCase();
-  const extension = ALLOWED_IMAGE_TYPES.get(mime);
+  const isVideo = mime.startsWith("video/");
+  const extension = (isVideo ? ALLOWED_VIDEO_TYPES : ALLOWED_IMAGE_TYPES).get(mime);
   if (!extension) {
-    return sendJson(res, 415, { error: "Formato nao aceito. Use JPG, PNG, WEBP ou GIF." });
+    return sendJson(res, 415, { error: "Formato nao aceito. Use JPG, PNG, WEBP, GIF, MP4, WEBM ou MOV." });
+  }
+  if (!isVideo && parsed.buffer.length > MAX_IMAGE_SIZE) {
+    return sendJson(res, 413, { error: "Imagem muito grande. Use ate 4MB." });
+  }
+  if (isVideo && parsed.buffer.length > MAX_VIDEO_SIZE) {
+    return sendJson(res, 413, { error: "Video muito grande. Use video curto ate 25MB." });
   }
 
   const nameFromTitle = parsed.fields?.title || "";
   const nameFromFile = String(parsed.filename || "produto").replace(/\.[^.]+$/, "");
   const safeName = slugify(nameFromTitle || nameFromFile || "produto");
-  const fileName = `products/${safeName}-${Date.now()}.${extension}`;
+  const purpose = String(parsed.fields?.purpose || "").toLowerCase();
+  const folder = isVideo ? "banner-videos" : purpose.includes("banner") ? "banners" : "products";
+  const fileName = `${folder}/${safeName}-${Date.now()}.${extension}`;
   const result = await supabase.storage
     .from(process.env.SUPABASE_STORAGE_BUCKET || "kairos-public")
     .upload(fileName, parsed.buffer, {

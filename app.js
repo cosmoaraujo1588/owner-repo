@@ -2,6 +2,26 @@
   "use strict";
 
   const FALLBACK_IMAGE = "./images/placeholder.svg";
+  const DEFAULT_HERO_BANNERS = [
+    {
+      id: "kairos-claro-1",
+      title: "Kairos Shopping",
+      desktopImage: "./assets/banner-kairos-claro-1.png",
+      mobileImage: "./assets/banner-kairos-claro-1.png",
+      link: "#produtos",
+      active: true,
+      order: 1
+    },
+    {
+      id: "kairos-claro-2",
+      title: "Kairos Shopping",
+      desktopImage: "./assets/banner-kairos-claro-2.png",
+      mobileImage: "./assets/banner-kairos-claro-2.png",
+      link: "#produtos",
+      active: true,
+      order: 2
+    }
+  ];
   const FAVORITES_KEY = "kairos:favorites";
   const SESSION_KEY = "kairos:session";
   const WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/EOzxSL6u8QP6LPXmXO6Ym7?s=cl&p=a&mlu=0";
@@ -73,8 +93,7 @@
       const catalog = await response.json();
       state.products = sanitizeProducts(catalog.products || []);
       const settingsBanners = Array.isArray(catalog.settings?.banners) ? catalog.settings.banners : [];
-      const tableBanners = Array.isArray(catalog.banners) ? catalog.banners : [];
-      state.settings = normalizeSettings({ ...DEFAULT_SETTINGS, ...(catalog.settings || {}), banners: [...settingsBanners, ...tableBanners] });
+      state.settings = normalizeSettings({ ...DEFAULT_SETTINGS, ...(catalog.settings || {}), banners: settingsBanners });
     } catch {
       const localProducts = readJson("kairos:local-products", null);
       const localSettings = readJson("kairos:local-settings", null);
@@ -223,13 +242,17 @@
     els.heroCarousel.innerHTML = banners.map((banner, index) => {
       const desktop = banner.desktopImage || banner.image || state.settings.bannerUrl;
       const mobile = banner.mobileImage || desktop;
+      const desktopVideo = banner.videoUrl || banner.desktopVideoUrl || state.settings.bannerVideoUrl || "";
+      const mobileVideo = banner.mobileVideoUrl || desktopVideo || state.settings.bannerMobileVideoUrl || "";
       const href = banner.link || banner.buttonLink || "#produtos";
       return `
         <a class="hero-slide ${index === state.bannerIndex ? "active" : ""}" href="${escapeHtml(href)}" ${href.startsWith("http") ? 'target="_blank" rel="noopener"' : ""}>
-          <picture>
-            <source media="(max-width: 640px)" srcset="${escapeHtml(mobile)}">
-            <img src="${escapeHtml(desktop)}" alt="${escapeHtml(banner.title || "Banner Kairos Shopping")}" ${index === 0 ? 'fetchpriority="high"' : 'loading="lazy"'} onerror="this.onerror=null;this.src='./assets/banner-principal-kairos.jpg'">
-          </picture>
+          ${desktopVideo || mobileVideo ? bannerVideoMarkup(desktopVideo, mobileVideo, desktop, banner.title) : `
+            <picture>
+              <source media="(max-width: 640px)" srcset="${escapeHtml(mobile)}">
+              <img src="${escapeHtml(desktop)}" alt="${escapeHtml(banner.title || "Banner Kairos Shopping")}" ${index === 0 ? 'fetchpriority="high"' : 'loading="lazy"'} onerror="this.onerror=null;this.src='./assets/banner-kairos-claro-1.png'">
+            </picture>
+          `}
         </a>
       `;
     }).join("");
@@ -243,6 +266,15 @@
         });
       }, 5000);
     }
+  }
+
+  function bannerVideoMarkup(desktopVideo, mobileVideo, poster, title) {
+    return `
+      <video class="hero-video" autoplay muted loop playsinline preload="metadata" poster="${escapeHtml(poster || "./assets/banner-kairos-claro-1.png")}" aria-label="${escapeHtml(title || "Banner Kairos Shopping")}">
+        ${mobileVideo ? `<source media="(max-width: 640px)" src="${escapeHtml(mobileVideo)}">` : ""}
+        <source src="${escapeHtml(desktopVideo || mobileVideo)}">
+      </video>
+    `;
   }
 
   function renderCategories() {
@@ -700,8 +732,10 @@
       storeEmail: settings.storeEmail || "kairossshopping@gmail.com",
       siteUrl: settings.siteUrl || "",
       logoUrl: settings.logoUrl || "./assets/logo-kairos-oficial.png",
-      bannerUrl: settings.bannerUrl || "./assets/banner-principal-kairos.jpg",
-      bannerMobileUrl: settings.bannerMobileUrl || settings.bannerUrl || "./assets/banner-principal-kairos.jpg",
+      bannerUrl: settings.bannerUrl || "./assets/banner-kairos-claro-1.png",
+      bannerMobileUrl: settings.bannerMobileUrl || settings.bannerUrl || "./assets/banner-kairos-claro-1.png",
+      bannerVideoUrl: settings.bannerVideoUrl || "",
+      bannerMobileVideoUrl: settings.bannerMobileVideoUrl || "",
       banners: Array.isArray(settings.banners) ? settings.banners : [],
       trackingUrl: settings.trackingUrl || "https://app.kaiross.com.br/rastreio",
       promoBar: settings.promoBar || { enabled: true, text: "Frete gratis para todo o Brasil", backgroundColor: "#ff6b00", textColor: "#111827" },
@@ -885,14 +919,7 @@
       .filter((banner) => banner && banner.active !== false)
       .sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
     if (active.length) return active.slice(0, 4);
-    return [{
-      title: "Kairos Shopping",
-      desktopImage: state.settings.bannerUrl || "./assets/banner-principal-kairos.jpg",
-      mobileImage: state.settings.bannerMobileUrl || state.settings.bannerUrl || "./assets/banner-principal-kairos.jpg",
-      link: "#produtos",
-      active: true,
-      order: 1
-    }];
+    return DEFAULT_HERO_BANNERS;
   }
 
   function applyProductSeo(product) {
@@ -900,7 +927,7 @@
     setMeta("description", product ? (product.shortDescription || product.description || "Produto Kairos Shopping").slice(0, 155) : "Compre produtos selecionados na Kairos Shopping. Frete gratis para todo o Brasil, pedido com rastreamento e checkout externo oficial por produto.");
     setMeta("og:title", product ? product.title : "Kairos Shopping", true);
     setMeta("og:description", product ? (product.shortDescription || product.description || "Produto Kairos Shopping").slice(0, 180) : "Tudo que voce procura, em um so lugar. Produtos selecionados, frete gratis e rastreamento.", true);
-    setMeta("og:image", absoluteUrl(product?.image || "./assets/banner-principal-kairos.jpg"), true);
+    setMeta("og:image", absoluteUrl(product?.image || "./assets/banner-kairos-claro-1.png"), true);
     setMeta("og:url", product ? productUrl(product) : `${location.origin}/`, true);
   }
 
@@ -914,7 +941,7 @@
     try {
       return new URL(value || "/", location.origin).href;
     } catch {
-      return `${location.origin}/assets/banner-principal-kairos.jpg`;
+      return `${location.origin}/assets/banner-kairos-claro-1.png`;
     }
   }
 

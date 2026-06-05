@@ -151,7 +151,7 @@ img { max-width: 100%; display: block; }
   gap: 12px;
   justify-content: center;
   flex-wrap: wrap;
-  margin: -26px auto 0;
+  margin: 14px auto 0;
   position: relative;
   z-index: 2;
   padding: 0 12px;
@@ -1290,15 +1290,39 @@ th {
 }
 
 .hero-slide img,
+.hero-slide video,
 .hero-slide picture {
   width: 100%;
   height: 100%;
 }
 
-.hero-slide img {
+.hero-slide img,
+.hero-slide video {
   aspect-ratio: 21 / 7;
   object-fit: cover;
   object-position: center top;
+}
+
+.hero-slide video {
+  display: block;
+  background: #050505;
+}
+
+.compact-info {
+  opacity: 0.84;
+  font-size: 0.86rem;
+}
+
+.compact-info article {
+  padding: 14px 16px;
+}
+
+.compact-info h2 {
+  font-size: 1rem;
+}
+
+.compact-info p {
+  margin: 6px 0 0;
 }
 
 .catalog-count {
@@ -1576,6 +1600,7 @@ th {
   }
 
   .hero-slide img,
+  .hero-slide video,
   .hero-media > img {
     aspect-ratio: 16 / 7;
     object-position: center top;

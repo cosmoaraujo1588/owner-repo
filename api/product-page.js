@@ -29,7 +29,7 @@ async function findProduct(slug) {
 function injectProductMeta(html, product, slug, siteUrl) {
   const title = cleanText(product.title, 180);
   const description = cleanText(product.short_description || product.description || "Produto Kairos Shopping", 180);
-  const image = absoluteUrl(product.image_url || "/assets/banner-principal-kairos.jpg", siteUrl);
+  const image = absoluteUrl(product.image_url || "/assets/banner-kairos-claro-1.png", siteUrl);
   const url = `${siteUrl}/produto/${encodeURIComponent(slug)}`;
   const jsonLd = {
     "@context": "https://schema.org",
@@ -70,7 +70,7 @@ function absoluteUrl(value, siteUrl) {
   try {
     return new URL(value || "/", siteUrl).href;
   } catch {
-    return `${siteUrl}/assets/banner-principal-kairos.jpg`;
+    return `${siteUrl}/assets/banner-kairos-claro-1.png`;
   }
 }
 

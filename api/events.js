@@ -13,6 +13,7 @@ const CLICK_EVENT_TYPES = new Set([
 ]);
 const CART_EVENT_TYPES = new Set(["cart_add", "cart_remove"]);
 const VIEW_EVENT_TYPES = new Set(["page_view", "product_view"]);
+const BRAZIL_TZ = "America/Sao_Paulo";
 
 export default async function handler(req, res) {
   if (req.method === "POST") return recordEvent(req, res);
@@ -86,14 +87,18 @@ async function listEvents(req, res) {
   if (!supabase) return sendJson(res, 503, { error: "Supabase not configured" });
   const since = rangeToDate(req.query?.range || "today");
   const sinceIso = since.toISOString();
-  const [views, clicks, carts, online] = await Promise.all([
+  const onlineSinceIso = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+  const todayStartIso = brazilRangeStart("today").toISOString();
+  const [views, clicks, carts, online, todayCount, totalCount] = await Promise.all([
     supabase.from("view_events").select("*").gte("created_at", sinceIso).order("created_at", { ascending: false }).limit(2000),
     supabase.from("click_events").select("*").gte("created_at", sinceIso).order("created_at", { ascending: false }).limit(2000),
     supabase.from("cart_events").select("*").gte("created_at", sinceIso).order("created_at", { ascending: false }).limit(2000),
-    supabase.from("online_visitors").select("*").gte("last_activity", sinceIso).order("last_activity", { ascending: false }).limit(2000)
+    supabase.from("online_visitors").select("*").gte("last_activity", onlineSinceIso).order("last_activity", { ascending: false }).limit(2000),
+    supabase.from("view_events").select("id", { count: "exact", head: true }).in("event_type", ["page_view", "product_view"]).gte("created_at", todayStartIso),
+    supabase.from("view_events").select("id", { count: "exact", head: true }).in("event_type", ["page_view", "product_view"])
   ]);
 
-  const error = views.error || clicks.error || carts.error || online.error;
+  const error = views.error || clicks.error || carts.error || online.error || todayCount.error || totalCount.error;
   if (error) return sendJson(res, 500, { error: error.message });
 
   const events = [
@@ -104,17 +109,67 @@ async function listEvents(req, res) {
   ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 2000);
 
   sendJson(res, 200, {
-    events
+    events,
+    summary: {
+      timezone: BRAZIL_TZ,
+      onlineNow: uniqueCount((online.data || []).map((item) => item.session_id)),
+      visitsToday: todayCount.count || 0,
+      visitsTotal: totalCount.count || 0,
+      todayStart: todayStartIso
+    }
   });
 }
 
 function rangeToDate(range) {
+  if (String(range) === "all") return new Date(0);
+  return brazilRangeStart(range);
+}
+
+function brazilRangeStart(range) {
   const now = new Date();
   const value = String(range);
-  if (value === "7d") return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  if (value === "month") return new Date(now.getFullYear(), now.getMonth(), 1);
-  if (value === "year") return new Date(now.getFullYear(), 0, 1);
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const parts = brazilDateParts(now);
+  if (value === "7d") return new Date(zonedLocalToUtc(parts.year, parts.month, parts.day).getTime() - 6 * 24 * 60 * 60 * 1000);
+  if (value === "month") return zonedLocalToUtc(parts.year, parts.month, 1);
+  if (value === "year") return zonedLocalToUtc(parts.year, 1, 1);
+  return zonedLocalToUtc(parts.year, parts.month, parts.day);
+}
+
+function brazilDateParts(date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: BRAZIL_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(date);
+  const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return { year: Number(map.year), month: Number(map.month), day: Number(map.day) };
+}
+
+function zonedLocalToUtc(year, month, day) {
+  const guess = new Date(Date.UTC(year, month - 1, day, 0, 0, 0));
+  const offset = timezoneOffsetMs(guess);
+  return new Date(guess.getTime() - offset);
+}
+
+function timezoneOffsetMs(date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: BRAZIL_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23"
+  }).formatToParts(date);
+  const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  const asUtc = Date.UTC(Number(map.year), Number(map.month) - 1, Number(map.day), Number(map.hour), Number(map.minute), Number(map.second));
+  return asUtc - date.getTime();
+}
+
+function uniqueCount(values) {
+  return new Set(values.filter(Boolean)).size;
 }
 
 function safePayload(payload) {

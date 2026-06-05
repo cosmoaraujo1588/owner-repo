@@ -232,6 +232,8 @@ function fromBanner(row) {
     image: row.image_url || "",
     desktopImage: row.image_url || "",
     mobileImage: row.mobile_image_url || "",
+    videoUrl: row.video_url || "",
+    mobileVideoUrl: row.mobile_video_url || "",
     buttonText: row.button_text || "Ver produtos",
     buttonLink: row.button_link || "#produtos",
     link: row.button_link || "#produtos",
