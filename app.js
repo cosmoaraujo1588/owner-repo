@@ -132,7 +132,13 @@
       renderProducts();
     });
 
-    els.productModal?.addEventListener("click", (event) => {
+    els.productModalfbq('track','ViewContent',{
+  content_name: produto.nome || produto.title || '',
+  content_ids: [produto.id || produto.slug || ''],
+  content_type: 'product',
+  value: parseFloat(produto.preco || produto.price || 0),
+  currency: 'BRL'
+});?.addEventListener("click", (event) => {
       const target = event.target.closest("[data-modal-action]");
       if (!target) return;
       const action = target.dataset.modalAction;
