@@ -11,5 +11,8 @@
     "dev": "vercel dev",
     "build": "echo Kairos static build ready",
     "start": "vercel dev"
+  },
+  "engines": {
+    "node": "20.x"
   }
 }
