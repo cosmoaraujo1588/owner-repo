@@ -114,7 +114,12 @@
       const response = await fetch(`/api/catalog?t=${Date.now()}`, { cache: "no-store" });
       if (!response.ok) throw new Error("Catalog API unavailable");
       const catalog = await response.json();
-      state.products = sanitizeProducts(catalog.products || []);
+      const apiProducts = sanitizeProducts(catalog.products || []);
+const seedProducts = sanitizeProducts(SEED_PRODUCTS || []);
+
+state.products = apiProducts.some((product) => product.visible !== false && product.active !== false)
+  ? apiProducts
+  : seedProducts;
       state.categories = normalizeCategories(catalog.categories || []);
       state.subcategories = normalizeSubcategories(catalog.subcategories || []);
       const settingsBanners = Array.isArray(catalog.settings?.banners) ? catalog.settings.banners : [];
