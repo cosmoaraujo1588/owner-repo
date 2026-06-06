@@ -28,11 +28,11 @@ async function getCatalog(req, res) {
   if (!includeInactive) pagesQuery = pagesQuery.eq("active", true);
 
   const [products, categories, subcategories, banners, pages, settings, reviews] = await Promise.all([
-    productsQuery,
-    categoriesQuery,
-    subcategoriesQuery,
-    bannersQuery,
-    pagesQuery,
+    categoriesQuery
+subcategoriesQuery
+bannersQuery
+pagesQuery
+reviews
     supabase.from("settings").select("*").eq("key", "store").maybeSingle(),
     supabase.from("reviews").select("*").eq("active", true).order("created_at", { ascending: false }).limit(500)
   ]);
