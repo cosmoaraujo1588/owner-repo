@@ -24,9 +24,17 @@
   ];
   const FAVORITES_KEY = "kairos:favorites";
   const SESSION_KEY = "kairos:session";
+  const SCARCITY_DEADLINE_KEY = "kairos:scarcity-deadline";
   const WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/EOzxSL6u8QP6LPXmXO6Ym7?s=cl&p=a&mlu=0";
   const DEFAULT_SETTINGS = window.KAIROS_DEFAULT_SETTINGS || {};
   const SEED_PRODUCTS = Array.isArray(window.KAIROS_SEED_PRODUCTS) ? window.KAIROS_SEED_PRODUCTS : [];
+  const DEFAULT_MOBILE_NAV_ITEMS = [
+    { icon: "&#127968;", label: "Inicio", href: "#inicio" },
+    { icon: "&#128717;&#65039;", label: "Produtos", href: "#produtos" },
+    { icon: "&#128194;", label: "Categorias", href: "#categoryRail" },
+    { icon: "&#9889;", label: "Ofertas", href: "#promocoes" },
+    { icon: "&#128230;", label: "Rastreio", href: "#rastreio" }
+  ];
 
   const state = {
     products: [],
@@ -44,9 +52,12 @@
     favorites: readJson(FAVORITES_KEY, []),
     sessionId: getSessionId(),
     supabaseConfig: null,
+    publicStats: { onlineNow: 0, visitsTotal: 0 },
     bannerTimer: null,
     bannerIndex: 0,
-    reviewTimer: null
+    reviewTimer: null,
+    countdownTimer: null,
+    statsTimer: null
   };
 
   const els = {
@@ -77,7 +88,9 @@
     assistantWidget: document.getElementById("assistantWidget"),
     activityPopup: document.getElementById("activityPopup"),
     socialLinks: document.getElementById("socialLinks"),
-    footerWhatsapp: document.getElementById("footerWhatsapp")
+    footerWhatsapp: document.getElementById("footerWhatsapp"),
+    storeSignalRow: document.getElementById("storeSignalRow"),
+    mobileBottomNav: document.getElementById("mobileBottomNav")
   };
 
   document.addEventListener("DOMContentLoaded", init);
@@ -85,11 +98,13 @@
   async function init() {
     bindEvents();
     await loadCatalog();
+    await loadPublicStats();
     renderAll();
     openProductFromLocation();
     trackEvent("page_view", { page: location.pathname || "/" });
     startPresence();
     startActivityPopup();
+    startPublicStatsRefresh();
     startRealtimeRefresh();
     window.addEventListener("popstate", openProductFromLocation);
   }
@@ -120,6 +135,20 @@
       if (configResponse.ok) state.supabaseConfig = await configResponse.json();
     } catch {
       state.supabaseConfig = null;
+    }
+  }
+
+  async function loadPublicStats() {
+    try {
+      const response = await fetch(`/api/public-stats?t=${Date.now()}`, { cache: "no-store" });
+      if (!response.ok) throw new Error("stats unavailable");
+      const data = await response.json();
+      state.publicStats = {
+        onlineNow: Number(data.onlineNow || 0),
+        visitsTotal: Number(data.visitsTotal || 0)
+      };
+    } catch {
+      state.publicStats = { onlineNow: 0, visitsTotal: 0 };
     }
   }
 
@@ -225,12 +254,16 @@
     renderFaq();
     renderAssistant();
     renderSocial();
+    renderConversionSignals();
+    renderMobileBottomNav();
   }
 
   function applySettings() {
     const promo = state.settings.promoBar || {};
-    setMarquee(els.promoBar, promo, "FRETE GRATIS PARA TODO O BRASIL");
-    setMarquee(els.footerPromoBar, promo, "FRETE GRATIS PARA TODO O BRASIL");
+    const promoText = promoTextWithCountdown();
+    setMarquee(els.promoBar, promo, promoText || "FRETE GRATIS PARA TODO O BRASIL");
+    setMarquee(els.footerPromoBar, promo, promoText || "FRETE GRATIS PARA TODO O BRASIL");
+    startScarcityCountdown();
 
     if (els.trackingPortal) els.trackingPortal.href = state.settings.trackingUrl;
     if (els.footerWhatsapp) els.footerWhatsapp.href = whatsappUrl();
@@ -252,6 +285,96 @@
         <span>&#128666; ${escapeHtml(text)}</span>
       </div>
     `;
+  }
+
+  function promoTextWithCountdown() {
+    const conversion = conversionConfig();
+    const base = state.settings.promoBar?.text || "FRETE GRATIS PARA TODO O BRASIL";
+    if (conversion.scarcityEnabled === false) return base;
+    return `${conversion.scarcityText || "Ofertas limitadas terminam em"} ${formatCountdownRemaining()}`;
+  }
+
+  function startScarcityCountdown() {
+    if (state.countdownTimer) clearInterval(state.countdownTimer);
+    const conversion = conversionConfig();
+    if (conversion.scarcityEnabled === false) return;
+    ensureScarcityDeadline();
+    state.countdownTimer = setInterval(() => {
+      const promo = state.settings.promoBar || {};
+      const text = promoTextWithCountdown();
+      setMarquee(els.promoBar, promo, text);
+      setMarquee(els.footerPromoBar, promo, text);
+    }, 1000);
+  }
+
+  function ensureScarcityDeadline() {
+    const conversion = conversionConfig();
+    const minutes = Math.max(1, Math.min(240, Number(conversion.countdownMinutes || 15)));
+    const current = Number(sessionStorage.getItem(SCARCITY_DEADLINE_KEY) || 0);
+    if (!current || current <= Date.now()) {
+      sessionStorage.setItem(SCARCITY_DEADLINE_KEY, String(Date.now() + minutes * 60 * 1000));
+    }
+  }
+
+  function formatCountdownRemaining() {
+    ensureScarcityDeadline();
+    const deadline = Number(sessionStorage.getItem(SCARCITY_DEADLINE_KEY) || 0);
+    const remaining = Math.max(0, deadline - Date.now());
+    const totalSeconds = Math.floor(remaining / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return [hours, minutes, seconds].map((value) => String(value).padStart(2, "0")).join(":");
+  }
+
+  function renderConversionSignals() {
+    if (!els.storeSignalRow) return;
+    const conversion = conversionConfig();
+    const hasCounter = conversion.visitorCounterEnabled !== false;
+    const hasProof = conversion.socialProofEnabled !== false;
+    els.storeSignalRow.hidden = !hasCounter && !hasProof;
+    if (els.storeSignalRow.hidden) return;
+    const counterText = hasCounter ? visitorCounterText(conversion) : "";
+    els.storeSignalRow.innerHTML = `
+      ${hasCounter ? `<div><strong>${escapeHtml(counterText)}</strong><span>Movimento acompanhado em tempo real</span></div>` : ""}
+      ${hasProof ? `
+        <div><strong>Produtos em destaque</strong><span>Vitrine atualizada pelo painel</span></div>
+        <div><strong>Frete gratis</strong><span>Envio para todo o Brasil</span></div>
+        <div><strong>Compra segura</strong><span>Checkout externo oficial</span></div>
+      ` : ""}
+    `;
+  }
+
+  function visitorCounterText(conversion) {
+    const type = conversion.visitorCounterType || "total";
+    if (type === "online") {
+      return `${formatNumber(state.publicStats.onlineNow || 0)} pessoas navegando agora`;
+    }
+    if (type === "custom") {
+      return conversion.visitorCounterText || "Produtos com alto interesse dos clientes";
+    }
+    const total = Number(state.publicStats.visitsTotal || 0);
+    return total > 0
+      ? `${formatNumber(total)} visitas acumuladas na Kairos Shopping`
+      : (conversion.visitorCounterText || "Produtos com alto interesse dos clientes");
+  }
+
+  function renderMobileBottomNav() {
+    if (!els.mobileBottomNav) return;
+    const conversion = conversionConfig();
+    els.mobileBottomNav.hidden = conversion.mobileNavEnabled === false;
+    if (els.mobileBottomNav.hidden) return;
+    const items = normalizeMobileNavItems(conversion.mobileNavItems);
+    els.mobileBottomNav.innerHTML = items.map((item) => {
+      const href = item.href || "#inicio";
+      const external = /^https?:\/\//i.test(href);
+      return `
+        <a href="${escapeHtml(href)}" ${external ? 'target="_blank" rel="noopener"' : ""}>
+          <span aria-hidden="true">${item.icon || "&#128717;"}</span>
+          <small>${escapeHtml(item.label || "Loja")}</small>
+        </a>
+      `;
+    }).join("");
   }
 
   function renderBanners() {
@@ -296,61 +419,6 @@
     `;
   }
 
-  function renderCategories() {
-    const visible = state.products.filter(isVisible);
-    const counts = visible.reduce((acc, product) => {
-      const label = product.category || "Ofertas";
-      const key = categoryKey(label);
-      if (!acc[key]) acc[key] = { label, count: 0 };
-      acc[key].count += 1;
-      return acc;
-    }, {});
-    const categories = [{ label: "Todos", key: "todos", count: visible.length }, ...Object.values(counts).sort((a, b) => a.label.localeCompare(b.label, "pt-BR"))];
-    els.categoryRail.innerHTML = categories.map((category) => `
-      <button class="category-chip ${state.categoryKey === category.key ? "active" : ""}" type="button" data-category="${escapeHtml(category.label)}" data-category-key="${escapeHtml(category.key)}">
-        <span>${categoryIcon(category.label)}</span>
-        <strong>${escapeHtml(category.label)}</strong>
-        <small>${formatNumber(category.count)}</small>
-      </button>
-    `).join("");
-
-    els.categoryRail.querySelectorAll("[data-category-key]").forEach((button) => {
-      button.addEventListener("click", () => {
-        state.category = button.dataset.category;
-        state.categoryKey = button.dataset.categoryKey || categoryKey(state.category);
-        trackEvent("category_filter", { category: state.category });
-        renderCategories();
-        renderProducts();
-        document.getElementById("produtos")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      });
-    });
-  }
-
-  function renderProducts() {
-    const visible = state.products.filter(isVisible);
-    const best = visible.filter((item) => item.bestSeller).slice(0, 8);
-    const flash = visible.filter((item) => item.flashOffer || item.oldPrice).slice(0, 8);
-    const videos = visible.filter((item) => item.videoUrl).slice(0, 8);
-    const catalog = sortProducts(filterProducts(visible));
-    const bestSection = els.bestSellerGrid?.closest(".section-block");
-    const flashSection = els.flashGrid?.closest(".section-block");
-    const videoSection = els.videoGrid?.closest(".section-block");
-
-    renderGrid(els.bestSellerGrid, best.length ? best : visible.slice(0, 8), "Novos produtos serao destacados em breve.");
-    renderGrid(els.flashGrid, flash, "");
-    renderGrid(els.videoGrid, videos, "Videos serao exibidos aqui quando cadastrados no painel.");
-    renderGrid(els.catalogGrid, catalog, "");
-
-    if (bestSection) bestSection.hidden = visible.length === 0;
-    if (flashSection) flashSection.hidden = flash.length === 0;
-    if (videoSection) videoSection.hidden = videos.length === 0;
-    if (els.catalogCount) {
-      const label = state.categoryKey === "todos" ? "produtos ativos" : `em ${state.category}`;
-      els.catalogCount.textContent = `${formatNumber(catalog.length)} ${label}`;
-    }
-    els.emptyProducts.hidden = catalog.length > 0;
-  }
-
   function renderGrid(container, products, emptyText) {
     if (!container) return;
     if (!products.length) {
@@ -358,40 +426,6 @@
       return;
     }
     container.innerHTML = products.map(productCard).join("");
-  }
-
-  function productCard(product) {
-    const discount = getDiscount(product);
-    const favorite = state.favorites.includes(product.id);
-    return `
-      <article class="product-card" data-product-id="${escapeHtml(product.id)}">
-        <div class="product-image-wrap">
-          <img src="${escapeHtml(product.image || FALLBACK_IMAGE)}" alt="${escapeHtml(product.title)}" loading="lazy" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'">
-          <button class="icon-button favorite ${favorite ? "active" : ""}" type="button" data-action="favorite" data-product-id="${escapeHtml(product.id)}" aria-label="Favoritar produto">♡</button>
-          <div class="badges">
-            ${product.videoUrl ? "<span>Video disponivel</span>" : ""}
-            ${discount ? `<span>${discount}% OFF</span>` : ""}
-            ${product.tag ? `<span>${escapeHtml(product.tag)}</span>` : ""}
-          </div>
-        </div>
-        <div class="product-info">
-          <span class="product-category">${escapeHtml(product.category)}</span>
-          <h3>${escapeHtml(product.title)}</h3>
-          <p>${escapeHtml(product.shortDescription || product.description || "").slice(0, 120)}</p>
-          <div class="rating">${stars(product.reviewRating)} <span>${formatNumber(product.reviewCount)} avaliacoes</span></div>
-          <div class="price-row">
-            <strong>${formatCurrency(product.price)}</strong>
-            ${product.oldPrice ? `<del>${formatCurrency(product.oldPrice)}</del>` : ""}
-          </div>
-          <span class="free-shipping">Frete gratis</span>
-          <div class="product-actions">
-            <button type="button" class="secondary-button compact" data-action="details" data-product-id="${escapeHtml(product.id)}">Ver detalhes</button>
-            <button type="button" class="primary-button compact" data-action="buy" data-product-id="${escapeHtml(product.id)}">Comprar agora</button>
-          </div>
-          <button type="button" class="share-link" data-action="share" data-product-id="${escapeHtml(product.id)}">Compartilhar produto</button>
-        </div>
-      </article>
-    `;
   }
 
   function openProduct(id, options = {}) {
@@ -662,6 +696,14 @@
     }, 45000);
   }
 
+  function startPublicStatsRefresh() {
+    if (state.statsTimer) clearInterval(state.statsTimer);
+    state.statsTimer = setInterval(async () => {
+      await loadPublicStats();
+      renderConversionSignals();
+    }, 30000);
+  }
+
   function startPresence() {
     const tick = () => trackEvent("presence", { page: location.pathname, product_id: currentProductFromUrl(), session_id: state.sessionId });
     tick();
@@ -679,6 +721,7 @@
   }
 
   async function trackEvent(type, payload = {}) {
+    if (isAdminPath(location.pathname)) return;
     const body = {
       type,
       payload,
@@ -702,13 +745,9 @@
     }
   }
 
-  function filterProducts(products) {
-    const term = normalizeTerm(state.search);
-    return products.filter((product) => {
-      const matchCategory = state.categoryKey === "todos" || categoryKey(product.category) === state.categoryKey;
-      const searchText = searchIndex(product);
-      return matchCategory && (!term || searchText.includes(term));
-    });
+  function isAdminPath(path) {
+    const value = String(path || "").toLowerCase();
+    return value.includes("/admin") || value.includes("/admin.html") || value.includes("/painel") || value.includes("/dashboard");
   }
 
   function sortProducts(products) {
@@ -762,11 +801,47 @@
       promoBar: settings.promoBar || { enabled: true, text: "Frete gratis para todo o Brasil", backgroundColor: "#ff6b00", textColor: "#111827" },
       assistant: settings.assistant || {},
       purchasePopup: settings.purchasePopup || { enabled: true, delaySeconds: 8, intervalSeconds: 36, visibleSeconds: 6 },
+      conversion: {
+        ...defaultConversionConfig(),
+        ...(settings.conversion || {}),
+        mobileNavItems: normalizeMobileNavItems(settings.conversion?.mobileNavItems)
+      },
       social: settings.social || {},
       content: settings.content || {},
       storefront: settings.storefront || {},
       reviews: Array.isArray(settings.reviews) ? settings.reviews : defaultReviews()
     };
+  }
+
+  function defaultConversionConfig() {
+    return {
+      scarcityEnabled: true,
+      scarcityText: "Ofertas limitadas terminam em",
+      countdownMinutes: 15,
+      visitorCounterEnabled: true,
+      visitorCounterType: "total",
+      visitorCounterText: "Produtos com alto interesse dos clientes",
+      mobileNavEnabled: true,
+      socialProofEnabled: true,
+      mobileNavItems: DEFAULT_MOBILE_NAV_ITEMS
+    };
+  }
+
+  function conversionConfig() {
+    return {
+      ...defaultConversionConfig(),
+      ...(state.settings.conversion || {}),
+      mobileNavItems: normalizeMobileNavItems(state.settings.conversion?.mobileNavItems)
+    };
+  }
+
+  function normalizeMobileNavItems(items) {
+    const source = Array.isArray(items) && items.length ? items : DEFAULT_MOBILE_NAV_ITEMS;
+    return source.slice(0, 5).map((item, index) => ({
+      icon: String(item.icon || DEFAULT_MOBILE_NAV_ITEMS[index]?.icon || "&#128717;"),
+      label: String(item.label || DEFAULT_MOBILE_NAV_ITEMS[index]?.label || "Loja"),
+      href: String(item.href || DEFAULT_MOBILE_NAV_ITEMS[index]?.href || "#inicio")
+    }));
   }
 
   function normalizeReviews(value) {
@@ -808,28 +883,12 @@
     return `<details class="accordion-item"><summary>${escapeHtml(title)}</summary><p>${escapeHtml(text || "")}</p></details>`;
   }
 
-  function stars(value) {
-    const rating = Math.round(Number(value || 5) * 2) / 2;
-    return `<span class="stars" aria-label="${rating} de 5">★★★★★</span>`;
-  }
-
   function whatsappUrl(product) {
     const phone = String(state.settings.social?.whatsapp || "").replace(/\D/g, "");
     const text = product
       ? `Ola, tenho interesse no produto: ${product.title} - ${productUrl(product)}`
       : state.settings.whatsappMessage || "Ola, vim pelo site da Kairos Shopping e gostaria de atendimento.";
     return `https://wa.me/${phone || ""}?text=${encodeURIComponent(text)}`;
-  }
-
-  function categoryIcon(category) {
-    const text = String(category).toLowerCase();
-    if (text.includes("eletr")) return "⌁";
-    if (text.includes("casa")) return "⌂";
-    if (text.includes("beleza")) return "✦";
-    if (text.includes("moda")) return "◈";
-    if (text.includes("infantil")) return "★";
-    if (text.includes("auto")) return "◎";
-    return "◆";
   }
 
   function currentProductFromUrl() {
@@ -1163,7 +1222,7 @@
       <article class="product-card" data-product-id="${escapeHtml(product.id)}">
         <div class="product-image-wrap">
           <img src="${escapeHtml(product.image || FALLBACK_IMAGE)}" alt="${escapeHtml(product.title)}" loading="lazy" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'">
-          <button class="icon-button favorite ${favorite ? "active" : ""}" type="button" data-action="favorite" data-product-id="${escapeHtml(product.id)}" aria-label="Favoritar produto">♡</button>
+          <button class="icon-button favorite ${favorite ? "active" : ""}" type="button" data-action="favorite" data-product-id="${escapeHtml(product.id)}" aria-label="Favoritar produto">&#9825;</button>
           ${showBadges ? `<div class="badges">
             ${product.videoUrl ? "<span>Video disponivel</span>" : ""}
             ${discount ? `<span>${discount}% OFF</span>` : ""}

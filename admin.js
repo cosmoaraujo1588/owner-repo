@@ -5,6 +5,13 @@
   const LOCAL_PRODUCTS_KEY = "kairos:local-products";
   const LOCAL_SETTINGS_KEY = "kairos:local-settings";
   const TOKEN_KEY = "kairos:admin-token";
+  const DEFAULT_MOBILE_NAV_ITEMS = [
+    { icon: "&#127968;", label: "Inicio", href: "#inicio" },
+    { icon: "&#128717;&#65039;", label: "Produtos", href: "#produtos" },
+    { icon: "&#128194;", label: "Categorias", href: "#categoryRail" },
+    { icon: "&#9889;", label: "Ofertas", href: "#promocoes" },
+    { icon: "&#128230;", label: "Rastreio", href: "#rastreio" }
+  ];
   const BASE_CATEGORIES = [
     "Eletrônicos",
     "Roupas",
@@ -46,7 +53,7 @@
       renderReports();
       renderMetrics();
       renderLeads();
-    }, 60000);
+    }, 15000);
   }
 
   async function ensureAdminAccess() {
@@ -94,14 +101,14 @@
       const catalog = await response.json();
       state.products = normalizeProducts(catalog.products || []);
       const apiReviews = Array.isArray(catalog.reviews) ? catalog.reviews : [];
-      state.settings = { ...(window.KAIROS_DEFAULT_SETTINGS || {}), ...(catalog.settings || {}) };
+      state.settings = normalizeSettings({ ...(window.KAIROS_DEFAULT_SETTINGS || {}), ...(catalog.settings || {}) });
       if (apiReviews.length) state.settings.reviews = apiReviews;
       state.categories = normalizeCategories(catalog.categories || []);
       state.subcategories = normalizeSubcategories(catalog.subcategories || []);
       setStatus("Conectado ao backend Supabase/Vercel quando as variaveis estiverem configuradas. Produtos carregados.");
     } catch {
       state.products = normalizeProducts(readJson(LOCAL_PRODUCTS_KEY, window.KAIROS_SEED_PRODUCTS || []));
-      state.settings = { ...(window.KAIROS_DEFAULT_SETTINGS || {}), ...readJson(LOCAL_SETTINGS_KEY, {}) };
+      state.settings = normalizeSettings({ ...(window.KAIROS_DEFAULT_SETTINGS || {}), ...readJson(LOCAL_SETTINGS_KEY, {}) });
       state.categories = normalizeCategories([]);
       state.subcategories = normalizeSubcategories([]);
       setStatus("Modo local ativo. O painel funciona para edicao local e esta pronto para Supabase/Vercel quando as variaveis forem configuradas.");
@@ -419,6 +426,18 @@
         showCardRating: Boolean(event.currentTarget.elements.showCardRating.checked),
         showCardBadge: Boolean(event.currentTarget.elements.showCardBadge.checked)
       };
+      state.settings.conversion = {
+        ...defaultConversionConfig(),
+        scarcityEnabled: Boolean(event.currentTarget.elements.scarcityEnabled.checked),
+        scarcityText: clean(data.scarcityText) || "Ofertas limitadas terminam em",
+        countdownMinutes: number(data.countdownMinutes) || 15,
+        visitorCounterEnabled: Boolean(event.currentTarget.elements.visitorCounterEnabled.checked),
+        visitorCounterType: clean(data.visitorCounterType) || "total",
+        visitorCounterText: clean(data.visitorCounterText) || "Produtos com alto interesse dos clientes",
+        mobileNavEnabled: Boolean(event.currentTarget.elements.mobileNavEnabled.checked),
+        socialProofEnabled: Boolean(event.currentTarget.elements.socialProofEnabled.checked),
+        mobileNavItems: mobileNavItemsFromForm(event.currentTarget)
+      };
       await saveCatalog();
     });
   }
@@ -486,18 +505,24 @@
     const checkoutClicks = state.reports.filter((event) => event.type === "checkout_click");
     const subs = unique(state.products.map((item) => item.subcategory).filter(Boolean));
     const conversion = views.length ? Math.round((checkoutClicks.length / views.length) * 100) : 0;
+    const mostViewed = state.reportSummary.mostViewedProduct?.name || productStats(state.reports)[0]?.name || "Sem dados";
     if (els.metricGrid) els.metricGrid.innerHTML = [
       ["Online agora", Number(state.reportSummary.onlineNow || 0)],
       ["Visitas do dia", Number(state.reportSummary.visitsToday || views.length)],
+      ["Ultimos 7 dias", Number(state.reportSummary.visits7d || 0)],
+      ["Visitas no mes", Number(state.reportSummary.visitsMonth || 0)],
+      ["Visitas no ano", Number(state.reportSummary.visitsYear || 0)],
       ["Total geral de visitas", Number(state.reportSummary.visitsTotal || views.length)],
+      ["Produto mais visto", mostViewed],
+      ["Cliques checkout", Number(state.reportSummary.checkoutClicks || checkoutClicks.length)],
+      ["Taxa de interesse", `${Number(state.reportSummary.interestRate ?? conversion)}%`],
       ["Produtos ativos", active.length],
       ["Produtos inativos", inactive.length],
       ["Promocoes", flash.length],
       ["Categorias", state.categories.length],
       ["Subcategorias", subs.length],
       ["Leads", state.leads.length],
-      ["Cliques", clicks.length],
-      ["Conversao", `${conversion}%`]
+      ["Cliques gerais", clicks.length]
     ].map(([label, value]) => `<div class="metric-card"><span>${label}</span><strong>${typeof value === "number" ? formatNumber(value) : escapeHtml(value)}</strong></div>`).join("");
 
     const missingImage = active.filter((item) => !item.image || item.image === FALLBACK_IMAGE).length;
@@ -670,16 +695,21 @@
     const views = events.filter((event) => event.type === "page_view" || event.type === "product_view").length;
     const checkouts = events.filter((event) => event.type === "checkout_click").length;
     const leads = events.filter((event) => event.type === "lead").length;
+    const stats = productStats(events);
     els.liveMetricGrid.innerHTML = [
       ["Online agora", Number(state.reportSummary.onlineNow || online)],
       ["Visitas do dia", Number(state.reportSummary.visitsToday || views)],
+      ["Ultimos 7 dias", Number(state.reportSummary.visits7d || 0)],
+      ["Mes atual", Number(state.reportSummary.visitsMonth || 0)],
+      ["Ano atual", Number(state.reportSummary.visitsYear || 0)],
       ["Total geral", Number(state.reportSummary.visitsTotal || views)],
-      ["Cliques checkout", checkouts],
+      ["Produto mais visto", state.reportSummary.mostViewedProduct?.name || stats[0]?.name || "Sem dados"],
+      ["Cliques checkout", Number(state.reportSummary.checkoutClicks || checkouts)],
+      ["Taxa interesse", `${Number(state.reportSummary.interestRate || 0)}%`],
       ["Leads", leads],
       ["Fuso horario", "Brasilia"]
     ].map(([label, value]) => `<div class="metric-card"><span>${label}</span><strong>${typeof value === "number" ? formatNumber(value) : escapeHtml(value)}</strong></div>`).join("");
 
-    const stats = productStats(events);
     els.productReportRows.innerHTML = stats.map((item) => `
       <tr>
         <td>${escapeHtml(item.name)}</td>
@@ -744,6 +774,21 @@
       else ctx.lineTo(x, y);
     });
     ctx.stroke();
+    buckets.forEach(([, value], index) => {
+      const x = 42 + index * ((width - 80) / Math.max(1, buckets.length - 1));
+      const y = height - 34 - (value / max) * (height - 70);
+      ctx.beginPath();
+      ctx.fillStyle = "#ff6b00";
+      ctx.arc(x, y, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#ffffff";
+      ctx.stroke();
+      ctx.fillStyle = "#102a43";
+      ctx.font = "800 12px sans-serif";
+      const label = String(value);
+      ctx.fillText(label, Math.max(8, x - ctx.measureText(label).width / 2), Math.max(14, y - 12));
+    });
     ctx.fillStyle = "#102a43";
     ctx.font = "700 18px sans-serif";
     ctx.fillText("Visitas e eventos por minuto", 42, 28);
@@ -792,7 +837,11 @@
       mobilePerPage: s.storefront?.mobilePerPage || 6,
       desktopColumns: s.storefront?.desktopColumns || 4,
       tabletColumns: s.storefront?.tabletColumns || 3,
-      mobileColumns: s.storefront?.mobileColumns || 2
+      mobileColumns: s.storefront?.mobileColumns || 2,
+      scarcityText: s.conversion?.scarcityText || "Ofertas limitadas terminam em",
+      countdownMinutes: s.conversion?.countdownMinutes || 15,
+      visitorCounterType: s.conversion?.visitorCounterType || "total",
+      visitorCounterText: s.conversion?.visitorCounterText || "Produtos com alto interesse dos clientes"
     });
     if (forms.settingsForm) {
       forms.settingsForm.elements.paginationEnabled.checked = s.storefront?.paginationEnabled !== false;
@@ -800,6 +849,15 @@
       forms.settingsForm.elements.showCardDescription.checked = s.storefront?.showCardDescription !== false;
       forms.settingsForm.elements.showCardRating.checked = s.storefront?.showCardRating !== false;
       forms.settingsForm.elements.showCardBadge.checked = s.storefront?.showCardBadge !== false;
+      forms.settingsForm.elements.scarcityEnabled.checked = s.conversion?.scarcityEnabled !== false;
+      forms.settingsForm.elements.visitorCounterEnabled.checked = s.conversion?.visitorCounterEnabled !== false;
+      forms.settingsForm.elements.mobileNavEnabled.checked = s.conversion?.mobileNavEnabled !== false;
+      forms.settingsForm.elements.socialProofEnabled.checked = s.conversion?.socialProofEnabled !== false;
+      normalizeMobileNavItems(s.conversion?.mobileNavItems).forEach((item, index) => {
+        forms.settingsForm.elements[`mobileNavIcon${index}`].value = item.icon;
+        forms.settingsForm.elements[`mobileNavLabel${index}`].value = item.label;
+        forms.settingsForm.elements[`mobileNavHref${index}`].value = item.href;
+      });
     }
 
     const rating = forms.reviewForm?.elements.rating;
@@ -933,8 +991,9 @@
       const id = event.payload?.product_id || event.product_id;
       if (!id) return;
       const row = map.get(id) || { id, name: names[id] || id, views: 0, checkouts: 0, favorites: 0, rate: 0 };
+      if (event.payload?.product_name && !names[id]) row.name = event.payload.product_name;
       if (event.type === "product_view") row.views += 1;
-      if (event.type === "checkout_click") row.checkouts += 1;
+      if (event.type === "checkout_click" || event.type === "buy_click") row.checkouts += 1;
       if (event.type === "favorite_add") row.favorites += 1;
       map.set(id, row);
     });
@@ -972,6 +1031,51 @@
       lead.source || "home"
     ]));
     downloadCsv(rows, `kairos-leads-${new Date().toISOString().slice(0, 10)}.csv`);
+  }
+
+  function normalizeSettings(settings) {
+    return {
+      ...(settings || {}),
+      storeName: settings?.storeName || "Kairos Shopping",
+      storeEmail: settings?.storeEmail || "kairossshopping@gmail.com",
+      promoBar: settings?.promoBar || { enabled: true, text: "Frete gratis para todo o Brasil", backgroundColor: "#ff6b00", textColor: "#111827", speedSeconds: 22 },
+      conversion: {
+        ...defaultConversionConfig(),
+        ...(settings?.conversion || {}),
+        mobileNavItems: normalizeMobileNavItems(settings?.conversion?.mobileNavItems)
+      }
+    };
+  }
+
+  function defaultConversionConfig() {
+    return {
+      scarcityEnabled: true,
+      scarcityText: "Ofertas limitadas terminam em",
+      countdownMinutes: 15,
+      visitorCounterEnabled: true,
+      visitorCounterType: "total",
+      visitorCounterText: "Produtos com alto interesse dos clientes",
+      mobileNavEnabled: true,
+      socialProofEnabled: true,
+      mobileNavItems: DEFAULT_MOBILE_NAV_ITEMS
+    };
+  }
+
+  function normalizeMobileNavItems(items) {
+    const source = Array.isArray(items) && items.length ? items : DEFAULT_MOBILE_NAV_ITEMS;
+    return source.slice(0, 5).map((item, index) => ({
+      icon: clean(item.icon || DEFAULT_MOBILE_NAV_ITEMS[index]?.icon || "&#128717;"),
+      label: clean(item.label || DEFAULT_MOBILE_NAV_ITEMS[index]?.label || "Loja"),
+      href: clean(item.href || DEFAULT_MOBILE_NAV_ITEMS[index]?.href || "#inicio")
+    }));
+  }
+
+  function mobileNavItemsFromForm(form) {
+    return DEFAULT_MOBILE_NAV_ITEMS.map((fallback, index) => ({
+      icon: clean(form.elements[`mobileNavIcon${index}`]?.value) || fallback.icon,
+      label: clean(form.elements[`mobileNavLabel${index}`]?.value) || fallback.label,
+      href: clean(form.elements[`mobileNavHref${index}`]?.value) || fallback.href
+    }));
   }
 
   function downloadCsv(rows, filename) {

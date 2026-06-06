@@ -18,6 +18,23 @@ window.KAIROS_DEFAULT_SETTINGS = {
     intervalSeconds: 36,
     visibleSeconds: 6
   },
+  conversion: {
+    scarcityEnabled: true,
+    scarcityText: "Ofertas limitadas terminam em",
+    countdownMinutes: 15,
+    visitorCounterEnabled: true,
+    visitorCounterType: "total",
+    visitorCounterText: "Produtos com alto interesse dos clientes",
+    mobileNavEnabled: true,
+    socialProofEnabled: true,
+    mobileNavItems: [
+      { icon: "&#127968;", label: "Inicio", href: "#inicio" },
+      { icon: "&#128717;&#65039;", label: "Produtos", href: "#produtos" },
+      { icon: "&#128194;", label: "Categorias", href: "#categoryRail" },
+      { icon: "&#9889;", label: "Ofertas", href: "#promocoes" },
+      { icon: "&#128230;", label: "Rastreio", href: "#rastreio" }
+    ]
+  },
   social: {
     instagram: "https://instagram.com/kairosshopping",
     facebook: "",

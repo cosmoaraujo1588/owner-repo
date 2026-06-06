@@ -311,6 +311,37 @@
             <label><input name="showCardDescription" type="checkbox" checked> Mostrar descricao no card</label>
             <label><input name="showCardRating" type="checkbox" checked> Mostrar avaliacao no card</label>
             <label><input name="showCardBadge" type="checkbox" checked> Mostrar selos no card</label>
+            <div class="admin-subsection full">
+              <h2>Configuracoes de Conversao</h2>
+              <p>Controle contador de ofertas, movimento da loja, prova social e barra inferior mobile sem novo deploy.</p>
+            </div>
+            <label><input name="scarcityEnabled" type="checkbox" checked> Ativar contador de ofertas</label>
+            <label>Texto do contador<input name="scarcityText" placeholder="Ofertas limitadas terminam em"></label>
+            <label>Tempo do contador (min)<input name="countdownMinutes" type="number" min="1" max="240" value="15"></label>
+            <label><input name="visitorCounterEnabled" type="checkbox" checked> Ativar contador de movimento</label>
+            <label>Tipo do contador<select name="visitorCounterType"><option value="online">Online real</option><option value="total">Total acumulado</option><option value="custom">Texto personalizado</option></select></label>
+            <label class="full">Texto personalizado<input name="visitorCounterText" placeholder="Produtos com alto interesse dos clientes"></label>
+            <label><input name="mobileNavEnabled" type="checkbox" checked> Ativar barra inferior mobile</label>
+            <label><input name="socialProofEnabled" type="checkbox" checked> Ativar prova social</label>
+            <div class="admin-subsection full">
+              <h2>Atalhos Mobile</h2>
+              <p>Edite icone, nome e destino dos cinco atalhos inferiores.</p>
+            </div>
+            <label>Icone 1<input name="mobileNavIcon0"></label>
+            <label>Nome 1<input name="mobileNavLabel0"></label>
+            <label>Link 1<input name="mobileNavHref0"></label>
+            <label>Icone 2<input name="mobileNavIcon1"></label>
+            <label>Nome 2<input name="mobileNavLabel1"></label>
+            <label>Link 2<input name="mobileNavHref1"></label>
+            <label>Icone 3<input name="mobileNavIcon2"></label>
+            <label>Nome 3<input name="mobileNavLabel2"></label>
+            <label>Link 3<input name="mobileNavHref2"></label>
+            <label>Icone 4<input name="mobileNavIcon3"></label>
+            <label>Nome 4<input name="mobileNavLabel3"></label>
+            <label>Link 4<input name="mobileNavHref3"></label>
+            <label>Icone 5<input name="mobileNavIcon4"></label>
+            <label>Nome 5<input name="mobileNavLabel4"></label>
+            <label>Link 5<input name="mobileNavHref4"></label>
             <div class="admin-actions full">
               <button class="primary-button" type="submit">Salvar configuracoes</button>
             </div>
