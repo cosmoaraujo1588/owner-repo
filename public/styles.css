@@ -1814,7 +1814,20 @@ th {
   }
 
   .assistant-widget {
+    right: 4px;
     bottom: calc(88px + env(safe-area-inset-bottom));
+  }
+
+  .assistant-toggle {
+    width: 40px;
+    height: 40px;
+    font-size: 1rem;
+    opacity: 0.92;
+  }
+
+  .assistant-panel {
+    right: 4px;
+    bottom: 50px;
   }
 
   .activity-popup {
@@ -1883,6 +1896,27 @@ th {
 
   .admin-card {
     padding: 14px;
+  }
+
+  .metric-grid {
+    gap: 8px;
+  }
+
+  .metric-card {
+    min-width: 0;
+    padding: 12px;
+  }
+
+  .metric-card span {
+    font-size: 0.68rem;
+    line-height: 1.25;
+  }
+
+  .metric-card strong {
+    margin-top: 6px;
+    overflow-wrap: anywhere;
+    font-size: 1.3rem;
+    line-height: 1.15;
   }
 
   .form-grid {
