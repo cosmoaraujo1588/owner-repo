@@ -1913,10 +1913,14 @@ th {
   }
 
   .metric-card strong {
+    display: -webkit-box;
     margin-top: 6px;
     overflow-wrap: anywhere;
+    overflow: hidden;
     font-size: 1.3rem;
     line-height: 1.15;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
   }
 
   .form-grid {
