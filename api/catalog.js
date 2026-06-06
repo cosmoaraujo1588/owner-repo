@@ -13,7 +13,7 @@ async function getCatalog(req, res) {
   const includeInactive = req.query?.includeInactive === "1";
 
   let productsQuery = supabase.from("products").select("*").order("display_order", { ascending: true });
-  if (!includeInactive) productsQuery = productsQuery.eq("active", true);
+  if (!includeInactive) productsQuery = productsQuery.or("active.is.true,active.is.null");
 
   let categoriesQuery = supabase.from("categories").select("*").order("display_order", { ascending: true });
   if (!includeInactive) categoriesQuery = categoriesQuery.eq("active", true);
