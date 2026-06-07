@@ -451,7 +451,26 @@ state.products = apiProducts.some((product) => product.visible !== false && prod
       <article class="modal-card">
         <button class="modal-close" type="button" data-modal-action="close">×</button>
         <div class="modal-media">
-          <img src="${escapeHtml(product.image || FALLBACK_IMAGE)}" alt="${escapeHtml(product.title)}" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'">
+          ${(() => {
+            const imgs = [product.image || FALLBACK_IMAGE, ...(product.gallery || []).filter(Boolean)];
+            const unique = [...new Set(imgs)];
+            if (unique.length <= 1) {
+              return `<img id="modalMainImg" src="${escapeHtml(unique[0])}" alt="${escapeHtml(product.title)}" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'">`;
+            }
+            const thumbs = unique.map((src, i) => `
+              <button type="button" class="gallery-thumb${i === 0 ? " active" : ""}" data-src="${escapeHtml(src)}" aria-label="Imagem ${i + 1}" onclick="
+                document.getElementById('modalMainImg').src=this.dataset.src;
+                document.querySelectorAll('.gallery-thumb').forEach(t=>t.classList.remove('active'));
+                this.classList.add('active');
+              ">
+                <img src="${escapeHtml(src)}" alt="Foto ${i + 1}" loading="lazy" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'">
+              </button>
+            `).join("");
+            return `
+              <img id="modalMainImg" src="${escapeHtml(unique[0])}" alt="${escapeHtml(product.title)}" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'">
+              <div class="gallery-thumbs">${thumbs}</div>
+            `;
+          })()}
           ${product.videoUrl ? `<a class="video-link" href="${escapeHtml(product.videoUrl)}" target="_blank" rel="noopener">Assistir video do produto</a>` : ""}
         </div>
         <div class="modal-content">
