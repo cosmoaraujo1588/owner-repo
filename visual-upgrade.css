@@ -1,0 +1,318 @@
+/* Kairos visual upgrade - inspired by modern mobile commerce references.
+   Safe CSS-only layer: does not change products, checkout, Supabase, API or scripts. */
+
+:root {
+  --kairos-red: #ef3f22;
+  --kairos-orange: #ff7a00;
+  --kairos-amber: #ffb545;
+  --kairos-dark: #111827;
+  --kairos-soft: #fff4e8;
+  --radius: 18px;
+  --shadow: 0 18px 48px rgba(15, 23, 42, 0.12);
+}
+
+body {
+  background:
+    radial-gradient(circle at top left, rgba(255, 122, 0, 0.12), transparent 32%),
+    linear-gradient(180deg, #fff8f1 0%, #f6f7fb 38%, #f8fafc 100%);
+}
+
+.top-strip,
+.bottom-strip {
+  background: linear-gradient(90deg, var(--kairos-red), var(--kairos-orange), var(--kairos-amber));
+  color: #fff;
+  letter-spacing: .02em;
+  text-shadow: 0 1px 2px rgba(0,0,0,.18);
+}
+
+.site-header {
+  background: linear-gradient(135deg, rgba(239, 63, 34, .96), rgba(255, 122, 0, .96));
+  border-bottom: 0;
+  box-shadow: 0 14px 34px rgba(239, 63, 34, 0.25);
+}
+
+.brand,
+.header-actions,
+.header-actions a {
+  color: #fff;
+}
+
+.brand img {
+  border: 2px solid rgba(255,255,255,.9);
+  box-shadow: 0 8px 20px rgba(0,0,0,.20);
+}
+
+.search {
+  border: 0;
+  border-radius: 999px;
+  box-shadow: 0 12px 28px rgba(17, 24, 39, .18);
+}
+
+.search input {
+  padding-left: 18px;
+}
+
+.search button,
+.primary-button {
+  background: linear-gradient(135deg, var(--kairos-dark), #2a3344);
+  color: #fff;
+}
+
+.secondary-button {
+  background: #fff;
+  color: var(--kairos-dark);
+  border-color: rgba(17,24,39,.10);
+}
+
+.header-actions a:hover,
+.admin-link {
+  background: rgba(255,255,255,.14);
+}
+
+.hero {
+  max-width: 1180px;
+  margin-top: 22px;
+}
+
+.hero-media {
+  position: relative;
+  border-radius: 26px;
+  background: linear-gradient(135deg, #b91c1c, #ff6b00);
+  box-shadow: 0 24px 70px rgba(239, 63, 34, .24);
+}
+
+.hero-media::after {
+  content: "Ofertas selecionadas Kairos";
+  position: absolute;
+  left: clamp(18px, 4vw, 46px);
+  bottom: clamp(18px, 4vw, 42px);
+  max-width: 520px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(17,24,39,.78);
+  color: #fff;
+  font-weight: 950;
+  letter-spacing: .02em;
+  backdrop-filter: blur(8px);
+}
+
+.hero-media img {
+  opacity: .96;
+}
+
+.hero-actions {
+  margin-top: -22px;
+}
+
+.hero-actions .primary-button,
+.hero-actions .secondary-button {
+  border-radius: 999px;
+  min-height: 48px;
+  padding-inline: 22px;
+  box-shadow: 0 14px 32px rgba(15,23,42,.16);
+}
+
+.trust-row,
+.store-signal-row {
+  gap: 12px;
+}
+
+.trust-row div,
+.store-signal-row div,
+.review-card,
+.steps div,
+.accordion-item {
+  border: 0;
+  border-radius: 20px;
+  box-shadow: 0 14px 34px rgba(15,23,42,.08);
+}
+
+.trust-row div {
+  background: linear-gradient(135deg, #fff, var(--kairos-soft));
+  border: 1px solid rgba(255, 122, 0, .16);
+}
+
+.trust-row strong::before {
+  content: "✓ ";
+  color: var(--kairos-orange);
+}
+
+.section-block {
+  margin-top: 38px;
+}
+
+.section-heading {
+  align-items: flex-start;
+}
+
+.section-heading span,
+.eyebrow,
+.product-category {
+  color: var(--kairos-red);
+}
+
+.section-heading h2,
+.split-showcase h2,
+.tracking-card h2,
+.lead-section h2 {
+  color: var(--kairos-dark);
+  letter-spacing: -.02em;
+}
+
+.category-rail,
+.subcategory-rail {
+  padding: 4px 2px 10px;
+}
+
+.category-chip,
+.subcategory-chip {
+  border-radius: 999px;
+  border-color: rgba(239, 63, 34, .18);
+  box-shadow: 0 10px 26px rgba(15,23,42,.07);
+}
+
+.category-chip.active,
+.subcategory-chip.active {
+  background: linear-gradient(135deg, var(--kairos-red), var(--kairos-orange));
+  border-color: transparent;
+  color: #fff;
+}
+
+.category-chip.active span,
+.subcategory-chip.active small {
+  color: #fff;
+}
+
+.product-card {
+  border: 0;
+  border-radius: 22px;
+  box-shadow: 0 16px 38px rgba(15,23,42,.09);
+}
+
+.product-image-wrap {
+  background: linear-gradient(180deg, #fff7ed, #ffffff);
+}
+
+.product-image-wrap img {
+  padding: 10px;
+}
+
+.badges span,
+.free-shipping {
+  background: linear-gradient(135deg, #ecfdf5, #dcfce7);
+  color: #047857;
+}
+
+.badges span:first-child {
+  background: linear-gradient(135deg, var(--kairos-red), var(--kairos-orange));
+  color: #fff;
+}
+
+.price-row strong {
+  color: var(--kairos-red);
+}
+
+.product-actions .primary-button,
+.product-actions .secondary-button,
+.compact {
+  border-radius: 999px;
+}
+
+.tracking-card,
+.lead-section,
+.split-showcase article {
+  border: 0;
+  border-radius: 24px;
+  background: linear-gradient(135deg, #ffffff, #fff4e8);
+  box-shadow: 0 18px 44px rgba(15,23,42,.09);
+}
+
+.whatsapp-group-section {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 18px;
+  align-items: center;
+  padding: clamp(18px, 3vw, 28px);
+  border-radius: 24px;
+  background: linear-gradient(135deg, #16a34a, #22c55e);
+  color: #fff;
+  box-shadow: 0 18px 44px rgba(22, 163, 74, .20);
+}
+
+.whatsapp-group-section h2,
+.whatsapp-group-section p,
+.whatsapp-group-section .eyebrow {
+  color: #fff;
+}
+
+.site-footer {
+  border-top-left-radius: 28px;
+  border-top-right-radius: 28px;
+  background: linear-gradient(135deg, #111827, #1f2937);
+}
+
+.mobile-bottom-nav {
+  box-shadow: 0 -12px 30px rgba(15,23,42,.16);
+}
+
+@media (max-width: 640px) {
+  .site-header {
+    gap: 12px;
+    padding: 12px 14px 14px;
+  }
+
+  .brand {
+    justify-content: center;
+  }
+
+  .brand img {
+    width: 46px;
+    height: 46px;
+  }
+
+  .hero-media {
+    border-radius: 0 0 28px 28px;
+  }
+
+  .hero-media::after {
+    left: 14px;
+    right: 14px;
+    bottom: 14px;
+    max-width: none;
+    text-align: center;
+    font-size: .9rem;
+  }
+
+  .trust-row {
+    padding-inline: 14px;
+  }
+
+  .trust-row div {
+    min-width: 210px;
+  }
+
+  .category-chip {
+    min-height: 46px;
+    padding: 11px 15px;
+  }
+
+  .product-card {
+    border-radius: 18px;
+  }
+
+  .product-grid,
+  .review-grid,
+  .steps,
+  .metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .whatsapp-group-section {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+  .site-footer {
+    padding-bottom: 88px;
+  }
+}
