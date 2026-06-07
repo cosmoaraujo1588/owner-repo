@@ -6,4 +6,5 @@ window.KAIROS_DEFAULT_SETTINGS = {
   trackingUrl: "https://app.kaiross.com.br/rastreio",
   whatsappMessage: "Ola, vim pelo site da Kairos Shopping e gostaria de atendimento.",
   promoBar: {
-    enabled: true
+    enabled: true,
+    text: "Frete
