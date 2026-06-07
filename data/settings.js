@@ -19,13 +19,21 @@ window.KAIROS_DEFAULT_SETTINGS = {
     visibleSeconds: 6
   },
   conversion: {
-    scarcityEnabled: true,
-    scarcityText: "Ofertas limitadas terminam em",
-    countdownMinutes: 15,
-    visitorCounterEnabled: true,
-    visitorCounterType: "total",
-    visitorCounterText: "Produtos com alto interesse dos clientes",
     mobileNavEnabled: true,
-    socialProofEnabled: true,
-    mobileNavItems: [
-      { icon: "&#127968
+    socialProofEnabled: true
+  },
+  social: {
+    instagram: "https://instagram.com/kairosshopping",
+    facebook: "",
+    tiktok: "",
+    youtube: "",
+    whatsapp: ""
+  },
+  content: {
+    about: "A Kairos Shopping e um marketplace de produtos selecionados com frete gratis para todo o Brasil.",
+    privacy: "Seus dados sao tratados com seguranca e utilizados apenas para fins de atendimento e entrega.",
+    terms: "Ao utilizar a Kairos Shopping, voce concorda com nossas condicoes de compra e uso da plataforma.",
+    returns: "Para solicitar troca ou devolucao, entre em contato pelo WhatsApp em ate 7 dias apos o recebimento."
+  },
+  reviews: []
+};
