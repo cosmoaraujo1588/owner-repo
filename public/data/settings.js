@@ -1,1 +1,1 @@
-window.KAIROS_DEFAULT_SETTINGS={storeName:'Kairos Shopping',storeEmail:'kairossshopping@gmail.com',logoUrl:'./assets/logo-kairos-oficial.png',bannerUrl:'./assets/banner-principal-kairos.jpg',trackingUrl:'https://app.kaiross.com.br/rastreio',promoBar:{enabled:true,text:'Frete gratis para todo o Brasil'},purchasePopup:{enabled:true},conversion:{mobileNavEnabled:true,socialProofEnabled:true},social:{instagram:'
+window.KAIROS_DEFAULT_SETTINGS={};
