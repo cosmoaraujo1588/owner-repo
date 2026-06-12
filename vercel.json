@@ -44,6 +44,41 @@
       ]
     }
   ],
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "kairosshopping.vercel.app"
+        }
+      ],
+      "destination": "https://www.kairosshopping.com.br/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "kairos-shopping.vercel.app"
+        }
+      ],
+      "destination": "https://www.kairosshopping.com.br/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "kairos-shopping-vercel-supabase-zer.vercel.app"
+        }
+      ],
+      "destination": "https://www.kairosshopping.com.br/:path*",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/produto/:slug",
@@ -52,6 +87,30 @@
     {
       "source": "/admin",
       "destination": "/admin.html"
+    },
+    {
+      "source": "/quem-somos",
+      "destination": "/api/institutional-page?page=quem-somos"
+    },
+    {
+      "source": "/privacidade",
+      "destination": "/api/institutional-page?page=privacidade"
+    },
+    {
+      "source": "/termos",
+      "destination": "/api/institutional-page?page=termos"
+    },
+    {
+      "source": "/trocas-e-devolucoes",
+      "destination": "/api/institutional-page?page=trocas-e-devolucoes"
+    },
+    {
+      "source": "/contato",
+      "destination": "/api/institutional-page?page=contato"
+    },
+    {
+      "source": "/rastreio",
+      "destination": "/api/institutional-page?page=rastreio"
     }
   ]
 }

@@ -2,6 +2,8 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { getSupabase, cleanText, slugify } from "./_supabase.js";
 
+const PUBLIC_SITE_URL = "https://www.kairosshopping.com.br";
+
 export default async function handler(req, res) {
   const slug = cleanText(req.query?.slug || "", 180);
   const product = await findProduct(slug);
@@ -53,6 +55,8 @@ function injectProductMeta(html, product, slug, siteUrl) {
     .replace(/<meta property="og:description" content="[^"]*">/, `<meta property="og:description" content="${escapeHtml(description)}">`)
     .replace(/<meta property="og:image" content="[^"]*">/, `<meta property="og:image" content="${escapeHtml(image)}">`)
     .replace(/<meta property="og:url" content="[^"]*">/, `<meta property="og:url" content="${escapeHtml(url)}">`)
+    .replace(/<meta name="twitter:url" content="[^"]*">/, `<meta name="twitter:url" content="${escapeHtml(url)}">`)
+    .replace(/<link rel="canonical" href="[^"]*">/, `<link rel="canonical" href="${escapeHtml(url)}">`)
     .replace(/<script type="application\/ld\+json" id="structuredData">[\s\S]*?<\/script>/, `<script type="application/ld+json" id="structuredData">${JSON.stringify(jsonLd)}</script>`);
 }
 
@@ -61,9 +65,8 @@ function injectBase(html) {
 }
 
 function requestOrigin(req) {
-  const host = req.headers["x-forwarded-host"] || req.headers.host || "kairosshopping.vercel.app";
-  const protocol = req.headers["x-forwarded-proto"] || "https";
-  return `${protocol}://${host}`;
+  const configured = process.env.PUBLIC_SITE_URL || process.env.SITE_URL || process.env.APP_URL || process.env.BASE_URL || PUBLIC_SITE_URL;
+  return String(configured).replace(/\/+$/, "");
 }
 
 function absoluteUrl(value, siteUrl) {

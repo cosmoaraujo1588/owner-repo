@@ -1,6 +1,7 @@
 window.KAIROS_DEFAULT_SETTINGS = {
   storeName: "Kairos Shopping",
   storeEmail: "kairossshopping@gmail.com",
+  siteUrl: "https://www.kairosshopping.com.br",
   logoUrl: "./assets/logo-kairos-oficial.png",
   bannerUrl: "./assets/banner-principal-kairos.jpg",
   trackingUrl: "https://app.kaiross.com.br/rastreio",
@@ -20,7 +21,14 @@ window.KAIROS_DEFAULT_SETTINGS = {
   },
   conversion: {
     mobileNavEnabled: true,
-    socialProofEnabled: true
+    socialProofEnabled: true,
+    mobileNavItems: [
+      { icon: "&#127968;", label: "Inicio", href: "#inicio" },
+      { icon: "&#128717;&#65039;", label: "Produtos", href: "#produtos" },
+      { icon: "&#128194;", label: "Categorias", href: "#categorias" },
+      { icon: "&#9889;", label: "Ofertas", href: "#promocoes" },
+      { icon: "&#128230;", label: "Rastreio", href: "/rastreio" }
+    ]
   },
   social: {
     instagram: "https://instagram.com/kairosshopping",

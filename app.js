@@ -25,15 +25,16 @@
   const FAVORITES_KEY = "kairos:favorites";
   const SESSION_KEY = "kairos:session";
   const SCARCITY_DEADLINE_KEY = "kairos:scarcity-deadline";
+  const PUBLIC_SITE_URL = "https://www.kairosshopping.com.br";
   const WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/EOzxSL6u8QP6LPXmXO6Ym7?s=cl&p=a&mlu=0";
   const DEFAULT_SETTINGS = window.KAIROS_DEFAULT_SETTINGS || {};
   const SEED_PRODUCTS = Array.isArray(window.KAIROS_SEED_PRODUCTS) ? window.KAIROS_SEED_PRODUCTS : [];
   const DEFAULT_MOBILE_NAV_ITEMS = [
     { icon: "&#127968;", label: "Inicio", href: "#inicio" },
     { icon: "&#128717;&#65039;", label: "Produtos", href: "#produtos" },
-    { icon: "&#128194;", label: "Categorias", href: "#categoryRail" },
+    { icon: "&#128194;", label: "Categorias", href: "#categorias" },
     { icon: "&#9889;", label: "Ofertas", href: "#promocoes" },
-    { icon: "&#128230;", label: "Rastreio", href: "#rastreio" }
+    { icon: "&#128230;", label: "Rastreio", href: "/rastreio" }
   ];
 
   const state = {
@@ -922,8 +923,13 @@ state.products = apiProducts.some((product) => product.visible !== false && prod
   }
 
   function productUrl(product) {
-    const base = (state.settings.siteUrl || location.origin).replace(/\/+$/, "");
+    const base = publicSiteUrl();
     return `${base}/produto/${encodeURIComponent(product.slug || slugify(product.title || product.id))}`;
+  }
+
+  function publicSiteUrl() {
+    const configured = String(state.settings.siteUrl || "").replace(/\/+$/, "");
+    return configured && !/\.vercel\.app$/i.test(configured) ? configured : PUBLIC_SITE_URL;
   }
 
   function slugify(value) {
@@ -1033,7 +1039,11 @@ state.products = apiProducts.some((product) => product.visible !== false && prod
     setMeta("og:title", product ? product.title : "Kairos Shopping", true);
     setMeta("og:description", product ? (product.shortDescription || product.description || "Produto Kairos Shopping").slice(0, 180) : "Tudo que voce procura, em um so lugar. Produtos selecionados, frete gratis e rastreamento.", true);
     setMeta("og:image", absoluteUrl(product?.image || "./assets/banner-kairos-claro-1.png"), true);
-    setMeta("og:url", product ? productUrl(product) : `${location.origin}/`, true);
+    const url = product ? productUrl(product) : `${publicSiteUrl()}/`;
+    setMeta("og:url", url, true);
+    setMeta("twitter:url", url);
+    const canonical = document.querySelector('link[rel="canonical"]');
+    if (canonical) canonical.setAttribute("href", url);
   }
 
   function setMeta(name, content, property = false) {
@@ -1044,9 +1054,9 @@ state.products = apiProducts.some((product) => product.visible !== false && prod
 
   function absoluteUrl(value) {
     try {
-      return new URL(value || "/", location.origin).href;
+      return new URL(value || "/", publicSiteUrl()).href;
     } catch {
-      return `${location.origin}/assets/banner-kairos-claro-1.png`;
+      return `${PUBLIC_SITE_URL}/assets/banner-kairos-claro-1.png`;
     }
   }
 

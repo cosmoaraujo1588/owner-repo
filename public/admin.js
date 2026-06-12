@@ -8,9 +8,9 @@
   const DEFAULT_MOBILE_NAV_ITEMS = [
     { icon: "&#127968;", label: "Inicio", href: "#inicio" },
     { icon: "&#128717;&#65039;", label: "Produtos", href: "#produtos" },
-    { icon: "&#128194;", label: "Categorias", href: "#categoryRail" },
+    { icon: "&#128194;", label: "Categorias", href: "#categorias" },
     { icon: "&#9889;", label: "Ofertas", href: "#promocoes" },
-    { icon: "&#128230;", label: "Rastreio", href: "#rastreio" }
+    { icon: "&#128230;", label: "Rastreio", href: "/rastreio" }
   ];
   const BASE_CATEGORIES = [
     "Eletrônicos",
