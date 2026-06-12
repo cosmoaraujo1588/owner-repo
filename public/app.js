@@ -53,12 +53,10 @@
     favorites: readJson(FAVORITES_KEY, []),
     sessionId: getSessionId(),
     supabaseConfig: null,
-    publicStats: { onlineNow: 0, visitsTotal: 0 },
     bannerTimer: null,
     bannerIndex: 0,
     reviewTimer: null,
-    countdownTimer: null,
-    statsTimer: null
+    countdownTimer: null
   };
 
   const els = {
@@ -90,7 +88,6 @@
     activityPopup: document.getElementById("activityPopup"),
     socialLinks: document.getElementById("socialLinks"),
     footerWhatsapp: document.getElementById("footerWhatsapp"),
-    storeSignalRow: document.getElementById("storeSignalRow"),
     mobileBottomNav: document.getElementById("mobileBottomNav")
   };
 
@@ -99,13 +96,11 @@
   async function init() {
     bindEvents();
     await loadCatalog();
-    await loadPublicStats();
     renderAll();
     openProductFromLocation();
     trackEvent("page_view", { page: location.pathname || "/" });
     startPresence();
     startActivityPopup();
-    startPublicStatsRefresh();
     startRealtimeRefresh();
     window.addEventListener("popstate", openProductFromLocation);
   }
@@ -136,20 +131,6 @@
       if (configResponse.ok) state.supabaseConfig = await configResponse.json();
     } catch {
       state.supabaseConfig = null;
-    }
-  }
-
-  async function loadPublicStats() {
-    try {
-      const response = await fetch(`/api/public-stats?t=${Date.now()}`, { cache: "no-store" });
-      if (!response.ok) throw new Error("stats unavailable");
-      const data = await response.json();
-      state.publicStats = {
-        onlineNow: Number(data.onlineNow || 0),
-        visitsTotal: Number(data.visitsTotal || 0)
-      };
-    } catch {
-      state.publicStats = { onlineNow: 0, visitsTotal: 0 };
     }
   }
 
@@ -191,6 +172,10 @@
     });
 
     document.addEventListener("click", (event) => {
+      trackGenericClick(event.target.closest("a,button"));
+      const link = event.target.closest("a[href]");
+      if (link) trackLinkAnalytics(link);
+
       const groupLink = event.target.closest("[data-whatsapp-group]");
       if (groupLink) {
         trackEvent("whatsapp_group_click", { source: groupLink.dataset.whatsappGroup || "home" });
@@ -255,7 +240,6 @@
     renderFaq();
     renderAssistant();
     renderSocial();
-    renderConversionSignals();
     renderMobileBottomNav();
   }
 
@@ -326,38 +310,6 @@
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     const seconds = totalSeconds % 60;
     return [hours, minutes, seconds].map((value) => String(value).padStart(2, "0")).join(":");
-  }
-
-  function renderConversionSignals() {
-    if (!els.storeSignalRow) return;
-    const conversion = conversionConfig();
-    const hasCounter = conversion.visitorCounterEnabled !== false;
-    const hasProof = conversion.socialProofEnabled !== false;
-    els.storeSignalRow.hidden = !hasCounter && !hasProof;
-    if (els.storeSignalRow.hidden) return;
-    const counterText = hasCounter ? visitorCounterText(conversion) : "";
-    els.storeSignalRow.innerHTML = `
-      ${hasCounter ? `<div><strong>${escapeHtml(counterText)}</strong><span>Movimento acompanhado em tempo real</span></div>` : ""}
-      ${hasProof ? `
-        <div><strong>Produtos em destaque</strong><span>Vitrine atualizada pelo painel</span></div>
-        <div><strong>Frete gratis</strong><span>Envio para todo o Brasil</span></div>
-        <div><strong>Compra segura</strong><span>Checkout externo oficial</span></div>
-      ` : ""}
-    `;
-  }
-
-  function visitorCounterText(conversion) {
-    const type = conversion.visitorCounterType || "total";
-    if (type === "online") {
-      return `${formatNumber(state.publicStats.onlineNow || 0)} pessoas navegando agora`;
-    }
-    if (type === "custom") {
-      return conversion.visitorCounterText || "Produtos com alto interesse dos clientes";
-    }
-    const total = Number(state.publicStats.visitsTotal || 0);
-    return total > 0
-      ? `${formatNumber(total)} visitas acumuladas na Kairos Shopping`
-      : (conversion.visitorCounterText || "Produtos com alto interesse dos clientes");
   }
 
   function renderMobileBottomNav() {
@@ -437,7 +389,7 @@
       history.pushState({ productId: product.id }, "", url);
       applyProductSeo(product);
     }
-    trackEvent("product_view", { product_id: product.id, product_name: product.title, category: product.category });
+    trackEvent("product_view", { product_id: product.id, product_name: product.title, category: product.category, price: Number(product.price || 0) });
     trackPixel("ViewContent", { content_ids: [product.id], content_name: product.title, content_category: product.category, value: Number(product.price || 0), currency: "BRL" });
     const favorite = state.favorites.includes(product.id);
     const related = relatedProducts(product);
@@ -499,6 +451,7 @@
       product_id: product.id,
       product_name: product.title,
       category: product.category,
+      price: Number(product.price || 0),
       checkout_url: product.checkoutUrl
     });
     if (!product.checkoutUrl) {
@@ -697,14 +650,6 @@
     }, 45000);
   }
 
-  function startPublicStatsRefresh() {
-    if (state.statsTimer) clearInterval(state.statsTimer);
-    state.statsTimer = setInterval(async () => {
-      await loadPublicStats();
-      renderConversionSignals();
-    }, 30000);
-  }
-
   function startPresence() {
     const tick = () => trackEvent("presence", { page: location.pathname, product_id: currentProductFromUrl(), session_id: state.sessionId });
     tick();
@@ -723,6 +668,7 @@
 
   async function trackEvent(type, payload = {}) {
     if (isAdminPath(location.pathname)) return;
+    trackGa4(type, payload);
     const body = {
       type,
       payload,
@@ -744,6 +690,55 @@
       localEvents.push(body);
       localStorage.setItem("kairos:local-events", JSON.stringify(localEvents.slice(-500)));
     }
+  }
+
+  function trackGa4(type, payload = {}) {
+    if (typeof window.gtag !== "function") return;
+    const eventMap = {
+      product_view: "view_product",
+      checkout_click: "add_to_checkout",
+      whatsapp_click: "whatsapp_click",
+      whatsapp_group_click: "whatsapp_click",
+      search: "search_products",
+      category_filter: "view_category",
+      lead: "generate_lead"
+    };
+    const eventName = eventMap[type];
+    if (!eventName) return;
+    window.gtag("event", eventName, {
+      product_id: payload.product_id || "",
+      product_name: payload.product_name || "",
+      category: payload.category || "",
+      price: Number(payload.price || 0),
+      search_term: payload.query || "",
+      source: payload.source || ""
+    });
+  }
+
+  function trackLinkAnalytics(link) {
+    if (typeof window.gtag !== "function") return;
+    const href = String(link.href || "");
+    if (!href) return;
+    if (/wa\.me|whatsapp\.com/i.test(href)) {
+      window.gtag("event", "whatsapp_click", { source: link.dataset.whatsappGroup || link.id || "link" });
+    }
+    if (/\.(pdf|xlsx?|csv|docx?|zip)(?:[?#]|$)/i.test(href)) {
+      window.gtag("event", "file_download", { file_name: href.split("/").pop(), link_url: href });
+    }
+    try {
+      if (new URL(href, location.href).origin !== location.origin) {
+        window.gtag("event", "outbound_click", { link_url: href, link_text: link.textContent?.trim() || "" });
+      }
+    } catch {}
+  }
+
+  function trackGenericClick(control) {
+    if (!control || typeof window.gtag !== "function") return;
+    window.gtag("event", "click", {
+      element_id: control.id || "",
+      element_text: control.textContent?.trim().slice(0, 120) || "",
+      link_url: control.href || ""
+    });
   }
 
   function isAdminPath(path) {
