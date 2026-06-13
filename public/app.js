@@ -23,6 +23,7 @@
     }
   ];
   const FAVORITES_KEY = "kairos:favorites";
+  const CART_KEY = "kairos:cart";
   const SESSION_KEY = "kairos:session";
   const SCARCITY_DEADLINE_KEY = "kairos:scarcity-deadline";
   const PUBLIC_SITE_URL = "https://www.kairosshopping.com.br";
@@ -34,7 +35,7 @@
     { icon: "&#128717;&#65039;", label: "Produtos", href: "#produtos" },
     { icon: "&#128194;", label: "Categorias", href: "#categorias" },
     { icon: "&#9889;", label: "Ofertas", href: "#promocoes" },
-    { icon: "&#128230;", label: "Rastreio", href: "/rastreio" }
+    { icon: "&#128717;", label: "Sacolinha", href: "/carrinho" }
   ];
 
   const state = {
@@ -48,9 +49,11 @@
     subcategoryKey: "todas",
     search: "",
     sort: "relevance",
+    priceRange: "all",
     catalogPage: 1,
     loadedPages: 1,
     favorites: readJson(FAVORITES_KEY, []),
+    cart: readJson(CART_KEY, []),
     sessionId: getSessionId(),
     supabaseConfig: null,
     bannerTimer: null,
@@ -76,6 +79,7 @@
     searchInput: document.getElementById("searchInput"),
     searchSuggestions: document.getElementById("searchSuggestions"),
     sortSelect: document.getElementById("sortSelect"),
+    priceFilter: document.getElementById("priceFilter"),
     productModal: document.getElementById("productModal"),
     shareMenu: document.getElementById("shareMenu"),
     reviewGrid: document.getElementById("reviewGrid"),
@@ -88,6 +92,9 @@
     activityPopup: document.getElementById("activityPopup"),
     socialLinks: document.getElementById("socialLinks"),
     footerWhatsapp: document.getElementById("footerWhatsapp"),
+    headerWhatsapp: document.getElementById("headerWhatsapp"),
+    floatingWhatsapp: document.getElementById("floatingWhatsapp"),
+    cartCount: document.getElementById("cartCount"),
     mobileBottomNav: document.getElementById("mobileBottomNav")
   };
 
@@ -97,6 +104,7 @@
     bindEvents();
     await loadCatalog();
     renderAll();
+    renderCartCount();
     openProductFromLocation();
     trackEvent("page_view", { page: location.pathname || "/" });
     startPresence();
@@ -110,7 +118,12 @@
       const response = await fetch(`/api/catalog?t=${Date.now()}`, { cache: "no-store" });
       if (!response.ok) throw new Error("Catalog API unavailable");
       const catalog = await response.json();
-      state.products = sanitizeProducts(catalog.products || []);
+      const apiProducts = sanitizeProducts(catalog.products || []);
+const seedProducts = sanitizeProducts(SEED_PRODUCTS || []);
+
+state.products = apiProducts.some((product) => product.visible !== false && product.active !== false)
+  ? apiProducts
+  : seedProducts;
       state.categories = normalizeCategories(catalog.categories || []);
       state.subcategories = normalizeSubcategories(catalog.subcategories || []);
       const settingsBanners = Array.isArray(catalog.settings?.banners) ? catalog.settings.banners : [];
@@ -161,12 +174,19 @@
       renderProducts();
     });
 
+    els.priceFilter?.addEventListener("change", () => {
+      state.priceRange = els.priceFilter.value;
+      resetCatalogPagination();
+      renderProducts();
+    });
+
     els.productModal?.addEventListener("click", (event) => {
       const target = event.target.closest("[data-modal-action]");
       if (!target) return;
       const action = target.dataset.modalAction;
       if (action === "close") closeModal();
       if (action === "buy") buyProduct(target.dataset.productId);
+      if (action === "cart") toggleCart(target.dataset.productId);
       if (action === "share") shareProduct(target.dataset.productId);
       if (action === "favorite") toggleFavorite(target.dataset.productId);
     });
@@ -205,6 +225,7 @@
       const id = button.dataset.productId;
       if (button.dataset.action === "details") openProduct(id);
       if (button.dataset.action === "buy") buyProduct(id);
+      if (button.dataset.action === "cart") toggleCart(id);
       if (button.dataset.action === "share") shareProduct(id);
       if (button.dataset.action === "favorite") toggleFavorite(id);
     });
@@ -252,6 +273,8 @@
 
     if (els.trackingPortal) els.trackingPortal.href = state.settings.trackingUrl;
     if (els.footerWhatsapp) els.footerWhatsapp.href = whatsappUrl();
+    if (els.headerWhatsapp) els.headerWhatsapp.href = whatsappUrl();
+    if (els.floatingWhatsapp) els.floatingWhatsapp.href = whatsappUrl();
   }
 
   function setMarquee(container, promo, fallbackText) {
@@ -389,9 +412,12 @@
       history.pushState({ productId: product.id }, "", url);
       applyProductSeo(product);
     }
-    trackEvent("product_view", { product_id: product.id, product_name: product.title, category: product.category, price: Number(product.price || 0) });
-    trackPixel("ViewContent", { content_ids: [product.id], content_name: product.title, content_category: product.category, value: Number(product.price || 0), currency: "BRL" });
+    if (!options.silent) {
+      trackEvent("product_view", { product_id: product.id, product_name: product.title, category: product.category, price: Number(product.price || 0) });
+      trackPixel("ViewContent", { content_ids: [product.id], content_name: product.title, content_category: product.category, value: Number(product.price || 0), currency: "BRL" });
+    }
     const favorite = state.favorites.includes(product.id);
+    const inCart = state.cart.includes(product.id);
     const related = relatedProducts(product);
     els.productModal.hidden = false;
     els.productModal.innerHTML = `
@@ -399,7 +425,26 @@
       <article class="modal-card">
         <button class="modal-close" type="button" data-modal-action="close">×</button>
         <div class="modal-media">
-          <img src="${escapeHtml(product.image || FALLBACK_IMAGE)}" alt="${escapeHtml(product.title)}" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'">
+          ${(() => {
+            const imgs = [product.image || FALLBACK_IMAGE, ...(product.gallery || []).filter(Boolean)];
+            const unique = [...new Set(imgs)];
+            if (unique.length <= 1) {
+              return `<img id="modalMainImg" src="${escapeHtml(unique[0])}" alt="${escapeHtml(product.title)}" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'">`;
+            }
+            const thumbs = unique.map((src, i) => `
+              <button type="button" class="gallery-thumb${i === 0 ? " active" : ""}" data-src="${escapeHtml(src)}" aria-label="Imagem ${i + 1}" onclick="
+                document.getElementById('modalMainImg').src=this.dataset.src;
+                document.querySelectorAll('.gallery-thumb').forEach(t=>t.classList.remove('active'));
+                this.classList.add('active');
+              ">
+                <img src="${escapeHtml(src)}" alt="Foto ${i + 1}" loading="lazy" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'">
+              </button>
+            `).join("");
+            return `
+              <img id="modalMainImg" src="${escapeHtml(unique[0])}" alt="${escapeHtml(product.title)}" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'">
+              <div class="gallery-thumbs">${thumbs}</div>
+            `;
+          })()}
           ${product.videoUrl ? `<a class="video-link" href="${escapeHtml(product.videoUrl)}" target="_blank" rel="noopener">Assistir video do produto</a>` : ""}
         </div>
         <div class="modal-content">
@@ -407,9 +452,12 @@
           <h2>${escapeHtml(product.title)}</h2>
           <div class="rating">${stars(product.reviewRating)} <span>${formatNumber(product.reviewCount)} avaliacoes</span></div>
           <div class="price-row large"><strong>${formatCurrency(product.price)}</strong>${product.oldPrice ? `<del>${formatCurrency(product.oldPrice)}</del>` : ""}</div>
+          <p class="installment">${installmentText(product.price)}</p>
+          <span class="free-shipping">Frete gratis para todo o Brasil</span>
           <p class="modal-short">${escapeHtml(product.shortDescription || "")}</p>
           <div class="modal-actions">
             <button class="primary-button" type="button" data-modal-action="buy" data-product-id="${escapeHtml(product.id)}">Comprar agora</button>
+            <button class="cart-button" type="button" data-modal-action="cart" data-product-id="${escapeHtml(product.id)}">${inCart ? "Remover da sacolinha" : "Adicionar a sacolinha"}</button>
             <button class="secondary-button" type="button" data-modal-action="share" data-product-id="${escapeHtml(product.id)}">Compartilhar</button>
             <button class="secondary-button" type="button" data-modal-action="favorite" data-product-id="${escapeHtml(product.id)}">${favorite ? "Remover favorito" : "Favoritar"}</button>
           </div>
@@ -692,6 +740,25 @@
     }
   }
 
+  function toggleCart(id) {
+    const product = findProduct(id);
+    if (!product) return;
+    const exists = state.cart.includes(id);
+    state.cart = exists ? state.cart.filter((item) => item !== id) : [...state.cart, id];
+    localStorage.setItem(CART_KEY, JSON.stringify(state.cart));
+    renderCartCount();
+    renderProducts();
+    if (!els.productModal?.hidden) openProduct(id, { keepUrl: true, silent: true });
+    toast(exists ? "Produto removido da sacolinha." : "Produto adicionado a sacolinha.");
+    trackEvent(exists ? "cart_remove" : "cart_add", { product_id: id, product_name: product.title, price: product.price });
+  }
+
+  function renderCartCount() {
+    if (els.cartCount) els.cartCount.textContent = String(state.cart.length);
+    const mobileCart = els.mobileBottomNav?.querySelector('a[href="/carrinho"]');
+    if (mobileCart) mobileCart.dataset.count = String(state.cart.length);
+  }
+
   function trackGa4(type, payload = {}) {
     if (typeof window.gtag !== "function") return;
     const eventMap = {
@@ -833,11 +900,13 @@
 
   function normalizeMobileNavItems(items) {
     const source = Array.isArray(items) && items.length ? items : DEFAULT_MOBILE_NAV_ITEMS;
-    return source.slice(0, 5).map((item, index) => ({
+    const normalized = source.slice(0, 5).map((item, index) => ({
       icon: String(item.icon || DEFAULT_MOBILE_NAV_ITEMS[index]?.icon || "&#128717;"),
       label: String(item.label || DEFAULT_MOBILE_NAV_ITEMS[index]?.label || "Loja"),
       href: String(item.href || DEFAULT_MOBILE_NAV_ITEMS[index]?.href || "#inicio")
     }));
+    if (!normalized.some((item) => item.href === "/carrinho")) normalized[normalized.length - 1] = DEFAULT_MOBILE_NAV_ITEMS[4];
+    return normalized;
   }
 
   function normalizeReviews(value) {
@@ -1219,6 +1288,7 @@
   function productCard(product) {
     const discount = getDiscount(product);
     const favorite = state.favorites.includes(product.id);
+    const inCart = state.cart.includes(product.id);
     const storefront = storefrontConfig();
     const showBadges = storefront.showCardBadge !== false;
     const showRating = storefront.showCardRating !== false;
@@ -1243,11 +1313,13 @@
             <strong>${formatCurrency(product.price)}</strong>
             ${product.oldPrice ? `<del>${formatCurrency(product.oldPrice)}</del>` : ""}
           </div>
+          <span class="installment">${installmentText(product.price)}</span>
           <span class="free-shipping">Frete gratis</span>
           <div class="product-actions">
             <button type="button" class="secondary-button compact" data-action="details" data-product-id="${escapeHtml(product.id)}">Ver detalhes</button>
             <button type="button" class="primary-button compact" data-action="buy" data-product-id="${escapeHtml(product.id)}">Comprar agora</button>
           </div>
+          <button type="button" class="cart-button compact" data-action="cart" data-product-id="${escapeHtml(product.id)}">${inCart ? "Na sacolinha" : "Adicionar a sacolinha"}</button>
           <button type="button" class="share-link" data-action="share" data-product-id="${escapeHtml(product.id)}">Compartilhar produto</button>
         </div>
       </article>
@@ -1260,7 +1332,11 @@
       const matchCategory = state.categoryKey === "todos" || categoryKey(product.category) === state.categoryKey;
       const matchSubcategory = state.subcategoryKey === "todas" || categoryKey(product.subcategory) === state.subcategoryKey;
       const searchText = searchIndex(product);
-      return matchCategory && matchSubcategory && (!term || searchText.includes(term));
+      const matchPrice = state.priceRange === "all"
+        || (state.priceRange === "under-100" && product.price < 100)
+        || (state.priceRange === "100-200" && product.price >= 100 && product.price <= 200)
+        || (state.priceRange === "over-200" && product.price > 200);
+      return matchCategory && matchSubcategory && matchPrice && (!term || searchText.includes(term));
     });
   }
 
@@ -1389,6 +1465,10 @@
   function stars(value) {
     const rating = Math.round(Number(value || 5) * 2) / 2;
     return `<span class="stars" aria-label="${rating} de 5">&#9733;&#9733;&#9733;&#9733;&#9733;</span>`;
+  }
+
+  function installmentText(price) {
+    return `ou 3x de ${formatCurrency(Number(price || 0) / 3)} sem juros`;
   }
 
   function trackPixel(event, payload) {

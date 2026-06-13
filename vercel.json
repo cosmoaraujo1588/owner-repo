@@ -89,6 +89,10 @@
       "destination": "/admin.html"
     },
     {
+      "source": "/carrinho",
+      "destination": "/carrinho.html"
+    },
+    {
       "source": "/quem-somos",
       "destination": "/api/institutional-page?page=quem-somos"
     },

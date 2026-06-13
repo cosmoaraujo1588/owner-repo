@@ -9,6 +9,7 @@
       gtag('js', new Date());
       gtag('config', 'G-M3PTCCK08X');
     </script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Kairos Shopping | Produtos selecionados com frete gratis para todo o Brasil</title>
@@ -34,6 +35,7 @@
     <link rel="icon" href="./assets/logo-kairos-oficial.png">
     <link rel="stylesheet" href="./styles.css?v=20260606-fix-catalog">
     <link rel="stylesheet" href="./visual-upgrade.css?v=20260607-safe-visual">
+    <link rel="stylesheet" href="./premium-store.css?v=20260613-premium">
     <script type="application/ld+json" id="structuredData">
       {
         "@context": "https://schema.org",
@@ -65,18 +67,36 @@
     </div>
 
     <header class="site-header">
-      <a class="brand" href="#inicio" aria-label="Kairos Shopping">
-        <img src="./assets/logo-kairos-oficial.png" alt="Logo Kairos Shopping">
-        <span>Kairos Shopping</span>
-      </a>
-      <form class="search" id="searchForm">
-        <input id="searchInput" type="search" placeholder="Buscar produtos, categorias e ofertas" autocomplete="off">
-        <button type="submit">Buscar</button>
-        <div class="search-suggestions" id="searchSuggestions" hidden></div>
-      </form>
-      <nav class="header-actions" aria-label="Acoes principais">
+      <div class="header-main">
+        <a class="brand" href="#inicio" aria-label="Kairos Shopping">
+          <img src="./assets/logo-kairos-oficial.png" alt="Logo Kairos Shopping">
+          <span>Kairos Shopping</span>
+        </a>
+        <form class="search" id="searchForm">
+          <input id="searchInput" type="search" placeholder="O que voce esta procurando?" autocomplete="off">
+          <button type="submit" aria-label="Buscar">&#128269;</button>
+          <div class="search-suggestions" id="searchSuggestions" hidden></div>
+        </form>
+        <nav class="header-actions" aria-label="Acoes principais">
+          <a href="/contato" aria-label="Minha conta"><span>&#128100;</span><small>Atendimento</small></a>
+          <a class="cart-header-link" href="/carrinho" aria-label="Sacola de compras"><span>&#128717;</span><small>Sacolinha</small><b id="cartCount">0</b></a>
+          <a id="headerWhatsapp" href="#" target="_blank" rel="noopener" aria-label="WhatsApp"><span>&#128172;</span><small>WhatsApp</small></a>
+        </nav>
+      </div>
+      <nav class="department-nav" aria-label="Navegacao da loja">
+        <details>
+          <summary>&#9776; Todas as categorias</summary>
+          <div class="department-menu">
+            <a href="#categorias">Ver categorias</a>
+            <a href="#mais-vendidos">Mais vendidos</a>
+            <a href="#promocoes">Promocoes</a>
+            <a href="#videos">Produtos com video</a>
+          </div>
+        </details>
         <a href="#produtos">Produtos</a>
-        <a href="#rastreio">Rastreio</a>
+        <a href="#mais-vendidos">Mais vendidos</a>
+        <a href="#promocoes">Ofertas</a>
+        <a href="/rastreio">Rastrear pedido</a>
       </nav>
     </header>
 
@@ -136,6 +156,12 @@
             <option value="price-low">Menor preco</option>
             <option value="price-high">Maior preco</option>
             <option value="rating">Melhor avaliacao</option>
+          </select>
+          <select id="priceFilter" aria-label="Filtrar por preco">
+            <option value="all">Todos os precos</option>
+            <option value="under-100">Ate R$ 100</option>
+            <option value="100-200">R$ 100 a R$ 200</option>
+            <option value="over-200">Acima de R$ 200</option>
           </select>
         </div>
         <div class="product-grid catalog-grid" id="catalogGrid"></div>
@@ -230,45 +256,6 @@
         <div class="accordion" id="faqList"></div>
       </section>
 
-      <section class="section-block institutional-section" id="sobre" style="scroll-margin-top: 110px; padding: 3rem 1rem; max-width: 980px; margin: 0 auto;">
-        <div class="section-heading">
-          <span>Institucional</span>
-          <h2>Quem Somos</h2>
-        </div>
-        <p>A Kairos Shopping é uma loja online especializada em produtos selecionados para facilitar o dia a dia dos nossos clientes.</p>
-        <p>Trabalhamos com tecnologia, utilidades domésticas, moda, acessórios, beleza, casa, presentes e diversos produtos com entrega para todo o Brasil.</p>
-        <p>Nosso compromisso é oferecer praticidade, segurança, atendimento de qualidade e uma experiência de compra simples, clara e confiável.</p>
-      </section>
-
-      <section class="section-block institutional-section" id="privacidade" style="scroll-margin-top: 110px; padding: 3rem 1rem; max-width: 980px; margin: 0 auto;">
-        <div class="section-heading">
-          <span>Institucional</span>
-          <h2>Política de Privacidade</h2>
-        </div>
-        <p>A Kairos Shopping respeita sua privacidade e trata os dados dos clientes com responsabilidade.</p>
-        <p>As informações fornecidas, como nome, contato, endereço e dados de atendimento, são utilizadas exclusivamente para processamento de pedidos, suporte, comunicação relacionada às compras e melhoria da experiência na loja.</p>
-        <p>Não comercializamos dados pessoais. O cliente pode solicitar informações, correções ou remoção de dados entrando em contato pelos canais oficiais da Kairos Shopping.</p>
-      </section>
-
-      <section class="section-block institutional-section" id="termos" style="scroll-margin-top: 110px; padding: 3rem 1rem; max-width: 980px; margin: 0 auto;">
-        <div class="section-heading">
-          <span>Institucional</span>
-          <h2>Termos de Uso</h2>
-        </div>
-        <p>Ao utilizar a Kairos Shopping, o usuário concorda com as condições de navegação, atendimento e compra apresentadas na plataforma.</p>
-        <p>As compras podem ser realizadas por meio de checkout externo oficial dos fornecedores ou parceiros comerciais indicados em cada produto.</p>
-        <p>Preços, disponibilidade, prazos, condições promocionais e informações dos produtos podem ser atualizados sem aviso prévio. Antes de finalizar a compra, confira todos os dados no checkout oficial.</p>
-      </section>
-
-      <section class="section-block institutional-section" id="trocas" style="scroll-margin-top: 110px; padding: 3rem 1rem; max-width: 980px; margin: 0 auto;">
-        <div class="section-heading">
-          <span>Institucional</span>
-          <h2>Trocas e Devoluções</h2>
-        </div>
-        <p>O cliente poderá solicitar troca ou devolução conforme as regras aplicáveis ao pedido e de acordo com o Código de Defesa do Consumidor.</p>
-        <p>O prazo para solicitação de arrependimento é de até 7 dias após o recebimento do produto, quando aplicável.</p>
-        <p>Para solicitar suporte, entre em contato pelos canais oficiais da Kairos Shopping informando o produto, número do pedido, data da compra e motivo da solicitação.</p>
-      </section>
     </main>
 
     <div class="bottom-strip" id="footerPromoBar" aria-hidden="true">
@@ -306,14 +293,22 @@
         <h3>Redes sociais</h3>
         <div class="social-links" id="socialLinks"></div>
       </nav>
+      <div class="footer-trust">
+        <h3>Compra protegida</h3>
+        <p>&#128274; Ambiente seguro com SSL</p>
+        <p>&#128179; Pagamento no checkout oficial</p>
+        <p>&#128230; Pedido com rastreamento</p>
+      </div>
     </footer>
+
+    <a class="floating-whatsapp" id="floatingWhatsapp" href="#" target="_blank" rel="noopener" aria-label="Falar com a Kairos Shopping no WhatsApp">&#128172;</a>
 
     <nav class="mobile-bottom-nav" id="mobileBottomNav" aria-label="Atalhos rapidos">
       <a href="#inicio"><span aria-hidden="true">&#127968;</span><small>Inicio</small></a>
       <a href="#produtos"><span aria-hidden="true">&#128717;&#65039;</span><small>Produtos</small></a>
       <a href="#categorias"><span aria-hidden="true">&#128194;</span><small>Categorias</small></a>
       <a href="#promocoes"><span aria-hidden="true">&#9889;</span><small>Ofertas</small></a>
-      <a href="/rastreio"><span aria-hidden="true">&#128230;</span><small>Rastreio</small></a>
+      <a href="/carrinho"><span aria-hidden="true">&#128717;</span><small>Sacolinha</small></a>
     </nav>
 
     <div class="product-modal" id="productModal" hidden></div>
@@ -322,7 +317,7 @@
 
     <script src="./data/seed-products.js?v=20260606-fix-catalog"></script>
     <script src="./data/settings.js?v=20260606-fix-catalog"></script>
-    <script src="./app.js?v=20260606-fix-catalog" defer></script>
+    <script src="./app.js?v=20260613-premium" defer></script>
     <script src="./product-description-fix.js?v=20260607-descfix" defer></script>
   </body>
 </html>

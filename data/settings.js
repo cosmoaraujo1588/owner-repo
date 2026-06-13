@@ -27,7 +27,7 @@ window.KAIROS_DEFAULT_SETTINGS = {
       { icon: "&#128717;&#65039;", label: "Produtos", href: "#produtos" },
       { icon: "&#128194;", label: "Categorias", href: "#categorias" },
       { icon: "&#9889;", label: "Ofertas", href: "#promocoes" },
-      { icon: "&#128230;", label: "Rastreio", href: "/rastreio" }
+      { icon: "&#128717;", label: "Sacolinha", href: "/carrinho" }
     ]
   },
   social: {
