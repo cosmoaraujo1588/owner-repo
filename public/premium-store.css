@@ -129,6 +129,11 @@ body {
   color: #31413c;
   font-size: .86rem;
   font-weight: 800;
+  scrollbar-width: none;
+}
+
+.department-nav::-webkit-scrollbar {
+  display: none;
 }
 
 .department-nav details {
