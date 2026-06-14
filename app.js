@@ -32,10 +32,10 @@
   const SEED_PRODUCTS = Array.isArray(window.KAIROS_SEED_PRODUCTS) ? window.KAIROS_SEED_PRODUCTS : [];
   const DEFAULT_MOBILE_NAV_ITEMS = [
     { icon: "&#127968;", label: "Inicio", href: "#inicio" },
-    { icon: "&#128717;&#65039;", label: "Produtos", href: "#produtos" },
     { icon: "&#128194;", label: "Categorias", href: "#categorias" },
-    { icon: "&#9889;", label: "Ofertas", href: "#promocoes" },
-    { icon: "&#128717;", label: "Sacolinha", href: "/carrinho" }
+    { icon: "&#128269;", label: "Busca", href: "#produtos" },
+    { icon: "&#128717;", label: "Sacolinha", href: "/carrinho" },
+    { icon: "&#128100;", label: "Conta", href: "/contato" }
   ];
 
   const state = {
@@ -905,7 +905,8 @@ state.products = apiProducts.some((product) => product.visible !== false && prod
       label: String(item.label || DEFAULT_MOBILE_NAV_ITEMS[index]?.label || "Loja"),
       href: String(item.href || DEFAULT_MOBILE_NAV_ITEMS[index]?.href || "#inicio")
     }));
-    if (!normalized.some((item) => item.href === "/carrinho")) normalized[normalized.length - 1] = DEFAULT_MOBILE_NAV_ITEMS[4];
+    if (!normalized.some((item) => item.href === "/carrinho")) normalized[Math.max(0, normalized.length - 2)] = DEFAULT_MOBILE_NAV_ITEMS[3];
+    if (!normalized.some((item) => item.href === "/contato")) normalized[normalized.length - 1] = DEFAULT_MOBILE_NAV_ITEMS[4];
     return normalized;
   }
 
