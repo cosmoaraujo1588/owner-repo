@@ -33,20 +33,35 @@ function injectProductMeta(html, product, slug, siteUrl) {
   const description = cleanText(product.short_description || product.description || "Produto Kairos Shopping", 180);
   const image = absoluteUrl(product.image_url || "/assets/banner-kairos-claro-1.png", siteUrl);
   const url = `${siteUrl}/produto/${encodeURIComponent(slug)}`;
+  const category = cleanText(product.category || "Produtos", 100);
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "Product",
-    name: title,
-    image,
-    description,
-    brand: { "@type": "Brand", name: "Kairos Shopping" },
-    offers: {
-      "@type": "Offer",
-      priceCurrency: "BRL",
-      price: Number(product.price || 0).toFixed(2),
-      availability: "https://schema.org/InStock",
-      url
-    }
+    "@graph": [
+      {
+        "@type": "Product",
+        "@id": `${url}#product`,
+        name: title,
+        image,
+        description,
+        category,
+        brand: { "@type": "Brand", name: "Kairos Shopping" },
+        offers: {
+          "@type": "Offer",
+          priceCurrency: "BRL",
+          price: Number(product.price || 0).toFixed(2),
+          availability: "https://schema.org/InStock",
+          url
+        }
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Início", item: `${siteUrl}/` },
+          { "@type": "ListItem", position: 2, name: category, item: `${siteUrl}/#categorias` },
+          { "@type": "ListItem", position: 3, name: title, item: url }
+        ]
+      }
+    ]
   };
   return injectBase(html)
     .replace(/<title>.*?<\/title>/, `<title>${escapeHtml(title)} | Kairos Shopping</title>`)
@@ -57,6 +72,8 @@ function injectProductMeta(html, product, slug, siteUrl) {
     .replace(/<meta property="og:url" content="[^"]*">/, `<meta property="og:url" content="${escapeHtml(url)}">`)
     .replace(/<meta name="twitter:url" content="[^"]*">/, `<meta name="twitter:url" content="${escapeHtml(url)}">`)
     .replace(/<link rel="canonical" href="[^"]*">/, `<link rel="canonical" href="${escapeHtml(url)}">`)
+    .replace(/<link rel="alternate" hreflang="pt-BR" href="[^"]*">/, `<link rel="alternate" hreflang="pt-BR" href="${escapeHtml(url)}">`)
+    .replace(/<link rel="alternate" hreflang="x-default" href="[^"]*">/, `<link rel="alternate" hreflang="x-default" href="${escapeHtml(url)}">`)
     .replace(/<script type="application\/ld\+json" id="structuredData">[\s\S]*?<\/script>/, `<script type="application/ld+json" id="structuredData">${JSON.stringify(jsonLd)}</script>`);
 }
 

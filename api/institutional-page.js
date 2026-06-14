@@ -84,6 +84,8 @@ function sendPage(res, status, title, content, description = content, pageKey = 
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:url" content="${escapeHtml(url)}">
   <link rel="canonical" href="${escapeHtml(url)}">
+  <link rel="alternate" hreflang="pt-BR" href="${escapeHtml(url)}">
+  <link rel="alternate" hreflang="x-default" href="${escapeHtml(url)}">
   <link rel="icon" href="/assets/logo-kairos-oficial.png">
   <style>
     *{box-sizing:border-box}body{margin:0;background:#f5f7fb;color:#102a43;font-family:Arial,sans-serif;line-height:1.65}header,footer{background:#101827;color:#fff}header{padding:18px}nav,main,.footer-inner{width:min(960px,calc(100% - 28px));margin:auto}nav{display:flex;align-items:center;gap:18px;flex-wrap:wrap}nav img{width:54px;height:54px;border-radius:50%}nav strong{font-size:1.2rem}nav a{color:#fff;text-decoration:none;font-weight:700}nav a:first-of-type{margin-left:auto}main{min-height:65vh;padding:44px 0}article{background:#fff;border:1px solid #e1e7ef;border-top:5px solid #ff6b00;border-radius:8px;padding:clamp(22px,5vw,52px);box-shadow:0 12px 36px rgba(16,42,67,.08)}h1{font-size:clamp(2rem,7vw,3.4rem);line-height:1.05;margin:0 0 24px}p{white-space:pre-line}.actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:30px}.button{display:inline-block;padding:13px 18px;border-radius:6px;background:#ff6b00;color:#101827;text-decoration:none;font-weight:800}.button.secondary{background:#102a43;color:#fff}footer{padding:28px 0;margin-top:30px}.footer-inner a{color:#ffb36b}@media(max-width:600px){nav a:first-of-type{margin-left:0}nav{gap:12px}article{padding:22px}.actions .button{width:100%;text-align:center}}
