@@ -5,6 +5,7 @@ window.KAIROS_DEFAULT_SETTINGS = {
   logoUrl: "./assets/logo-kairos-oficial.png",
   bannerUrl: "./assets/banner-principal-kairos.jpg",
   trackingUrl: "https://app.kaiross.com.br/rastreio",
+  whatsappGroupUrl: "https://chat.whatsapp.com/HULOSXTZ7JoKi0yhfj5UMJ?s=cl&p=a&mlu=0",
   whatsappMessage: "Ola, vim pelo site da Kairos Shopping e gostaria de atendimento.",
   promoBar: {
     enabled: true,
@@ -32,7 +33,7 @@ window.KAIROS_DEFAULT_SETTINGS = {
       { icon: "&#127968;", label: "Inicio", href: "#inicio" },
       { icon: "&#128717;&#65039;", label: "Produtos", href: "#produtos" },
       { icon: "&#128194;", label: "Categorias", href: "#categorias" },
-      { icon: "&#9889;", label: "Ofertas", href: "#promocoes" },
+      { icon: "&#128172;", label: "Ofertas", href: "https://chat.whatsapp.com/HULOSXTZ7JoKi0yhfj5UMJ?s=cl&p=a&mlu=0" },
       { icon: "&#128230;", label: "Rastreio", href: "/rastreio" }
     ]
   },
@@ -41,7 +42,8 @@ window.KAIROS_DEFAULT_SETTINGS = {
     facebook: "",
     tiktok: "",
     youtube: "",
-    whatsapp: ""
+    whatsapp: "",
+    whatsappGroupUrl: "https://chat.whatsapp.com/HULOSXTZ7JoKi0yhfj5UMJ?s=cl&p=a&mlu=0"
   },
   assistant: {
     greeting: "Ola! Sou a Assistente Virtual da Kairos Shopping. Como posso ajudar?",

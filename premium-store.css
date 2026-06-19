@@ -517,8 +517,27 @@ body {
 
 .whatsapp-group-section {
   border-radius: 8px;
-  background: #087a55;
-  box-shadow: var(--shadow);
+  background: linear-gradient(135deg, #fff7ed, #ffedd5);
+  border: 1px solid #fdba74;
+  color: #1f2937;
+  box-shadow: 0 18px 44px rgba(249, 115, 22, .14);
+}
+
+.whatsapp-group-section .eyebrow,
+.whatsapp-group-section h2,
+.whatsapp-group-section p {
+  color: #1f2937;
+}
+
+.whatsapp-group-section .primary-button {
+  background: #f97316;
+  color: #fff;
+  box-shadow: 0 14px 30px rgba(249, 115, 22, .24);
+}
+
+.whatsapp-group-section .primary-button:hover {
+  background: #ea580c;
+  color: #fff;
 }
 
 .site-footer {

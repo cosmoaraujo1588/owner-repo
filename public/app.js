@@ -27,7 +27,7 @@
   const SESSION_KEY = "kairos:session";
   const SCARCITY_DEADLINE_KEY = "kairos:scarcity-deadline";
   const PUBLIC_SITE_URL = "https://www.kairosshopping.com.br";
-  const WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/EOzxSL6u8QP6LPXmXO6Ym7?s=cl&p=a&mlu=0";
+  const WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/HULOSXTZ7JoKi0yhfj5UMJ?s=cl&p=a&mlu=0";
   const DEFAULT_SETTINGS = window.KAIROS_DEFAULT_SETTINGS || {};
   const SEED_PRODUCTS = Array.isArray(window.KAIROS_SEED_PRODUCTS) ? window.KAIROS_SEED_PRODUCTS : [];
   const DEFAULT_MOBILE_NAV_ITEMS = [
@@ -275,6 +275,9 @@ state.products = apiProducts.some((product) => product.visible !== false && prod
     if (els.footerWhatsapp) els.footerWhatsapp.href = whatsappUrl();
     if (els.headerWhatsapp) els.headerWhatsapp.href = whatsappUrl();
     if (els.floatingWhatsapp) els.floatingWhatsapp.href = whatsappUrl();
+    document.querySelectorAll("[data-whatsapp-group]").forEach((link) => {
+      link.href = whatsappGroupUrl();
+    });
   }
 
   function setMarquee(container, promo, fallbackText) {
@@ -342,10 +345,12 @@ state.products = apiProducts.some((product) => product.visible !== false && prod
     if (els.mobileBottomNav.hidden) return;
     const items = normalizeMobileNavItems(conversion.mobileNavItems);
     els.mobileBottomNav.innerHTML = items.map((item) => {
-      const href = item.href || "#inicio";
+      let href = item.href || "#inicio";
+      const opensGroup = normalizeTerm(item.label).includes("ofertas") && (href === "#promocoes" || /chat\.whatsapp\.com/i.test(href));
+      if (opensGroup) href = whatsappGroupUrl();
       const external = /^https?:\/\//i.test(href);
       return `
-        <a href="${escapeHtml(href)}" ${external ? 'target="_blank" rel="noopener"' : ""}>
+        <a href="${escapeHtml(href)}" ${external ? 'target="_blank" rel="noopener"' : ""} ${opensGroup ? 'data-whatsapp-group="mobile_bottom_nav"' : ""}>
           <span aria-hidden="true">${item.icon || "&#128717;"}</span>
           <small>${escapeHtml(item.label || "Loja")}</small>
         </a>
@@ -854,6 +859,7 @@ state.products = apiProducts.some((product) => product.visible !== false && prod
       storeName: settings.storeName || "Kairos Shopping",
       storeEmail: settings.storeEmail || "kairossshopping@gmail.com",
       siteUrl: settings.siteUrl || "",
+      whatsappGroupUrl: settings.whatsappGroupUrl || settings.social?.whatsappGroupUrl || WHATSAPP_GROUP_URL,
       logoUrl: settings.logoUrl || "./assets/logo-kairos-oficial.png",
       bannerUrl: settings.bannerUrl || "./assets/banner-kairos-claro-1.png",
       bannerMobileUrl: settings.bannerMobileUrl || settings.bannerUrl || "./assets/banner-kairos-claro-1.png",
@@ -955,6 +961,11 @@ state.products = apiProducts.some((product) => product.visible !== false && prod
       ? `Ola, tenho interesse no produto: ${product.title} - ${productUrl(product)}`
       : state.settings.whatsappMessage || "Ola, vim pelo site da Kairos Shopping e gostaria de atendimento.";
     return `https://wa.me/${phone || ""}?text=${encodeURIComponent(text)}`;
+  }
+
+  function whatsappGroupUrl() {
+    const configured = String(state.settings.whatsappGroupUrl || state.settings.social?.whatsappGroupUrl || "").trim();
+    return /^https:\/\/chat\.whatsapp\.com\//i.test(configured) ? configured : WHATSAPP_GROUP_URL;
   }
 
   function currentProductFromUrl() {

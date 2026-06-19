@@ -5,11 +5,12 @@
   const LOCAL_PRODUCTS_KEY = "kairos:local-products";
   const LOCAL_SETTINGS_KEY = "kairos:local-settings";
   const TOKEN_KEY = "kairos:admin-token";
+  const DEFAULT_WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/HULOSXTZ7JoKi0yhfj5UMJ?s=cl&p=a&mlu=0";
   const DEFAULT_MOBILE_NAV_ITEMS = [
     { icon: "&#127968;", label: "Inicio", href: "#inicio" },
     { icon: "&#128717;&#65039;", label: "Produtos", href: "#produtos" },
     { icon: "&#128194;", label: "Categorias", href: "#categorias" },
-    { icon: "&#9889;", label: "Ofertas", href: "#promocoes" },
+    { icon: "&#128172;", label: "Ofertas", href: DEFAULT_WHATSAPP_GROUP_URL },
     { icon: "&#128230;", label: "Rastreio", href: "/rastreio" }
   ];
   const BASE_CATEGORIES = [
@@ -399,9 +400,11 @@
       state.settings.storeEmail = clean(data.storeEmail);
       state.settings.siteUrl = clean(data.siteUrl);
       state.settings.trackingUrl = clean(data.trackingUrl);
+      state.settings.whatsappGroupUrl = clean(data.whatsappGroupUrl) || DEFAULT_WHATSAPP_GROUP_URL;
       state.settings.social = {
         ...(state.settings.social || {}),
         whatsapp: clean(data.whatsapp),
+        whatsappGroupUrl: clean(data.whatsappGroupUrl) || DEFAULT_WHATSAPP_GROUP_URL,
         instagram: clean(data.instagram),
         facebook: clean(data.facebook),
         tiktok: clean(data.tiktok),
@@ -825,6 +828,7 @@
       siteUrl: s.siteUrl,
       trackingUrl: s.trackingUrl,
       whatsapp: s.social?.whatsapp,
+      whatsappGroupUrl: s.whatsappGroupUrl || s.social?.whatsappGroupUrl || DEFAULT_WHATSAPP_GROUP_URL,
       instagram: s.social?.instagram,
       facebook: s.social?.facebook,
       tiktok: s.social?.tiktok,
@@ -1038,6 +1042,7 @@
       ...(settings || {}),
       storeName: settings?.storeName || "Kairos Shopping",
       storeEmail: settings?.storeEmail || "kairossshopping@gmail.com",
+      whatsappGroupUrl: settings?.whatsappGroupUrl || settings?.social?.whatsappGroupUrl || DEFAULT_WHATSAPP_GROUP_URL,
       promoBar: settings?.promoBar || { enabled: true, text: "Frete gratis para todo o Brasil", backgroundColor: "#ff6b00", textColor: "#111827", speedSeconds: 22 },
       conversion: {
         ...defaultConversionConfig(),
