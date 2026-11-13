@@ -1,9 +1,11 @@
-import { getSupabase, sendJson, cleanText } from "./_supabase.js";
+import { getSupabase, isAdmin, sendJson, cleanText } from "./_supabase.js";
 
 export default async function handler(req, res) {
   if (req.method !== "GET" && req.method !== "POST") {
     return sendJson(res, 405, { error: "Method not allowed" });
   }
+
+  if (!isAdmin(req)) return sendJson(res, 401, { error: "Unauthorized" });
 
   const supabase = getSupabase();
   if (!supabase) {

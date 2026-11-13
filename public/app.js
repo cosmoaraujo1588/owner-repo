@@ -122,13 +122,6 @@
 const seedProducts = sanitizeProducts(SEED_PRODUCTS || []);
 
 state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
-      const localProductList = sanitizeProducts(localProducts || []);
-const seedProductList = sanitizeProducts(SEED_PRODUCTS || []);
-
-state.products = hasVisibleProducts(localProductList) ? localProductList : seedProductList;
-      function hasVisibleProducts(products) {
-  return Array.isArray(products) && products.some(isVisible);
-}
       state.categories = normalizeCategories(catalog.categories || []);
       state.subcategories = normalizeSubcategories(catalog.subcategories || []);
       const settingsBanners = Array.isArray(catalog.settings?.banners) ? catalog.settings.banners : [];
@@ -170,13 +163,6 @@ state.products = hasVisibleProducts(localProductList) ? localProductList : seedP
       renderSearchSuggestions();
       renderProducts();
     });
-    if (els.emptyProducts) {
-  const hasCatalogProducts = catalog.length > 0;
-  els.emptyProducts.hidden = hasCatalogProducts;
-  els.emptyProducts.textContent = hasCatalogProducts
-    ? ""
-    : (els.emptyProducts.dataset.emptyText || "Nenhum produto ativo encontrado agora. Fale com a Kairos Shopping pelo WhatsApp para receber ofertas atualizadas.");
-}
 
     els.searchInput?.addEventListener("focus", renderSearchSuggestions);
 
@@ -952,6 +938,10 @@ state.products = hasVisibleProducts(localProductList) ? localProductList : seedP
   function findProduct(id) {
     const value = String(id || "");
     return state.products.find((product) => product.id === value || product.slug === value || slugify(product.title) === value);
+  }
+
+  function hasVisibleProducts(products) {
+    return Array.isArray(products) && products.some(isVisible);
   }
 
   function isVisible(product) {

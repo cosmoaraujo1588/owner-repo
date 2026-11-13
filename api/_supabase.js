@@ -18,7 +18,7 @@ export function publicConfig() {
     enabled: Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY),
     supabaseUrl: process.env.SUPABASE_URL || "",
     supabaseAnonKey: process.env.SUPABASE_ANON_KEY || "",
-    adminProtected: Boolean(process.env.ADMIN_PASSWORD)
+    adminProtected: true
   };
 }
 
@@ -50,8 +50,13 @@ export function slugify(value) {
     .replace(/^-|-$/g, "") || `item-${Date.now()}`;
 }
 
+export function adminConfigured() {
+  return Boolean(process.env.ADMIN_PASSWORD && process.env.ADMIN_SECRET);
+}
+
 export function isAdmin(req) {
-  if (!process.env.ADMIN_PASSWORD) return true;
+  // Falha segura: sem ADMIN_PASSWORD e ADMIN_SECRET o acesso admin fica fechado.
+  if (!adminConfigured()) return false;
   const header = req.headers.authorization || "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : "";
   return verifyToken(token);
@@ -69,7 +74,10 @@ export function createToken() {
 
 function verifyToken(token) {
   const [body, signature] = String(token || "").split(".");
-  if (!body || !signature || sign(body) !== signature) return false;
+  if (!body || !signature) return false;
+  const expected = Buffer.from(sign(body));
+  const received = Buffer.from(signature);
+  if (expected.length !== received.length || !crypto.timingSafeEqual(expected, received)) return false;
   try {
     const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
     return payload.role === "admin" && payload.exp > Date.now();
@@ -79,6 +87,7 @@ function verifyToken(token) {
 }
 
 function sign(body) {
-  const secret = process.env.ADMIN_SECRET || process.env.ADMIN_PASSWORD || "kairos-dev";
+  const secret = process.env.ADMIN_SECRET;
+  if (!secret) throw new Error("ADMIN_SECRET nao configurado");
   return crypto.createHmac("sha256", secret).update(body).digest("base64url");
 }

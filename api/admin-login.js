@@ -1,8 +1,10 @@
-import { createToken, sendJson } from "./_supabase.js";
+import { adminConfigured, createToken, sendJson } from "./_supabase.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return sendJson(res, 405, { error: "Method not allowed" });
-  if (!process.env.ADMIN_PASSWORD) return sendJson(res, 200, { token: "", open: true });
+  if (!adminConfigured()) {
+    return sendJson(res, 503, { error: "Acesso administrativo nao configurado. Defina ADMIN_PASSWORD e ADMIN_SECRET na Vercel." });
+  }
 
   const body = await readBody(req);
   const user = process.env.ADMIN_USER || "admin";
