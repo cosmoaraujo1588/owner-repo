@@ -1415,8 +1415,9 @@
     const best = visible.filter((item) => item.bestSeller).slice(0, 10);
     const flash = visible.filter((item) => item.flashOffer || item.oldPrice).slice(0, 10);
     const videos = visible.filter((item) => item.videoUrl).slice(0, 10);
-    const newest = visible.filter((item) => item.createdAt).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 10);
-    const featured = visible.filter((item) => item.featured && !item.bestSeller && !(item.flashOffer || item.oldPrice)).slice(0, 10);
+    const recentCutoff = Date.now() - 60 * 24 * 60 * 60 * 1000;
+    const newest = visible.filter((item) => item.createdAt && new Date(item.createdAt).getTime() >= recentCutoff).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 10);
+    const featured = visible.filter((item) => item.featured).slice(0, 10);
     const catalog = sortProducts(filterProducts(visible));
     const pagedCatalog = paginateProducts(catalog);
     const bestSection = els.bestSellerGrid?.closest(".section-block");
