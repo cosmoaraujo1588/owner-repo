@@ -37,7 +37,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,500..900&family=Inter:wght@400;500;600;700&display=swap">
-    <link rel="stylesheet" href="./store.css?v=20261114-redesign">
+    <link rel="stylesheet" href="./store.css?v=20261114-marketplace">
     <script type="application/ld+json" id="structuredData">
       {
         "@context": "https://schema.org",
@@ -129,23 +129,14 @@
     </header>
 
     <main id="inicio">
-      <section class="hero" id="hero" aria-label="Destaques">
-        <div class="hero-inner">
-          <div class="hero-copy">
-            <span class="eyebrow">Frete grátis para todo o Brasil</span>
-            <h1>O momento certo<br>para comprar <em>melhor.</em></h1>
-            <p>Produtos selecionados, preço claro e compra no checkout oficial. Pedido com rastreamento do início ao fim.</p>
-            <div class="hero-cta">
-              <a class="btn btn-primary" href="#produtos">Ver todos os produtos <svg class="ic"><use href="#i-arrow"/></svg></a>
-              <a class="btn btn-ghost" href="#promocoes">Ofertas do momento</a>
-            </div>
-            <ul class="hero-stats" id="heroStats"></ul>
-          </div>
+      <section class="mk-top" id="hero" aria-label="Destaques">
+        <div class="mk-hero">
+          <h1 class="sr-only">Kairos Shopping: ofertas com frete grátis para todo o Brasil</h1>
+          <div class="banner-strip" id="heroCarousel" aria-label="Campanhas" hidden></div>
           <div class="hero-stage" id="heroStage" aria-live="polite"></div>
         </div>
+        <aside class="mk-side" id="heroSide" aria-label="Destaques da loja"></aside>
       </section>
-
-      <section class="banner-strip" id="heroCarousel" aria-label="Campanhas" hidden></section>
 
       <section class="benefits" aria-label="Benefícios da loja">
         <div><svg class="ic"><use href="#i-truck"/></svg><span><strong>Frete grátis</strong>Para todo o Brasil</span></div>
@@ -156,29 +147,29 @@
 
       <section class="block" id="categorias">
         <div class="block-head">
-          <div><span class="kicker">Departamentos</span><h2>Compre por categoria</h2></div>
+          <div><h2>Compre por categoria</h2></div>
         </div>
         <div class="category-rail" id="categoryRail"></div>
       </section>
 
       <section class="block block-dark" id="mais-vendidos">
         <div class="block-head">
-          <div><span class="kicker">Em destaque</span><h2>Mais vendidos</h2></div>
-          <a class="see-all" href="#produtos">Ver catálogo completo <svg class="ic"><use href="#i-arrow"/></svg></a>
+          <div><h2>Mais vendidos</h2></div>
+          <a class="see-all" href="#produtos">Ver todos <svg class="ic"><use href="#i-arrow"/></svg></a>
         </div>
         <div class="product-grid scroller" id="bestSellerGrid"></div>
       </section>
 
       <section class="block" id="promocoes">
         <div class="block-head">
-          <div><span class="kicker kicker-gold">Preço reduzido</span><h2>Ofertas do momento</h2></div>
+          <div><h2 class="h-flash"><svg class="ic"><use href="#i-bolt"/></svg>Ofertas relâmpago</h2></div><a class="see-all" href="#produtos">Ver todas <svg class="ic"><use href="#i-arrow"/></svg></a>
         </div>
         <div class="product-grid scroller" id="flashGrid"></div>
       </section>
 
       <section class="block" id="produtos">
         <div class="block-head catalog-head">
-          <div><span class="kicker">Catálogo completo</span><h2>Todos os produtos</h2><p class="catalog-count" id="catalogCount"></p></div>
+          <div><h2>Todos os produtos</h2><p class="catalog-count" id="catalogCount"></p></div>
           <div class="catalog-filters">
             <label><span>Ordenar</span>
               <select id="sortSelect" aria-label="Ordenar produtos">
@@ -198,15 +189,20 @@
             </label>
           </div>
         </div>
-        <div class="subcategory-rail" id="subcategoryRail" hidden></div>
-        <div class="product-grid catalog-grid" id="catalogGrid"></div>
-        <div class="pagination-controls" id="catalogPagination"></div>
-        <p class="empty-state" id="emptyProducts" hidden>Nenhum produto encontrado com esses filtros. Limpe a busca ou fale com a Kairos Shopping pelo WhatsApp.</p>
+        <div class="catalog-layout">
+          <aside class="filters" id="filterSidebar" aria-label="Filtros"></aside>
+          <div class="catalog-results">
+            <div class="subcategory-rail" id="subcategoryRail" hidden></div>
+            <div class="product-grid catalog-grid" id="catalogGrid"></div>
+            <div class="pagination-controls" id="catalogPagination"></div>
+            <p class="empty-state" id="emptyProducts" hidden>Nenhum produto encontrado com esses filtros. Limpe a busca ou fale com a Kairos Shopping pelo WhatsApp.</p>
+          </div>
+        </div>
       </section>
 
       <section class="block block-dark" id="videos">
         <div class="block-head">
-          <div><span class="kicker">Veja em ação</span><h2>Produtos com vídeo</h2></div>
+          <div><h2>Produtos com vídeo</h2></div>
         </div>
         <div class="product-grid scroller" id="videoGrid"></div>
       </section>
@@ -307,6 +303,6 @@
 
     <script src="./data/seed-products.js?v=20260704-catalog-fallback"></script>
     <script src="./data/settings.js?v=20260704-catalog-fallback"></script>
-    <script src="./app.js?v=20261114-redesign" defer></script>
+    <script src="./app.js?v=20261114-marketplace" defer></script>
   </body>
 </html>

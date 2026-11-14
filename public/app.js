@@ -41,7 +41,8 @@
     reviewTimer: null,
     countdownTimer: null,
     heroTimer: null,
-    heroIndex: 0
+    heroIndex: 0,
+    heroCount: 0
   };
 
   const els = {
@@ -79,7 +80,8 @@
     cartCount: document.getElementById("cartCount"),
     mobileBottomNav: document.getElementById("mobileBottomNav"),
     heroStage: document.getElementById("heroStage"),
-    heroStats: document.getElementById("heroStats"),
+    heroSide: document.getElementById("heroSide"),
+    filterSidebar: document.getElementById("filterSidebar"),
     siteHeader: document.getElementById("siteHeader"),
     menuToggle: document.getElementById("menuToggle"),
     deptButton: document.getElementById("deptButton"),
@@ -167,6 +169,15 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
       renderProducts();
     });
 
+    document.addEventListener("change", (event) => {
+      const radio = event.target.closest("[data-price]");
+      if (!radio) return;
+      state.priceRange = radio.dataset.price;
+      if (els.priceFilter) els.priceFilter.value = state.priceRange;
+      resetCatalogPagination();
+      renderProducts();
+    });
+
     els.priceFilter?.addEventListener("change", () => {
       state.priceRange = els.priceFilter.value;
       resetCatalogPagination();
@@ -213,6 +224,13 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
       if (shareButton) {
         event.preventDefault();
         handleShareNetwork(shareButton.dataset.shareNetwork, shareButton.dataset.productId);
+        return;
+      }
+
+      const heroNav = event.target.closest("[data-hero-nav]");
+      if (heroNav && state.heroCount) {
+        setHeroSlide((state.heroIndex + Number(heroNav.dataset.heroNav) + state.heroCount) % state.heroCount);
+        if (state.heroTimer) clearInterval(state.heroTimer);
         return;
       }
 
@@ -369,59 +387,81 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
 
   function renderHero() {
     if (!els.heroStage) return;
+    const hasBanners = normalizeBanners().length > 0;
+    els.heroStage.hidden = hasBanners;
     const visible = state.products.filter(isVisible).filter((item) => item.image && item.image !== FALLBACK_IMAGE);
     const pool = [...visible.filter((item) => item.featured && item.bestSeller), ...visible.filter((item) => item.featured), ...visible];
     const seenCategories = new Set();
     const picks = [];
     pool.forEach((item) => {
-      if (picks.length >= 4 || picks.includes(item)) return;
+      if (picks.length >= 5 || picks.includes(item)) return;
       const key = categoryKey(item.category);
       if (seenCategories.has(key)) return;
       seenCategories.add(key);
       picks.push(item);
     });
-    const categoriesCount = new Set(visible.map((item) => categoryKey(item.category))).size;
-    if (els.heroStats) {
-      els.heroStats.innerHTML = `
-        <li><strong>${formatNumber(state.products.filter(isVisible).length)}</strong><span>produtos no catálogo</span></li>
-        <li><strong>${formatNumber(categoriesCount)}</strong><span>departamentos</span></li>
-        <li><strong>100%</strong><span>com frete grátis</span></li>
-      `;
-    }
-    if (!picks.length) {
+    renderHeroSide(visible, picks);
+    if (state.heroTimer) clearInterval(state.heroTimer);
+    if (hasBanners || !picks.length) {
       els.heroStage.innerHTML = "";
       return;
     }
     state.heroIndex = Math.min(state.heroIndex, picks.length - 1);
     els.heroStage.innerHTML = `
-      <div class="stage-main">
-        ${picks.map((product, index) => {
-          const discount = getDiscount(product);
-          const id = escapeHtml(product.id);
-          return `
-            <article class="stage-slide ${index === state.heroIndex ? "active" : ""}" data-hero-slide="${index}">
-              <a class="stage-photo" href="/produto/${encodeURIComponent(product.slug)}" data-action="details" data-product-id="${id}" aria-label="${escapeHtml(product.title)}"><img src="${escapeHtml(product.image)}" alt="${escapeHtml(product.title)}" ${index === 0 ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async"></a>
-              <div class="stage-info">
-                <span class="stage-cat">${escapeHtml(displayName(product.category))}</span>
-                <h2>${escapeHtml(product.title)}</h2>
-                <div class="price-row"><strong>${formatCurrency(product.price)}</strong>${product.oldPrice && discount ? `<del>${formatCurrency(product.oldPrice)}</del><span class="off">-${discount}%</span>` : ""}</div>
-                <span class="installment">${installmentText(product.price)}</span>
-                <a class="btn btn-primary" href="/produto/${encodeURIComponent(product.slug)}" data-action="details" data-product-id="${id}">Ver produto ${icon("arrow")}</a>
-              </div>
-            </article>`;
-        }).join("")}
-      </div>
-      <div class="stage-thumbs" role="tablist" aria-label="Produtos em destaque">
-        ${picks.map((product, index) => `
-          <button type="button" role="tab" class="${index === state.heroIndex ? "active" : ""}" data-hero-index="${index}" aria-selected="${index === state.heroIndex}" aria-label="${escapeHtml(shortTitle(product.title))}">
-            <img src="${escapeHtml(product.image)}" alt="" loading="lazy" decoding="async">
-          </button>`).join("")}
-      </div>
+      ${picks.map((product, index) => {
+        const discount = getDiscount(product);
+        const id = escapeHtml(product.id);
+        const href = `/produto/${encodeURIComponent(product.slug)}`;
+        const badge = badgeInfo(product);
+        return `
+          <article class="stage-slide ${index === state.heroIndex ? "active" : ""}" data-hero-slide="${index}">
+            <div class="stage-copy">
+              <span class="stage-tag">${escapeHtml(badge ? badge.text : displayName(product.category))}</span>
+              <h2>${escapeHtml(product.title)}</h2>
+              <div class="price-row"><strong>${formatCurrency(product.price)}</strong>${product.oldPrice && discount ? `<del>${formatCurrency(product.oldPrice)}</del><span class="off">${discount}% OFF</span>` : ""}</div>
+              <span class="installment">${installmentText(product.price)} · Frete grátis</span>
+              <a class="btn btn-primary" href="${href}" data-action="details" data-product-id="${id}">Ver oferta ${icon("arrow")}</a>
+            </div>
+            <a class="stage-photo" href="${href}" data-action="details" data-product-id="${id}" aria-label="${escapeHtml(product.title)}"><img src="${escapeHtml(product.image)}" alt="${escapeHtml(product.title)}" ${index === 0 ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async"></a>
+          </article>`;
+      }).join("")}
+      ${picks.length > 1 ? `
+        <button type="button" class="stage-nav prev" data-hero-nav="-1" aria-label="Anterior">${icon("chev")}</button>
+        <button type="button" class="stage-nav next" data-hero-nav="1" aria-label="Próximo">${icon("chev")}</button>
+        <div class="stage-dots" role="tablist" aria-label="Produtos em destaque">
+          ${picks.map((product, index) => `<button type="button" role="tab" class="${index === state.heroIndex ? "active" : ""}" data-hero-index="${index}" aria-selected="${index === state.heroIndex}" aria-label="${escapeHtml(shortTitle(product.title))}"></button>`).join("")}
+        </div>` : ""}
     `;
-    if (state.heroTimer) clearInterval(state.heroTimer);
+    state.heroCount = picks.length;
     if (picks.length > 1) {
       state.heroTimer = setInterval(() => setHeroSlide((state.heroIndex + 1) % picks.length), 6000);
     }
+  }
+
+  function renderHeroSide(visible, picks) {
+    if (!els.heroSide) return;
+    const used = new Set(picks.slice(0, 1).map((item) => item.id));
+    const best = visible.find((item) => item.bestSeller && !used.has(item.id));
+    if (best) used.add(best.id);
+    const flash = visible.find((item) => item.flashOffer && !used.has(item.id)) || visible.find((item) => !used.has(item.id) && item !== best);
+    const tiles = [
+      best && { product: best, label: "Mais vendido" },
+      flash && { product: flash, label: "Oferta relâmpago" }
+    ].filter(Boolean);
+    els.heroSide.innerHTML = tiles.map(({ product, label }) => {
+      const discount = getDiscount(product);
+      const id = escapeHtml(product.id);
+      return `
+        <a class="side-tile" href="/produto/${encodeURIComponent(product.slug)}" data-action="details" data-product-id="${id}">
+          <div class="side-info">
+            <span class="side-label">${label}</span>
+            <h3>${escapeHtml(product.title)}</h3>
+            <div class="price-row"><strong>${formatCurrency(product.price)}</strong>${discount ? `<span class="off">${discount}% OFF</span>` : ""}</div>
+            <span class="pc-ship">Frete grátis</span>
+          </div>
+          <img src="${escapeHtml(product.image)}" alt="" loading="lazy" decoding="async">
+        </a>`;
+    }).join("");
   }
 
   function setHeroSlide(index) {
@@ -595,15 +635,16 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
             ${thumbs.length > 1 ? `<div class="gthumbs">${thumbs.join("")}</div>` : ""}
             <div class="gstage" id="gStage">
               <img id="modalMainImg" src="${escapeHtml(images[0])}" alt="${escapeHtml(product.title)}" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'">
-              ${discount ? `<span class="pc-badge">-${discount}%</span>` : ""}
+              ${discount ? `<span class="pc-badge b-off">${discount}% OFF</span>` : ""}
             </div>
           </div>
           <div class="pp-buy">
             <span class="pc-cat">${escapeHtml(displayName(product.category))}${product.subcategory ? ` · ${escapeHtml(product.subcategory)}` : ""}</span>
             <h1>${escapeHtml(product.title)}</h1>
             ${product.reviewCount > 0 ? `<div class="rating">${stars(product.reviewRating)}<span>${Number(product.reviewRating).toLocaleString("pt-BR")} · ${formatNumber(product.reviewCount)} avaliações</span></div>` : ""}
+            <div class="pp-box">
             <div class="pp-price">
-              <div class="price-row large"><strong>${formatCurrency(product.price)}</strong>${product.oldPrice && discount ? `<del>${formatCurrency(product.oldPrice)}</del><span class="off">-${discount}%</span>` : ""}</div>
+              <div class="price-row large"><strong>${formatCurrency(product.price)}</strong>${product.oldPrice && discount ? `<del>${formatCurrency(product.oldPrice)}</del><span class="off">${discount}% OFF</span>` : ""}</div>
               <p class="installment">${installmentText(product.price)}</p>
             </div>
             <ul class="pp-perks">
@@ -620,6 +661,7 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
                 <a href="${escapeHtml(whatsappUrl(product))}" target="_blank" rel="noopener">${icon("chat")}Tirar dúvidas</a>
               </div>
             </div>
+            </div>
           </div>
         </div>
         <div class="pp-details">
@@ -633,6 +675,10 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
             <h3>Trocas e devoluções</h3>
             <p>${escapeHtml(state.settings.content?.returns || "Consulte a política de trocas e devoluções da loja.")}</p>
           </aside>
+        </div>
+        <div class="pp-bar">
+          <div><strong>${formatCurrency(product.price)}</strong><small>${installmentText(product.price)}</small></div>
+          <button class="btn btn-primary" type="button" data-modal-action="buy" data-product-id="${pid}">Comprar agora</button>
         </div>
         ${related.length ? `
           <section class="pp-related">
@@ -1383,6 +1429,32 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     `).join("");
   }
 
+  function renderSidebar() {
+    if (!els.filterSidebar) return;
+    const departments = departmentData();
+    const total = state.products.filter(isVisible).length;
+    const prices = [["all", "Todos os preços"], ["under-100", "Até R$ 100"], ["100-200", "R$ 100 a R$ 200"], ["over-200", "Acima de R$ 200"]];
+    els.filterSidebar.innerHTML = `
+      <section>
+        <h3>Departamentos</h3>
+        <ul>
+          <li><button type="button" data-dept="Todos" class="${state.categoryKey === "todos" ? "active" : ""}">Todos <small>${formatNumber(total)}</small></button></li>
+          ${departments.map((entry) => `<li><button type="button" data-dept="${escapeHtml(entry.label)}" class="${state.categoryKey === categoryKey(entry.label) ? "active" : ""}">${escapeHtml(displayName(entry.label))} <small>${formatNumber(entry.count)}</small></button></li>`).join("")}
+        </ul>
+      </section>
+      <section>
+        <h3>Preço</h3>
+        <ul>
+          ${prices.map(([value, label]) => `<li><label class="radio"><input type="radio" name="priceRange" data-price="${value}" ${state.priceRange === value ? "checked" : ""}><span>${label}</span></label></li>`).join("")}
+        </ul>
+      </section>
+      <section>
+        <h3>Entrega</h3>
+        <p class="filter-note">${icon("truck")}Frete grátis em todos os produtos</p>
+      </section>
+    `;
+  }
+
   function renderProducts() {
     const visible = state.products.filter(isVisible);
     const best = visible.filter((item) => item.bestSeller).slice(0, 8);
@@ -1406,6 +1478,7 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
       els.catalogCount.textContent = `${formatNumber(catalog.length)} ${scope}`;
     }
     if (els.emptyProducts) els.emptyProducts.hidden = catalog.length > 0;
+    renderSidebar();
   }
 
   function productCard(product) {
@@ -1413,14 +1486,14 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     const favorite = state.favorites.includes(product.id);
     const inCart = state.cart.includes(product.id);
     const storefront = storefrontConfig();
-    const badge = storefront.showCardBadge !== false ? badgeText(product) : "";
+    const badge = storefront.showCardBadge !== false ? badgeInfo(product) : null;
     const href = `/produto/${encodeURIComponent(product.slug || slugify(product.title))}`;
     const id = escapeHtml(product.id);
     return `
       <article class="product-card" data-product-id="${id}">
         <a class="pc-media" href="${href}" data-action="details" data-product-id="${id}" aria-label="${escapeHtml(product.title)}">
           <img src="${escapeHtml(product.image || FALLBACK_IMAGE)}" alt="${escapeHtml(product.title)}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'">
-          ${badge ? `<span class="pc-badge">${escapeHtml(badge)}</span>` : ""}
+          ${badge ? `<span class="pc-badge ${badge.cls}">${escapeHtml(badge.text)}</span>` : ""}
           ${product.videoUrl ? `<span class="pc-video">${icon("play")}Vídeo</span>` : ""}
         </a>
         <button class="pc-fav ${favorite ? "active" : ""}" type="button" data-action="favorite" data-product-id="${id}" aria-label="${favorite ? "Remover dos favoritos" : "Favoritar"}" aria-pressed="${favorite}">${icon("heart")}</button>
@@ -1430,10 +1503,10 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
           ${storefront.showCardRating !== false && product.reviewCount > 0 ? `<div class="rating">${stars(product.reviewRating)}<span>${formatNumber(product.reviewCount)}</span></div>` : ""}
           <div class="price-row">
             <strong>${formatCurrency(product.price)}</strong>
-            ${product.oldPrice && discount ? `<del>${formatCurrency(product.oldPrice)}</del><span class="off">-${discount}%</span>` : ""}
+            ${product.oldPrice && discount ? `<del>${formatCurrency(product.oldPrice)}</del><span class="off">${discount}% OFF</span>` : ""}
           </div>
           <span class="installment">${installmentText(product.price)}</span>
-          <span class="pc-ship">${icon("truck")}Frete grátis</span>
+          <span class="pc-ship">Frete grátis</span>
           <div class="pc-actions">
             <button type="button" class="btn btn-primary" data-action="buy" data-product-id="${id}">Comprar agora</button>
             <button type="button" class="btn-icon ${inCart ? "active" : ""}" data-action="cart" data-product-id="${id}" aria-label="${inCart ? "Remover da sacolinha" : "Adicionar à sacolinha"}" title="${inCart ? "Na sacolinha" : "Adicionar à sacolinha"}">${icon("bag")}</button>
@@ -1588,10 +1661,12 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     return `<svg class="ic" aria-hidden="true"><use href="#i-${name}"/></svg>`;
   }
 
-  function badgeText(product) {
+  function badgeInfo(product) {
+    if (product.bestSeller) return { text: "Mais vendido", cls: "b-best" };
     const tag = String(product.tag || "").replace(/[^\p{L}\p{N}\s%$.,-]/gu, "").trim();
-    if (!tag || /frete/i.test(tag)) return "";
-    return tag.slice(0, 28);
+    if (product.flashOffer) return { text: "Oferta relâmpago", cls: "b-flash" };
+    if (tag && !/frete/i.test(tag)) return { text: tag.slice(0, 28), cls: "b-flash" };
+    return null;
   }
 
   function youtubeId(url) {
