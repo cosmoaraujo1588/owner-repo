@@ -294,6 +294,7 @@
     if (!container) return;
     const enabled = promo.enabled !== false;
     const text = promo.text || fallbackText;
+    if (container.classList.contains("marketplace-topbar")) { container.hidden = !enabled; return; }
     container.hidden = !enabled;
     container.style.background = promo.backgroundColor || "#ff6b00";
     container.style.color = promo.textColor || "#111827";
