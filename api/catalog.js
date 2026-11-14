@@ -128,7 +128,8 @@ function fromProduct(row) {
     visible: row.active !== false,
     bestSeller: Boolean(row.best_seller),
     flashOffer: Boolean(row.flash_offer),
-    reviewRating: Number(row.review_rating || 5),
+    reviewRating: Number(row.review_rating || 0),
+    createdAt: row.created_at || null,
     reviewCount: Number(row.review_count || 0),
     order: Number(row.display_order || 0)
   };
