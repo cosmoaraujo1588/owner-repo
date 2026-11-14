@@ -95,7 +95,9 @@
     headerWhatsapp: document.getElementById("headerWhatsapp"),
     floatingWhatsapp: document.getElementById("floatingWhatsapp"),
     cartCount: document.getElementById("cartCount"),
-    mobileBottomNav: document.getElementById("mobileBottomNav")
+    mobileBottomNav: document.getElementById("mobileBottomNav"),
+    departmentNav: document.getElementById("departmentNav"),
+    departmentShowcase: document.getElementById("departmentShowcase")
   };
 
   document.addEventListener("DOMContentLoaded", init);
@@ -254,6 +256,8 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     applySettings();
     renderBanners();
     renderCategories();
+    renderDepartmentNav();
+    renderDepartmentShowcase();
     renderProducts();
     renderReviews();
     renderFaq();
@@ -265,7 +269,7 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
   function applySettings() {
     const promo = state.settings.promoBar || {};
     const promoText = promoTextWithCountdown();
-    setMarquee(els.promoBar, promo, promoText || "FRETE GRATIS PARA TODO O BRASIL");
+    setMarquee(els.promoBar, promo, promoText || "CONFIRA OS PRODUTOS E NOVIDADES DA KAIROS SHOPPING");
     setMarquee(els.footerPromoBar, promo, promoText || "FRETE GRATIS PARA TODO O BRASIL");
     startScarcityCountdown();
 
@@ -299,12 +303,12 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
   function promoTextWithCountdown() {
     const conversion = conversionConfig();
     const base = state.settings.promoBar?.text || "FRETE GRATIS PARA TODO O BRASIL";
-    if (conversion.scarcityEnabled === false) return base;
-    return `${conversion.scarcityText || "Ofertas limitadas terminam em"} ${formatCountdownRemaining()}`;
+    return base;
   }
 
   function startScarcityCountdown() {
     if (state.countdownTimer) clearInterval(state.countdownTimer);
+    return;
     const conversion = conversionConfig();
     if (conversion.scarcityEnabled === false) return;
     ensureScarcityDeadline();
@@ -453,10 +457,8 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
         <div class="modal-content">
           <span class="product-category">${escapeHtml(product.category)}${product.subcategory ? ` · ${escapeHtml(product.subcategory)}` : ""}</span>
           <h2>${escapeHtml(product.title)}</h2>
-          <div class="rating">${stars(product.reviewRating)} <span>${formatNumber(product.reviewCount)} avaliacoes</span></div>
+          ${product.reviewCount > 0 && product.reviewRating > 0 ? `<div class="rating">${stars(product.reviewRating)} <span>${formatNumber(product.reviewCount)} avaliacoes</span></div>` : ""}
           <div class="price-row large"><strong>${formatCurrency(product.price)}</strong>${product.oldPrice ? `<del>${formatCurrency(product.oldPrice)}</del>` : ""}</div>
-          <p class="installment">${installmentText(product.price)}</p>
-          <span class="free-shipping">Frete gratis para todo o Brasil</span>
           <p class="modal-short">${escapeHtml(product.shortDescription || "")}</p>
           <div class="modal-actions">
             <button class="primary-button" type="button" data-modal-action="buy" data-product-id="${escapeHtml(product.id)}">Comprar agora</button>
@@ -465,7 +467,7 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
             <button class="secondary-button" type="button" data-modal-action="favorite" data-product-id="${escapeHtml(product.id)}">${favorite ? "Remover favorito" : "Favoritar"}</button>
           </div>
           ${accordion("Descricao completa", product.description)}
-          ${accordion("Entrega", "Logo apos o pagamento, o pedido sera processado em ate 2 dias uteis. O tempo total de envio geralmente varia entre 3 e 15 dias uteis, dependendo do fornecedor e da sua localidade.")}
+          ${accordion("Entrega", state.settings.content?.delivery || "Consulte as condições e os prazos informados no checkout do produto.")}
           ${accordion("Trocas e devolucoes", state.settings.content?.returns || "Consulte a politica de trocas e devolucoes da loja.")}
           ${related.length ? `
             <section class="related-products">
@@ -594,6 +596,8 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
   function renderReviews() {
     const reviews = normalizeReviews(state.settings.reviews);
     if (!els.reviewGrid) return;
+    const section = els.reviewGrid.closest(".reviews-section");
+    if (section) section.hidden = reviews.length === 0;
     els.reviewGrid.innerHTML = reviews.map((review) => `
       <article class="review-card">
         <div>${stars(review.rating)} <strong>${escapeHtml(review.name)}</strong></div>
@@ -611,11 +615,13 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
   }
 
   function renderFaq() {
+    if (!els.faqList) return;
+    const content = state.settings.content || {};
     const faq = [
-      ["Qual o prazo de entrega?", "Logo apos a confirmacao do pagamento, o pedido e processado em ate 2 dias uteis. O envio geralmente varia entre 3 e 15 dias uteis."],
-      ["Como recebo o codigo de rastreio?", "As informacoes de rastreamento ficam disponiveis conforme o pedido avanca no processo logistico."],
-      ["A compra e segura?", "A compra e finalizada em checkout externo oficial do produto, com os metodos de pagamento disponibilizados pela plataforma parceira."],
-      ["Como funciona troca ou devolucao?", state.settings.content?.returns || "As regras ficam disponiveis na pagina de trocas e devolucoes."]
+      ["Como acompanhar meu pedido?", "Use o portal de rastreamento disponibilizado pela Kairos Shopping com o código do pedido."],
+      ["Onde finalizo a compra?", "Cada produto direciona para o checkout externo indicado em sua página."],
+      ["Onde consulto entrega, pagamento e condições?", "As condições aplicáveis são apresentadas no checkout do produto e nas políticas oficiais da loja."],
+      ...(content.returns ? [["Como funcionam trocas e devoluções?", content.returns]] : [])
     ];
     els.faqList.innerHTML = faq.map(([question, answer]) => accordion(question, answer)).join("");
   }
@@ -667,31 +673,8 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
   }
 
   function startActivityPopup() {
-    const config = state.settings.purchasePopup || {};
-    if (config.enabled === false) return;
-    const delay = Math.max(3, Number(config.delaySeconds || 8)) * 1000;
-    const interval = Math.max(20, Number(config.intervalSeconds || 36)) * 1000;
-    setTimeout(showActivityPopup, delay);
-    setInterval(showActivityPopup, interval);
-  }
-
-  function showActivityPopup() {
-    const products = state.products.filter(isVisible).slice(0, 20);
-    if (!products.length || !els.activityPopup) return;
-    const product = products[Math.floor(Math.random() * products.length)];
-    const soldToday = soldCount(product);
-    els.activityPopup.hidden = false;
-    els.activityPopup.innerHTML = `
-      <button type="button" class="activity-close" aria-label="Fechar">x</button>
-      <img src="${escapeHtml(product.image || FALLBACK_IMAGE)}" alt="${escapeHtml(product.title)}" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'">
-      <div>
-        <strong>${formatNumber(soldToday)} clientes compraram</strong>
-        <span>${escapeHtml(shortTitle(product.title))}</span>
-      </div>
-      <button type="button" class="activity-link" data-action="details" data-product-id="${escapeHtml(product.id)}">Ver produto</button>
-    `;
-    els.activityPopup.querySelector("button").onclick = () => els.activityPopup.hidden = true;
-    setTimeout(() => { if (els.activityPopup) els.activityPopup.hidden = true; }, Math.max(4, Number(state.settings.purchasePopup?.visibleSeconds || 6)) * 1000);
+    // Social proof is displayed only when backed by real order data.
+    return;
   }
 
   function startRealtimeRefresh() {
@@ -840,7 +823,7 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
       slug: product.slug || slugify(product.title || product.name || `produto-${index + 1}`),
       keywords: Array.isArray(product.keywords) ? product.keywords : String(product.keywords || product.tags || "").split(",").map((item) => item.trim()).filter(Boolean),
       tag: String(product.tag || ""),
-      reviewRating: Number(product.reviewRating || product.rating || 4.8),
+      reviewRating: Number(product.reviewRating || product.rating || 0),
       reviewCount: Number(product.reviewCount || product.reviewsCount || 0),
       visible: product.visible !== false && product.active !== false,
       featured: product.featured !== false,
@@ -865,9 +848,9 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
       bannerMobileVideoUrl: settings.bannerMobileVideoUrl || "",
       banners: Array.isArray(settings.banners) ? settings.banners : [],
       trackingUrl: settings.trackingUrl || "https://app.kaiross.com.br/rastreio",
-      promoBar: settings.promoBar || { enabled: true, text: "Frete gratis para todo o Brasil", backgroundColor: "#ff6b00", textColor: "#111827" },
+      promoBar: settings.promoBar || { enabled: true, text: "Confira os produtos e novidades da Kairos Shopping", backgroundColor: "#F47721", textColor: "#111111" },
       assistant: settings.assistant || {},
-      purchasePopup: settings.purchasePopup || { enabled: true, delaySeconds: 8, intervalSeconds: 36, visibleSeconds: 6 },
+      purchasePopup: settings.purchasePopup || { enabled: false },
       conversion: {
         ...defaultConversionConfig(),
         ...(settings.conversion || {}),
@@ -876,20 +859,20 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
       social: settings.social || {},
       content: settings.content || {},
       storefront: settings.storefront || {},
-      reviews: Array.isArray(settings.reviews) ? settings.reviews : defaultReviews()
+      reviews: Array.isArray(settings.reviews) ? settings.reviews : []
     };
   }
 
   function defaultConversionConfig() {
     return {
-      scarcityEnabled: true,
+      scarcityEnabled: false,
       scarcityText: "Ofertas limitadas terminam em",
       countdownMinutes: 15,
-      visitorCounterEnabled: true,
+      visitorCounterEnabled: false,
       visitorCounterType: "total",
       visitorCounterText: "Produtos com alto interesse dos clientes",
       mobileNavEnabled: true,
-      socialProofEnabled: true,
+      socialProofEnabled: false,
       mobileNavItems: DEFAULT_MOBILE_NAV_ITEMS
     };
   }
@@ -1053,6 +1036,8 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     if (els.searchInput) els.searchInput.value = "";
     hideSuggestions();
     renderCategories();
+    renderDepartmentNav();
+    renderDepartmentShowcase();
     renderProducts();
     document.getElementById("produtos")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -1217,12 +1202,107 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
         resetCatalogPagination();
         trackEvent("category_filter", { category: state.category });
         renderCategories();
+        renderDepartmentNav();
+        renderDepartmentShowcase();
         renderSubcategories();
         renderProducts();
         document.getElementById("produtos")?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
     });
     renderSubcategories();
+  }
+
+  function departmentList() {
+    const fromCatalog = state.categories
+      .filter((category) => category.active !== false)
+      .sort((a, b) => Number(a.order || 0) - Number(b.order || 0))
+      .map((category) => category.name);
+    const fromProducts = state.products.filter(isVisible).map((product) => product.category).filter(Boolean);
+    return unique([...fromCatalog, ...fromProducts]).filter(Boolean).slice(0, 80);
+  }
+
+  function selectDepartment(name) {
+    state.category = name || "Todos";
+    state.categoryKey = name ? categoryKey(name) : "todos";
+    state.subcategory = "Todas";
+    state.subcategoryKey = "todas";
+    state.search = "";
+    if (els.searchInput) els.searchInput.value = "";
+    resetCatalogPagination();
+    renderCategories();
+    renderDepartmentNav();
+    renderProducts();
+    document.getElementById("produtos")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    trackEvent("category_filter", { category: state.category });
+  }
+
+  function renderDepartmentNav() {
+    if (!els.departmentNav) return;
+    const categories = departmentList();
+    const menuItems = categories.map((name) => {
+      const category = state.categories.find((item) => categoryKey(item.name) === categoryKey(name));
+      const subs = state.subcategories.filter((item) => item.active !== false && (!item.categoryId || item.categoryId === category?.id));
+      const derived = unique(state.products.filter((product) => categoryKey(product.category) === categoryKey(name)).map((product) => product.subcategory).filter(Boolean));
+      const subNames = unique([...subs.map((item) => item.name), ...derived]).slice(0, 12);
+      return `<div class="mega-menu-group">
+        <button type="button" class="mega-menu-title" data-nav-category="${escapeHtml(name)}">${escapeHtml(name)}</button>
+        ${subNames.map((sub) => `<button type="button" class="mega-menu-sub" data-nav-category="${escapeHtml(name)}" data-nav-subcategory="${escapeHtml(sub)}">${escapeHtml(sub)}</button>`).join("")}
+      </div>`;
+    }).join("");
+    els.departmentNav.innerHTML = `
+      <details class="department-dropdown">
+        <summary><span aria-hidden="true">☰</span> Departamentos <span class="nav-chevron">⌄</span></summary>
+        <div class="department-mega-menu">
+          <div class="mega-menu-intro">
+            <strong>Explore por departamento</strong>
+            <span>${categories.length} departamentos disponíveis</span>
+            <button type="button" data-nav-category="">Ver todos os produtos</button>
+          </div>
+          <div class="mega-menu-grid">${menuItems || '<p class="mega-menu-empty">Os departamentos serão exibidos conforme o catálogo for publicado.</p>'}</div>
+        </div>
+      </details>
+      <a href="#produtos">Todos os produtos</a>
+      <a href="#promocoes">Ofertas</a>
+      <a href="/rastreio">Rastrear pedido</a>
+      <a href="/contato">Atendimento</a>
+    `;
+    els.departmentNav.querySelectorAll("[data-nav-category]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const name = button.dataset.navCategory || "";
+        const sub = button.dataset.navSubcategory || "";
+        selectDepartment(name);
+        if (sub) {
+          state.subcategory = sub;
+          state.subcategoryKey = categoryKey(sub);
+          renderSubcategories();
+          renderProducts();
+        }
+        els.departmentNav.querySelector("details")?.removeAttribute("open");
+      });
+    });
+  }
+
+  function renderDepartmentShowcase() {
+    if (!els.departmentShowcase) return;
+    const categories = departmentList().slice(0, 8);
+    if (!categories.length) {
+      els.departmentShowcase.closest(".department-showcase-section")?.setAttribute("hidden", "");
+      return;
+    }
+    els.departmentShowcase.closest(".department-showcase-section")?.removeAttribute("hidden");
+    els.departmentShowcase.innerHTML = categories.map((name) => {
+      const category = state.categories.find((item) => categoryKey(item.name) === categoryKey(name));
+      const product = state.products.find((item) => isVisible(item) && categoryKey(item.category) === categoryKey(name) && item.image && item.image !== FALLBACK_IMAGE);
+      const image = category?.image && category.image !== FALLBACK_IMAGE ? category.image : product?.image || "";
+      return `<button class="department-tile" type="button" data-department-tile="${escapeHtml(name)}">
+        <span class="department-tile-image">${image ? `<img src="${escapeHtml(image)}" alt="" loading="lazy" decoding="async" onerror="this.closest('.department-tile-image').classList.add('no-image');this.remove()">` : '<span class="department-tile-symbol" aria-hidden="true">⌂</span>'}</span>
+        <strong>${escapeHtml(name)}</strong>
+        <span class="department-tile-count">${formatNumber(state.products.filter((item) => isVisible(item) && categoryKey(item.category) === categoryKey(name)).length)} produtos</span>
+      </button>`;
+    }).join("");
+    els.departmentShowcase.querySelectorAll("[data-department-tile]").forEach((button) => {
+      button.addEventListener("click", () => selectDepartment(button.dataset.departmentTile));
+    });
   }
 
   function renderSubcategories() {
@@ -1284,12 +1364,12 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     const bestSection = els.bestSellerGrid?.closest(".section-block");
     const flashSection = els.flashGrid?.closest(".section-block");
     const videoSection = els.videoGrid?.closest(".section-block");
-    renderGrid(els.bestSellerGrid, best.length ? best : visible.slice(0, 8), "Novos produtos serao destacados em breve.");
+    renderGrid(els.bestSellerGrid, best, "");
     renderGrid(els.flashGrid, flash, "");
     renderGrid(els.videoGrid, videos, "Videos serao exibidos aqui quando cadastrados no painel.");
     renderGrid(els.catalogGrid, pagedCatalog, "");
     renderPagination(catalog.length, pagedCatalog.length);
-    if (bestSection) bestSection.hidden = visible.length === 0;
+    if (bestSection) bestSection.hidden = best.length === 0;
     if (flashSection) flashSection.hidden = flash.length === 0;
     if (videoSection) videoSection.hidden = videos.length === 0;
     if (els.catalogCount) {
@@ -1322,13 +1402,11 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
           <span class="product-category">${escapeHtml(product.category)}</span>
           <h3>${escapeHtml(product.title)}</h3>
           ${showDescription ? `<p>${escapeHtml(product.shortDescription || product.description || "").slice(0, 120)}</p>` : ""}
-          ${showRating ? `<div class="rating">${stars(product.reviewRating)} <span>${formatNumber(product.reviewCount)} avaliacoes</span></div>` : ""}
+          ${showRating && product.reviewCount > 0 && product.reviewRating > 0 ? `<div class="rating">${stars(product.reviewRating)} <span>${formatNumber(product.reviewCount)} avaliacoes</span></div>` : ""}
           <div class="price-row">
             <strong>${formatCurrency(product.price)}</strong>
             ${product.oldPrice ? `<del>${formatCurrency(product.oldPrice)}</del>` : ""}
           </div>
-          <span class="installment">${installmentText(product.price)}</span>
-          <span class="free-shipping">Frete gratis</span>
           <div class="product-actions">
             <button type="button" class="secondary-button compact" data-action="details" data-product-id="${escapeHtml(product.id)}">Ver detalhes</button>
             <button type="button" class="primary-button compact" data-action="buy" data-product-id="${escapeHtml(product.id)}">Comprar agora</button>
@@ -1477,7 +1555,7 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
   }
 
   function stars(value) {
-    const rating = Math.round(Number(value || 5) * 2) / 2;
+    const rating = Math.max(0, Math.min(5, Math.round(Number(value || 0) * 2) / 2));
     return `<span class="stars" aria-label="${rating} de 5">&#9733;&#9733;&#9733;&#9733;&#9733;</span>`;
   }
 
