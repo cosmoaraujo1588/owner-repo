@@ -129,7 +129,8 @@
       state.subcategories = normalizeSubcategories(extractCatalogList(catalog, "subcategories"));
       const settingsBanners = Array.isArray(catalog.settings?.banners) ? catalog.settings.banners : Array.isArray(catalog.response?.settings?.banners) ? catalog.response.settings.banners : [];
       const apiReviews = Array.isArray(catalog.reviews) ? catalog.reviews : Array.isArray(catalog.response?.reviews) ? catalog.response.reviews : [];
-      const settingsReviews = Array.isArray(settings.reviews) ? settings.reviews : [];
+      const activeSettings = catalog.settings || catalog.response?.settings || catalog.data?.settings || {};
+      const settingsReviews = Array.isArray(activeSettings.reviews) ? activeSettings.reviews : [];
       state.settings = normalizeSettings({ ...DEFAULT_SETTINGS, ...(catalog.settings || catalog.response?.settings || catalog.data?.settings || {}), banners: settingsBanners, reviews: apiReviews.length ? apiReviews : settingsReviews });
     } catch {
       const localProducts = readJson("kairos:local-products", null);
@@ -1213,7 +1214,7 @@
     ];
     els.categoryRail.innerHTML = categories.map((category) => `
       <button class="category-chip ${state.categoryKey === category.key ? "active" : ""}" type="button" data-category="${escapeHtml(category.label)}" data-category-key="${escapeHtml(category.key)}">
-        <span class="category-chip-symbol">${escapeHtml(category.label.slice(0,1).toUpperCase())}</span>
+        <span class="category-chip-symbol">${(() => { const record = state.categories.find((item) => categoryKey(item.name) === category.key); const product = visible.find((item) => categoryKey(item.category) === category.key && item.image && item.image !== FALLBACK_IMAGE); const src = record?.image && record.image !== FALLBACK_IMAGE ? record.image : product?.image; return src ? `<img src="${escapeHtml(src)}" alt="" loading="lazy" onerror="this.remove()">` : escapeHtml(category.label.slice(0,1).toUpperCase()); })()}</span>
         <strong>${escapeHtml(category.label)}</strong>
         <small>${formatNumber(category.count)}</small>
       </button>
@@ -1398,8 +1399,6 @@
     const best = visible.filter((item) => item.bestSeller).slice(0, 8);
     const flash = visible.filter((item) => item.flashOffer || item.oldPrice).slice(0, 8);
     const videos = visible.filter((item) => item.videoUrl).slice(0, 8);
-    const newest = [...visible].sort((a,b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)).slice(0, 10);
-    const featured = visible.filter((item) => item.featured).slice(0, 10);
     const newest = visible.filter((item) => item.createdAt).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 10);
     const catalog = sortProducts(filterProducts(visible));
     const pagedCatalog = paginateProducts(catalog);
@@ -1410,16 +1409,13 @@
     renderGrid(els.newArrivalsGrid, newest, "");
     renderGrid(els.flashGrid, flash, "");
     renderGrid(els.videoGrid, videos, "");
-    renderGrid(els.newArrivalsGrid, newest, "");
-    renderGrid(els.featuredGrid, featured, "");
     renderGrid(els.catalogGrid, pagedCatalog, "");
     renderPagination(catalog.length, pagedCatalog.length);
     if (bestSection) bestSection.hidden = best.length === 0;
     if (els.newArrivalsGrid?.closest(".section-block")) els.newArrivalsGrid.closest(".section-block").hidden = newest.length === 0;
     if (flashSection) flashSection.hidden = flash.length === 0;
     if (videoSection) videoSection.hidden = videos.length === 0;
-    if (els.newArrivalsGrid) els.newArrivalsGrid.closest(".section-block").hidden = newest.length === 0;
-    if (els.featuredGrid) els.featuredGrid.closest(".section-block").hidden = featured.length === 0;
+
     if (els.catalogCount) {
       const scope = state.subcategoryKey !== "todas" ? `em ${state.subcategory}` : state.categoryKey === "todos" ? "produtos ativos" : `em ${state.category}`;
       els.catalogCount.textContent = `${formatNumber(catalog.length)} ${scope}`;
