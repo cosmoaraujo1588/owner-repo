@@ -129,7 +129,7 @@
       state.subcategories = normalizeSubcategories(extractCatalogList(catalog, "subcategories"));
       const settingsBanners = Array.isArray(catalog.settings?.banners) ? catalog.settings.banners : Array.isArray(catalog.response?.settings?.banners) ? catalog.response.settings.banners : [];
       const apiReviews = Array.isArray(catalog.reviews) ? catalog.reviews : Array.isArray(catalog.response?.reviews) ? catalog.response.reviews : [];
-      const settingsReviews = Array.isArray(catalog.settings?.reviews) ? catalog.settings.reviews : [];
+      const settingsReviews = Array.isArray(settings.reviews) ? settings.reviews : [];
       state.settings = normalizeSettings({ ...DEFAULT_SETTINGS, ...(catalog.settings || catalog.response?.settings || catalog.data?.settings || {}), banners: settingsBanners, reviews: apiReviews.length ? apiReviews : settingsReviews });
     } catch {
       const localProducts = readJson("kairos:local-products", null);
@@ -836,26 +836,26 @@
     return products.filter((product) => product && typeof product === "object").map((product, index) => ({
       ...product,
       id: String(product.id || `produto-${index + 1}`),
-      title: String(product.title || product.name || `Produto ${index + 1}`),
+      title: String(product.title || product.name || product.product_name || `Produto ${index + 1}`),
       category: String(product.category || "Ofertas"),
       subcategory: String(product.subcategory || ""),
       price: Number(product.price || 0),
-      oldPrice: product.oldPrice ? Number(product.oldPrice) : null,
-      image: safeImage(product.image || product.imageUrl),
-      gallery: Array.isArray(product.gallery) ? product.gallery : [],
-      checkoutUrl: String(product.checkoutUrl || ""),
+      oldPrice: Number(product.oldPrice ?? product.old_price ?? product.compare_at_price ?? 0) || null,
+      image: safeImage(product.image || product.imageUrl || product.image_url || product.photo || product.thumbnail),
+      gallery: Array.isArray(product.gallery) ? product.gallery : Array.isArray(product.images) ? product.images : [],
+      checkoutUrl: String(product.checkoutUrl || product.checkout_url || product.buy_url || ""),
       slug: product.slug || slugify(product.title || product.name || `produto-${index + 1}`),
       keywords: Array.isArray(product.keywords) ? product.keywords : String(product.keywords || product.tags || "").split(",").map((item) => item.trim()).filter(Boolean),
       tag: String(product.tag || ""),
       reviewRating: Number(product.reviewRating || product.rating || 0),
       createdAt: product.createdAt || product.created_at || null,
       reviewCount: Number(product.reviewCount || product.reviewsCount || 0),
-      visible: product.visible !== false && product.active !== false && product.is_active !== false && product.published !== false,
-      featured: product.featured !== false,
-      bestSeller: Boolean(product.bestSeller),
-      flashOffer: Boolean(product.flashOffer) || Boolean(product.oldPrice),
-      order: Number(product.order || product.position || index),
-      shortDescription: String(product.shortDescription || product.description || "").slice(0, 220),
+      visible: product.visible !== false && product.active !== false && product.is_active !== false && product.published !== false && product.status !== "inactive" && product.status !== "draft",
+      featured: Boolean(product.featured ?? product.is_featured ?? false),
+      bestSeller: Boolean(product.bestSeller ?? product.best_seller ?? false),
+      flashOffer: Boolean(product.flashOffer ?? product.flash_offer ?? false) || Boolean(product.oldPrice ?? product.old_price),
+      order: Number(product.order ?? product.display_order ?? product.position ?? index),
+      shortDescription: String(product.shortDescription || product.short_description || product.description || "").slice(0, 220),
       description: String(product.description || product.shortDescription || "")
     }));
   }
@@ -1398,6 +1398,8 @@
     const best = visible.filter((item) => item.bestSeller).slice(0, 8);
     const flash = visible.filter((item) => item.flashOffer || item.oldPrice).slice(0, 8);
     const videos = visible.filter((item) => item.videoUrl).slice(0, 8);
+    const newest = [...visible].sort((a,b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)).slice(0, 10);
+    const featured = visible.filter((item) => item.featured).slice(0, 10);
     const newest = visible.filter((item) => item.createdAt).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 10);
     const catalog = sortProducts(filterProducts(visible));
     const pagedCatalog = paginateProducts(catalog);
@@ -1407,18 +1409,24 @@
     renderGrid(els.bestSellerGrid, best, "");
     renderGrid(els.newArrivalsGrid, newest, "");
     renderGrid(els.flashGrid, flash, "");
-    renderGrid(els.videoGrid, videos, "Videos serao exibidos aqui quando cadastrados no painel.");
+    renderGrid(els.videoGrid, videos, "");
+    renderGrid(els.newArrivalsGrid, newest, "");
+    renderGrid(els.featuredGrid, featured, "");
     renderGrid(els.catalogGrid, pagedCatalog, "");
     renderPagination(catalog.length, pagedCatalog.length);
     if (bestSection) bestSection.hidden = best.length === 0;
     if (els.newArrivalsGrid?.closest(".section-block")) els.newArrivalsGrid.closest(".section-block").hidden = newest.length === 0;
     if (flashSection) flashSection.hidden = flash.length === 0;
     if (videoSection) videoSection.hidden = videos.length === 0;
+    if (els.newArrivalsGrid) els.newArrivalsGrid.closest(".section-block").hidden = newest.length === 0;
+    if (els.featuredGrid) els.featuredGrid.closest(".section-block").hidden = featured.length === 0;
     if (els.catalogCount) {
       const scope = state.subcategoryKey !== "todas" ? `em ${state.subcategory}` : state.categoryKey === "todos" ? "produtos ativos" : `em ${state.category}`;
       els.catalogCount.textContent = `${formatNumber(catalog.length)} ${scope}`;
     }
     if (els.emptyProducts) els.emptyProducts.hidden = catalog.length > 0;
+    if (els.heroControls) els.heroControls.innerHTML = (normalizeBanners().length > 1 ? normalizeBanners().map((_,i)=>`<button type="button" class="hero-dot ${i===state.bannerIndex?"active":""}" data-hero-index="${i}" aria-label="Banner ${i+1}"></button>`).join("") : "");
+    els.heroControls?.querySelectorAll("[data-hero-index]").forEach((button)=>button.addEventListener("click",()=>{state.bannerIndex=Number(button.dataset.heroIndex)||0;els.heroCarousel?.querySelectorAll(".hero-slide").forEach((slide,i)=>slide.classList.toggle("active",i===state.bannerIndex));els.heroControls.querySelectorAll(".hero-dot").forEach((dot,i)=>dot.classList.toggle("active",i===state.bannerIndex));}));
     renderCategoryCollections(visible);
   }
 
