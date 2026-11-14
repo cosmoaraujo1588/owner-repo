@@ -1311,7 +1311,7 @@
       const category = state.categories.find((item) => categoryKey(item.name) === categoryKey(name));
       const subs = state.subcategories.filter((item) => item.active !== false && (!item.categoryId || item.categoryId === category?.id));
       const derived = unique(state.products.filter((product) => categoryKey(product.category) === categoryKey(name)).map((product) => product.subcategory).filter(Boolean));
-      const subNames = unique([...subs.map((item) => item.name), ...derived]).slice(0, 12);
+      const subNames = unique([...subs.map((item) => item.name), ...derived]);
       return `<div class="mega-menu-group">
         <button type="button" class="mega-menu-title" data-nav-category="${escapeHtml(name)}">${escapeHtml(name)}</button>
         ${subNames.map((sub) => `<button type="button" class="mega-menu-sub" data-nav-category="${escapeHtml(name)}" data-nav-subcategory="${escapeHtml(sub)}">${escapeHtml(sub)}</button>`).join("")}
@@ -1440,12 +1440,19 @@
 
   function renderProducts() {
     const visible = state.products.filter(isVisible);
-    const best = visible.filter((item) => item.bestSeller).slice(0, 10);
-    const flash = visible.filter((item) => item.flashOffer || item.oldPrice).slice(0, 10);
-    const videos = visible.filter((item) => item.videoUrl).slice(0, 10);
+    const usedInShowcases = new Set();
+    const takeUnique = (items, limit = 10) => items.filter((item) => {
+      const key = String(item.id);
+      if (usedInShowcases.has(key)) return false;
+      usedInShowcases.add(key);
+      return true;
+    }).slice(0, limit);
+    const flash = takeUnique(visible.filter((item) => item.flashOffer || (item.oldPrice && item.oldPrice > item.price)));
+    const best = takeUnique(visible.filter((item) => item.bestSeller));
     const recentCutoff = Date.now() - 60 * 24 * 60 * 60 * 1000;
-    const newest = visible.filter((item) => item.createdAt && new Date(item.createdAt).getTime() >= recentCutoff).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 10);
-    const featured = visible.filter((item) => item.featured).slice(0, 10);
+    const newest = takeUnique(visible.filter((item) => item.createdAt && new Date(item.createdAt).getTime() >= recentCutoff).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
+    const featured = takeUnique(visible.filter((item) => item.featured));
+    const videos = visible.filter((item) => item.videoUrl).slice(0, 10);
     const catalog = sortProducts(filterProducts(visible));
     const pagedCatalog = paginateProducts(catalog);
     const bestSection = els.bestSellerGrid?.closest(".section-block");
