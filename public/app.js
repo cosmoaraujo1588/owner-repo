@@ -397,7 +397,7 @@
     }
     const title = "Produtos que facilitam o seu dia";
     const subtitle = "Descubra escolhas selecionadas em diferentes categorias.";
-    const href = productUrl(heroProduct);
+    const href = "/produto/" + encodeURIComponent(heroProduct.slug || slugify(heroProduct.title || heroProduct.id));
     els.heroCarousel.innerHTML = `
       <a class="hero-slide active hero-product-slide" href="${escapeHtml(href)}">
         <div class="hero-product-copy">
