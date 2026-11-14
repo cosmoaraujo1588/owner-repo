@@ -34,10 +34,8 @@
     <link rel="alternate" hreflang="x-default" href="https://www.kairosshopping.com.br/">
     <meta name="theme-color" content="#F47721">
     <link rel="icon" href="./assets/logo-kairos-oficial.png">
-    <link rel="stylesheet" href="./styles.css?v=20260606-fix-catalog">
-    <link rel="stylesheet" href="./visual-upgrade.css?v=20260607-safe-visual">
-    <link rel="stylesheet" href="./premium-store.css?v=20260613-premium">
-    <link rel="stylesheet" href="./kairos-rebuild.css?v=20261114-marketplace-v7">
+    <link rel="stylesheet" href="./styles.css?v=20261114-marketplace-v8-base">
+    <link rel="stylesheet" href="./kairos-rebuild.css?v=20261114-marketplace-v8">
     <script type="application/ld+json" id="structuredData">
       {
         "@context": "https://schema.org",
@@ -75,37 +73,103 @@
     </script>
   </head>
   <body class="marketplace-home">
-  <div class="top-strip marketplace-topbar" id="promoBar" aria-label="Informações da loja"><div class="marketplace-top-inner"><span>Atendimento ao cliente</span><span>Compra pelo checkout indicado no produto</span><span>Rastreamento de pedidos</span><span>Novidades e ofertas Kairos</span></div></div>
+  <div class="top-strip marketplace-topbar" id="promoBar" aria-label="Informações comerciais">
+    <div class="marketplace-top-inner">
+      <span><b>↗</b> Ofertas e novidades todos os dias</span>
+      <a id="headerWhatsapp" href="#" target="_blank" rel="noopener"><b>◉</b> Suporte e atendimento</a>
+      <a href="/rastreio"><b>⌖</b> Rastreie seu pedido</a>
+      <span><b>◇</b> Compra pelo checkout oficial</span>
+    </div>
+  </div>
   <header class="site-header marketplace-header">
     <div class="header-main marketplace-header-main">
       <button class="mobile-menu-toggle" id="mobileMenuToggle" type="button" aria-label="Abrir departamentos">☰</button>
-      <a class="brand marketplace-brand" href="#inicio" aria-label="Kairos Shopping"><img src="./assets/logo-kairos-oficial.png" alt="Kairos Shopping"><span>KAIROS <small>SHOPPING</small></span></a>
-      <button class="all-departments-trigger" type="button" id="allDepartmentsTrigger">☰ <span>Todos os departamentos</span></button>
-      <form class="search marketplace-search" id="searchForm" role="search"><input id="searchInput" type="search" placeholder="O que você procura na Kairos Shopping?" autocomplete="off" aria-label="Buscar produtos"><button type="submit" aria-label="Buscar">⌕</button><div class="search-suggestions" id="searchSuggestions" hidden></div></form>
-      <nav class="header-actions marketplace-actions" aria-label="Conta e sacola"><a id="headerWhatsapp" href="#" target="_blank" rel="noopener"><span>♧</span><small>Atendimento</small></a><a href="/contato"><span>♙</span><small>Minha conta</small></a><a class="cart-header-link" href="/carrinho"><span>♧</span><small>Sacolinha</small><b id="cartCount">0</b></a></nav>
+      <a class="brand marketplace-brand" href="#inicio" aria-label="Kairos Shopping"><img src="./assets/logo-kairos-oficial.png" alt="Kairos Shopping"></a>
+      <button class="all-departments-trigger" type="button" id="allDepartmentsTrigger"><span class="menu-lines">☰</span><span>Todos os departamentos</span></button>
+      <form class="search marketplace-search" id="searchForm" role="search">
+        <input id="searchInput" type="search" placeholder="O que você procura hoje?" autocomplete="off" aria-label="Buscar produtos">
+        <button type="submit" aria-label="Buscar">⌕</button>
+        <div class="search-suggestions" id="searchSuggestions" hidden></div>
+      </form>
+      <nav class="header-actions marketplace-actions" aria-label="Conta e sacola">
+        <a href="/contato"><span>♙</span><small>Minha conta</small></a>
+        <a class="cart-header-link" href="/carrinho"><span>♧</span><small>Sacola</small><b id="cartCount">0</b></a>
+      </nav>
     </div>
-    <nav class="department-nav marketplace-departments" id="departmentNav" aria-label="Departamentos da loja"><a href="#categorias">Departamentos</a><a href="#promocoes">Ofertas</a><a href="#produtos">Todos os produtos</a><a href="/rastreio">Rastrear pedido</a></nav>
+    <nav class="department-nav marketplace-departments" id="departmentNav" aria-label="Departamentos da loja">
+      <a href="#categorias">Departamentos</a><a href="#promocoes">Ofertas</a><a href="#mais-vendidos">Mais vendidos</a><a href="#novidades">Novidades</a><a href="#produtos">Todos os produtos</a><a href="/rastreio">Rastrear pedido</a>
+    </nav>
   </header>
   <main id="inicio" class="marketplace-main">
-    <section class="hero marketplace-hero" aria-label="Destaques da Kairos Shopping"><div class="hero-media marketplace-hero-media" id="heroCarousel"><img src="./assets/banner-kairos-claro-1.png" alt="Destaques da Kairos Shopping" fetchpriority="high"></div><div class="hero-actions marketplace-hero-actions"><a class="primary-button" href="#promocoes">Conferir ofertas ›</a><a class="secondary-button" href="#produtos">Explorar catálogo</a></div></section>
-    <section class="marketplace-benefits" aria-label="Informações de compra"><div><span class="benefit-icon">◎</span><span><strong>Catálogo multicategoria</strong><small>Várias categorias em um só lugar</small></span></div><div><span class="benefit-icon">◇</span><span><strong>Compra transparente</strong><small>Condições no checkout do produto</small></span></div><div><span class="benefit-icon">▣</span><span><strong>Atendimento</strong><small>Fale com a equipe Kairos</small></span></div><div><span class="benefit-icon">⌖</span><span><strong>Rastreamento</strong><small>Acompanhe seu pedido</small></span></div></section>
-    <section class="section-block marketplace-categories" id="categorias"><div class="marketplace-section-heading"><div><span class="eyebrow">Explore a variedade</span><h2>Categorias em destaque</h2></div><a href="#produtos">Ver todas ›</a></div><div class="department-showcase" id="departmentShowcase"></div><div class="category-rail" id="categoryRail" aria-label="Filtrar por categoria"></div><div class="subcategory-rail" id="subcategoryRail" hidden></div></section>
-    <section class="section-block marketplace-product-section" id="promocoes"><div class="marketplace-section-heading"><div><span class="eyebrow">Seleção especial</span><h2><i class="section-mark">%</i> Ofertas em destaque</h2></div><span class="section-note">Condições e disponibilidade na página do produto</span></div><div class="product-rail-wrap"><button class="rail-arrow rail-prev" type="button" data-scroll-target="flashGrid" aria-label="Produtos anteriores">‹</button><div class="product-grid marketplace-rail" id="flashGrid"></div><button class="rail-arrow rail-next" type="button" data-scroll-target="flashGrid" aria-label="Próximos produtos">›</button></div></section>
-    <section class="section-block marketplace-product-section" id="mais-vendidos"><div class="marketplace-section-heading"><div><span class="eyebrow">Seleção da loja</span><h2>Mais vendidos</h2></div></div><div class="product-rail-wrap"><button class="rail-arrow rail-prev" type="button" data-scroll-target="bestSellerGrid" aria-label="Produtos anteriores">‹</button><div class="product-grid marketplace-rail" id="bestSellerGrid"></div><button class="rail-arrow rail-next" type="button" data-scroll-target="bestSellerGrid" aria-label="Próximos produtos">›</button></div></section>
-    <section class="section-block marketplace-product-section" id="novidades"><div class="marketplace-section-heading"><div><span class="eyebrow">Acabaram de chegar</span><h2>Novidades</h2></div></div><div class="product-rail-wrap"><button class="rail-arrow rail-prev" type="button" data-scroll-target="newArrivalsGrid" aria-label="Produtos anteriores">‹</button><div class="product-grid marketplace-rail" id="newArrivalsGrid"></div><button class="rail-arrow rail-next" type="button" data-scroll-target="newArrivalsGrid" aria-label="Próximos produtos">›</button></div></section>
-    <section class="section-block marketplace-category-collections" id="vitrinesPorDepartamento"><div class="marketplace-section-heading"><div><span class="eyebrow">Descubra mais</span><h2>Explore nossos departamentos</h2></div></div><div id="categoryCollections" class="category-collections"></div></section>
-    <section class="section-block marketplace-catalog-section" id="produtos"><div class="marketplace-section-heading catalog-heading"><div><span class="eyebrow">Catálogo Kairos Shopping</span><h2>Todos os produtos</h2><p id="catalogCount" class="catalog-count"></p></div><div class="catalog-controls"><select id="sortSelect" aria-label="Ordenar produtos"><option value="relevance">Mais relevantes</option><option value="newest">Mais recentes</option><option value="price-low">Menor preço</option><option value="price-high">Maior preço</option><option value="rating">Melhor avaliação</option></select><select id="priceFilter" aria-label="Filtrar por preço"><option value="all">Todos os preços</option><option value="under-100">Até R$ 100</option><option value="100-200">R$ 100 a R$ 200</option><option value="over-200">Acima de R$ 200</option></select></div></div><div class="product-grid catalog-grid" id="catalogGrid"></div><div class="pagination-controls" id="catalogPagination"></div><p class="empty-state" id="emptyProducts" hidden>Nenhum produto ativo encontrado. Tente outra categoria ou fale com nosso atendimento.</p></section>
-    <section class="section-block video-strip marketplace-product-section" id="videos"><div class="marketplace-section-heading"><div><span class="eyebrow">Veja em detalhes</span><h2>Produtos com vídeo</h2></div></div><div class="product-grid marketplace-rail" id="videoGrid"></div></section>
-    <section class="section-block reviews-section" id="avaliacoes"><div class="marketplace-section-heading"><div><span class="eyebrow">Experiências reais</span><h2>Avaliações de clientes</h2></div></div><div class="review-grid" id="reviewGrid"></div></section>
-    <section class="section-block marketplace-info-grid"><article><span class="benefit-icon">⌕</span><h3>Encontre o que procura</h3><p>Use a pesquisa, os departamentos e os filtros para explorar o catálogo.</p></article><article><span class="benefit-icon">◇</span><h3>Informações do produto</h3><p>Consulte preço, descrição e condições disponíveis em cada página.</p></article><article><span class="benefit-icon">⌖</span><h3>Acompanhe seu pedido</h3><p>Acesse o portal de rastreamento com os dados recebidos após a compra.</p></article></section>
-    <section class="section-block tracking-card" id="rastreio"><div><span class="eyebrow">Acompanhe sua compra</span><h2>Rastreie seu pedido</h2><p>Use o código de rastreamento ou acesse o portal oficial.</p></div><form id="trackingForm"><input id="trackingCode" type="text" placeholder="Código do pedido ou rastreio"><button type="submit" class="primary-button">Rastrear pedido</button><a id="trackingPortal" class="secondary-button" href="https://app.kaiross.com.br/rastreio" target="_blank" rel="noopener">Abrir portal</a></form></section>
-    <section class="section-block lead-section marketplace-lead"><div><span class="eyebrow">Novidades da Kairos</span><h2>Receba novidades e ofertas</h2><p>Informe seus dados para receber comunicações, conforme seu consentimento.</p></div><form id="leadForm" class="lead-form"><input name="name" type="text" placeholder="Seu nome" required><input name="whatsapp" type="tel" placeholder="WhatsApp" required><input name="city" type="text" placeholder="Cidade"><label class="consent"><input type="checkbox" required> Concordo em receber comunicações da Kairos pelo WhatsApp.</label><button class="primary-button" type="submit">Quero receber novidades</button></form></section>
-    <section class="section-block faq-section" id="faq"><div class="marketplace-section-heading"><div><span class="eyebrow">Precisa de ajuda?</span><h2>Dúvidas frequentes</h2></div></div><div class="accordion" id="faqList"></div></section>
+    <section class="hero marketplace-hero" aria-label="Destaques da Kairos Shopping">
+      <div class="hero-media marketplace-hero-media" id="heroCarousel">
+        <img src="./assets/banner-kairos-claro-1.png" alt="Destaques da Kairos Shopping" fetchpriority="high">
+      </div>
+    </section>
+    <section class="marketplace-benefits" aria-label="Benefícios e atendimento">
+      <div><span class="benefit-icon">↗</span><span><strong>Ofertas selecionadas</strong><small>Oportunidades em várias categorias</small></span></div>
+      <div><span class="benefit-icon">◇</span><span><strong>Compra transparente</strong><small>Condições no checkout do produto</small></span></div>
+      <div><span class="benefit-icon">▣</span><span><strong>Atendimento</strong><small>Suporte da equipe Kairos</small></span></div>
+      <div><span class="benefit-icon">⌖</span><span><strong>Rastreamento</strong><small>Acompanhe seu pedido</small></span></div>
+    </section>
+    <section class="section-block marketplace-product-section" id="promocoes">
+      <div class="marketplace-section-heading"><div><span class="eyebrow">Seleção especial</span><h2><i class="section-mark">%</i> Ofertas imperdíveis</h2></div><span class="section-note">Consulte as condições no produto</span></div>
+      <div class="product-rail-wrap"><button class="rail-arrow rail-prev" type="button" data-scroll-target="flashGrid" aria-label="Produtos anteriores">‹</button><div class="product-grid marketplace-rail" id="flashGrid"></div><button class="rail-arrow rail-next" type="button" data-scroll-target="flashGrid" aria-label="Próximos produtos">›</button></div>
+    </section>
+    <section class="section-block marketplace-product-section" id="mais-vendidos">
+      <div class="marketplace-section-heading"><div><span class="eyebrow">Destaques do catálogo</span><h2>Mais vendidos</h2></div></div>
+      <div class="product-rail-wrap"><button class="rail-arrow rail-prev" type="button" data-scroll-target="bestSellerGrid" aria-label="Produtos anteriores">‹</button><div class="product-grid marketplace-rail" id="bestSellerGrid"></div><button class="rail-arrow rail-next" type="button" data-scroll-target="bestSellerGrid" aria-label="Próximos produtos">›</button></div>
+    </section>
+    <section class="section-block marketplace-product-section" id="novidades">
+      <div class="marketplace-section-heading"><div><span class="eyebrow">Atualizações do catálogo</span><h2>Novidades</h2></div></div>
+      <div class="product-rail-wrap"><button class="rail-arrow rail-prev" type="button" data-scroll-target="newArrivalsGrid" aria-label="Produtos anteriores">‹</button><div class="product-grid marketplace-rail" id="newArrivalsGrid"></div><button class="rail-arrow rail-next" type="button" data-scroll-target="newArrivalsGrid" aria-label="Próximos produtos">›</button></div>
+    </section>
+    <section class="section-block marketplace-categories" id="categorias">
+      <div class="marketplace-section-heading"><div><span class="eyebrow">Explore por departamento</span><h2>Departamentos</h2></div><a href="#produtos">Ver catálogo completo ›</a></div>
+      <div class="department-showcase" id="departmentShowcase"></div>
+      <div class="category-rail" id="categoryRail" aria-label="Filtrar por categoria" hidden></div>
+      <div class="subcategory-rail" id="subcategoryRail" hidden></div>
+    </section>
+    <section class="section-block marketplace-product-section" id="destaques">
+      <div class="marketplace-section-heading"><div><span class="eyebrow">Seleção Kairos</span><h2>Produtos em destaque</h2></div></div>
+      <div class="product-rail-wrap"><button class="rail-arrow rail-prev" type="button" data-scroll-target="featuredGrid" aria-label="Produtos anteriores">‹</button><div class="product-grid marketplace-rail" id="featuredGrid"></div><button class="rail-arrow rail-next" type="button" data-scroll-target="featuredGrid" aria-label="Próximos produtos">›</button></div>
+    </section>
+    <section class="section-block marketplace-catalog-section" id="produtos">
+      <div class="marketplace-section-heading catalog-heading">
+        <div><span class="eyebrow">Todos os departamentos</span><h2>Catálogo completo</h2><p id="catalogCount" class="catalog-count"></p></div>
+        <div class="catalog-controls">
+          <select id="sortSelect" aria-label="Ordenar produtos"><option value="relevance">Mais relevantes</option><option value="newest">Mais recentes</option><option value="price-low">Menor preço</option><option value="price-high">Maior preço</option><option value="rating">Melhor avaliação</option></select>
+          <select id="priceFilter" aria-label="Filtrar por preço"><option value="all">Todos os preços</option><option value="under-100">Até R$ 100</option><option value="100-200">R$ 100 a R$ 200</option><option value="over-200">Acima de R$ 200</option></select>
+        </div>
+      </div>
+      <div class="product-grid catalog-grid" id="catalogGrid"></div>
+      <div class="pagination-controls" id="catalogPagination"></div>
+      <p class="empty-state" id="emptyProducts" hidden>Nenhum produto ativo encontrado. Tente outra categoria ou fale com nosso atendimento.</p>
+    </section>
+    <section class="section-block marketplace-info-grid" aria-label="Informações de confiança">
+      <article><span class="benefit-icon">◇</span><div><h3>Informações claras</h3><p>Confira descrição, preço e características na página de cada produto.</p></div></article>
+      <article><span class="benefit-icon">▣</span><div><h3>Checkout do produto</h3><p>Finalize sua compra no endereço externo indicado em cada item.</p></div></article>
+      <article><span class="benefit-icon">⌖</span><div><h3>Acompanhamento</h3><p>Consulte o rastreamento do pedido no portal de atendimento.</p></div></article>
+    </section>
+    <section class="section-block tracking-card" id="rastreio">
+      <div><span class="eyebrow">Pós-venda</span><h2>Rastreie seu pedido</h2><p>Acesse o portal de rastreamento e acompanhe sua compra.</p></div>
+      <form id="trackingForm"><input id="trackingCode" type="text" placeholder="Código do pedido ou rastreio" aria-label="Código do pedido"><button type="submit" class="primary-button">Rastrear pedido</button><a id="trackingPortal" class="secondary-button" href="https://app.kaiross.com.br/rastreio" target="_blank" rel="noopener">Abrir portal</a></form>
+    </section>
+    <div id="assistantWidget" hidden></div>
   </main>
-  <div class="bottom-strip" id="footerPromoBar" aria-hidden="true"><div class="marquee-track reverse"><span>KAIROS SHOPPING · CATÁLOGO MULTICATEGORIA</span><span>INFORMAÇÕES CLARAS · ATENDIMENTO</span></div></div><div class="assistant-widget" id="assistantWidget"></div>
-  <footer class="site-footer marketplace-footer"><div class="footer-brand"><img src="./assets/logo-kairos-oficial.png" alt="Kairos Shopping"><h2>Kairos Shopping</h2><p>Uma experiência de compra multicategoria, com informações claras e atendimento.</p><a href="mailto:kairossshopping@gmail.com">kairossshopping@gmail.com</a></div><nav><h3>Institucional</h3><a href="/quem-somos">Quem somos</a><a href="/privacidade">Política de privacidade</a><a href="/termos">Termos de uso</a><a href="/trocas-e-devolucoes">Trocas e devoluções</a></nav><nav><h3>Atendimento</h3><a href="/contato">Fale conosco</a><a href="/rastreio">Rastrear pedido</a><a href="#faq">Perguntas frequentes</a><a id="footerWhatsapp" href="#" target="_blank" rel="noopener">WhatsApp</a></nav><nav><h3>Redes sociais</h3><div class="social-links" id="socialLinks"></div></nav><nav><h3>Departamentos</h3><a href="#categorias">Ver categorias</a><a href="#promocoes">Ofertas</a><a href="#novidades">Novidades</a><a href="#produtos">Todos os produtos</a></nav><div class="footer-trust"><h3>Informações de compra</h3><p>Consulte as condições no checkout indicado em cada produto.</p><p>Rastreamento conforme disponibilidade do pedido.</p></div><div class="footer-bottom">© Kairos Shopping · Todos os direitos reservados.</div></footer>
+  <footer class="site-footer marketplace-footer">
+    <div class="footer-main">
+      <div class="footer-brand"><img src="./assets/logo-kairos-oficial.png" alt="Kairos Shopping"><p>Uma loja multicategoria para encontrar produtos para diferentes momentos do dia a dia.</p><a href="mailto:kairossshopping@gmail.com">kairossshopping@gmail.com</a></div>
+      <nav><h3>Institucional</h3><a href="/quem-somos">Quem somos</a><a href="/privacidade">Política de privacidade</a><a href="/termos">Termos de uso</a><a href="/trocas-e-devolucoes">Trocas e devoluções</a></nav>
+      <nav><h3>Atendimento</h3><a href="/contato">Fale conosco</a><a href="/rastreio">Rastrear pedido</a><a id="footerWhatsapp" href="#" target="_blank" rel="noopener">WhatsApp</a></nav>
+      <nav><h3>Departamentos</h3><a href="#categorias">Ver departamentos</a><a href="#promocoes">Ofertas</a><a href="#novidades">Novidades</a><a href="#produtos">Todos os produtos</a></nav>
+      <nav><h3>Redes sociais</h3><div class="social-links" id="socialLinks"></div></nav>
+      <div class="footer-trust"><h3>Informações de compra</h3><p>Consulte as condições de pagamento, entrega e atendimento no checkout e nos canais oficiais.</p></div>
+    </div>
+    <div class="footer-bottom">© Kairos Shopping · Todos os direitos reservados.</div>
+  </footer>
   <a class="floating-whatsapp" id="floatingWhatsapp" href="#" target="_blank" rel="noopener" aria-label="Falar com a Kairos Shopping">✆</a>
-  <nav class="mobile-bottom-nav" id="mobileBottomNav" aria-label="Atalhos rápidos"><a href="#inicio"><span>⌂</span><small>Início</small></a><a href="#categorias"><span>▦</span><small>Categorias</small></a><a href="#produtos"><span>⌕</span><small>Buscar</small></a><a href="/carrinho"><span>♧</span><small>Sacola</small></a><a href="/contato"><span>♙</span><small>Conta</small></a></nav>
+  <nav class="mobile-bottom-nav" id="mobileBottomNav" aria-label="Atalhos rápidos"><a href="#inicio"><span>⌂</span><small>Início</small></a><a href="#categorias"><span>▦</span><small>Departamentos</small></a><a href="#produtos"><span>⌕</span><small>Buscar</small></a><a href="/carrinho"><span>♧</span><small>Sacola</small></a><a href="/contato"><span>♙</span><small>Conta</small></a></nav>
   <div class="product-modal" id="productModal" hidden></div><div class="share-menu" id="shareMenu" hidden></div><div class="activity-popup" id="activityPopup" hidden></div>
-  <script src="./data/seed-products.js?v=20260606-fix-catalog"></script><script src="./data/settings.js?v=20260606-fix-catalog"></script><script src="./app.js?v=20261114-marketplace-v7" defer></script><script src="./product-description-fix.js?v=20260607-descfix" defer></script>
+  <script src="./data/seed-products.js?v=20260606-fix-catalog"></script><script src="./data/settings.js?v=20260606-fix-catalog"></script><script src="./app.js?v=20261114-marketplace-v8" defer></script><script src="./product-description-fix.js?v=20260607-descfix" defer></script>
 </body></html>
