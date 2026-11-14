@@ -394,7 +394,7 @@ body.marketplace-home{overflow-x:clip}
  .marketplace-departments>a{min-height:34px;padding:0 9px;font-size:10px}
  .department-dropdown>summary{min-height:34px;padding:0 10px;font-size:10px}
  .department-mega-menu{
-  position:absolute;top:calc(100% + 6px);left:12px;right:12px;width:auto;max-width:none;
+  position:absolute;top:calc(100% + 6px);left:0;right:auto;width:calc(100vw - 24px);max-width:calc(100vw - 24px);
   max-height:calc(100dvh - 190px);padding:14px;border-radius:10px;
  }
  .mega-menu-intro{align-items:flex-start;flex-wrap:wrap}
