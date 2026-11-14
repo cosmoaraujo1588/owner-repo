@@ -149,6 +149,12 @@
   }
 
   function bindEvents() {
+    document.addEventListener("click", (event) => {
+      const control = event.target.closest("[data-scroll-target]");
+      if (!control) return;
+      const rail = document.getElementById(control.dataset.scrollTarget);
+      if (rail) rail.scrollBy({ left: (control.classList.contains("rail-prev") ? -1 : 1) * Math.max(rail.clientWidth * 0.8, 240), behavior: "smooth" });
+    });
     els.searchForm?.addEventListener("submit", (event) => {
       event.preventDefault();
       state.search = (els.searchInput?.value || "").trim();
@@ -1283,8 +1289,10 @@
       ${topDepartments.map((name) => `<button type="button" class="department-nav-link" data-nav-category="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join("")}
       <a href="#promocoes">Ofertas</a><a href="#produtos">Todos os produtos</a>
     `;
-    document.getElementById("allDepartmentsTrigger")?.addEventListener("click", () => { const menu = els.departmentNav.querySelector("details"); if (menu) menu.open = !menu.open; });
-    document.getElementById("mobileMenuToggle")?.addEventListener("click", () => { const menu = els.departmentNav.querySelector("details"); if (menu) menu.open = !menu.open; });
+    const allDepartmentsButton = document.getElementById("allDepartmentsTrigger");
+    if (allDepartmentsButton) allDepartmentsButton.onclick = () => { const menu = els.departmentNav.querySelector("details"); if (menu) menu.open = !menu.open; };
+    const mobileMenuButton = document.getElementById("mobileMenuToggle");
+    if (mobileMenuButton) mobileMenuButton.onclick = () => { const menu = els.departmentNav.querySelector("details"); if (menu) menu.open = !menu.open; };
     els.departmentNav.querySelectorAll("[data-nav-category]").forEach((button) => {
       button.addEventListener("click", () => {
         const name = button.dataset.navCategory || "";
@@ -1314,7 +1322,7 @@
       const product = state.products.find((item) => isVisible(item) && categoryKey(item.category) === categoryKey(name) && item.image && item.image !== FALLBACK_IMAGE);
       const image = category?.image && category.image !== FALLBACK_IMAGE ? category.image : category?.imageUrl || category?.image_url || product?.image || "";
       return `<button class="department-tile" type="button" data-department-tile="${escapeHtml(name)}">
-        <span class="department-tile-image">${image ? `<img src="${escapeHtml(image)}" alt="" loading="lazy" decoding="async" onerror="this.closest('.department-tile-image').classList.add('no-image');this.remove()">` : '<span class="department-tile-symbol" aria-hidden="true">${escapeHtml(name.slice(0,1).toUpperCase())}</span>'}</span>
+        <span class="department-tile-image">${image ? `<img src="${escapeHtml(image)}" alt="" loading="lazy" decoding="async" onerror="this.closest('.department-tile-image').classList.add('no-image');this.remove()">` : '<span class="department-tile-symbol" aria-hidden="true">' + escapeHtml(name.slice(0,1).toUpperCase()) + '</span>'}</span>
         <strong>${escapeHtml(name)}</strong>
         <span class="department-tile-count">${formatNumber(state.products.filter((item) => isVisible(item) && categoryKey(item.category) === categoryKey(name)).length)} produtos</span>
       </button>`;
@@ -1389,7 +1397,7 @@
     const best = visible.filter((item) => item.bestSeller).slice(0, 8);
     const flash = visible.filter((item) => item.flashOffer || item.oldPrice).slice(0, 8);
     const videos = visible.filter((item) => item.videoUrl).slice(0, 8);
-    const newest = [...visible].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)).slice(0, 10);
+    const newest = visible.filter((item) => item.createdAt).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 10);
     const catalog = sortProducts(filterProducts(visible));
     const pagedCatalog = paginateProducts(catalog);
     const bestSection = els.bestSellerGrid?.closest(".section-block");
