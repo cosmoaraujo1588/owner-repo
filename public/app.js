@@ -402,7 +402,7 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
             <article class="stage-slide ${index === state.heroIndex ? "active" : ""}" data-hero-slide="${index}">
               <a class="stage-photo" href="/produto/${encodeURIComponent(product.slug)}" data-action="details" data-product-id="${id}" aria-label="${escapeHtml(product.title)}"><img src="${escapeHtml(product.image)}" alt="${escapeHtml(product.title)}" ${index === 0 ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async"></a>
               <div class="stage-info">
-                <span class="stage-cat">${escapeHtml(product.category)}</span>
+                <span class="stage-cat">${escapeHtml(displayName(product.category))}</span>
                 <h2>${escapeHtml(product.title)}</h2>
                 <div class="price-row"><strong>${formatCurrency(product.price)}</strong>${product.oldPrice && discount ? `<del>${formatCurrency(product.oldPrice)}</del><span class="off">-${discount}%</span>` : ""}</div>
                 <span class="installment">${installmentText(product.price)}</span>
@@ -465,14 +465,14 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
   function renderDepartments() {
     const departments = departmentData();
     if (els.deptLinks) {
-      els.deptLinks.innerHTML = departments.slice(0, 6).map((entry) => `<button type="button" data-dept="${escapeHtml(entry.label)}">${escapeHtml(entry.label)}</button>`).join("");
+      els.deptLinks.innerHTML = departments.slice(0, 6).map((entry) => `<button type="button" data-dept="${escapeHtml(entry.label)}">${escapeHtml(displayName(entry.label))}</button>`).join("");
     }
     if (els.deptMenu) {
       els.deptMenu.innerHTML = `
         <div class="dept-grid">
           ${departments.map((entry) => `
             <div class="dept-col">
-              <button type="button" class="dept-title" data-dept="${escapeHtml(entry.label)}">${escapeHtml(entry.label)} <small>${formatNumber(entry.count)}</small></button>
+              <button type="button" class="dept-title" data-dept="${escapeHtml(entry.label)}">${escapeHtml(displayName(entry.label))} <small>${formatNumber(entry.count)}</small></button>
               ${Array.from(entry.subs.keys()).slice(0, 5).map((sub) => `<button type="button" class="dept-sub" data-dept="${escapeHtml(entry.label)}" data-sub="${escapeHtml(sub)}">${escapeHtml(sub)}</button>`).join("")}
             </div>`).join("")}
         </div>
@@ -587,7 +587,7 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
       <article class="pp">
         <nav class="pp-crumbs" aria-label="Você está em">
           <button type="button" data-modal-action="close">Início</button><span>/</span>
-          <button type="button" data-modal-action="category" data-category="${escapeHtml(product.category)}">${escapeHtml(product.category)}</button>
+          <button type="button" data-modal-action="category" data-category="${escapeHtml(product.category)}">${escapeHtml(displayName(product.category))}</button>
           ${product.subcategory ? `<span>/</span><span>${escapeHtml(product.subcategory)}</span>` : ""}
         </nav>
         <div class="pp-grid">
@@ -599,7 +599,7 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
             </div>
           </div>
           <div class="pp-buy">
-            <span class="pc-cat">${escapeHtml(product.category)}${product.subcategory ? ` · ${escapeHtml(product.subcategory)}` : ""}</span>
+            <span class="pc-cat">${escapeHtml(displayName(product.category))}${product.subcategory ? ` · ${escapeHtml(product.subcategory)}` : ""}</span>
             <h1>${escapeHtml(product.title)}</h1>
             ${product.reviewCount > 0 ? `<div class="rating">${stars(product.reviewRating)}<span>${Number(product.reviewRating).toLocaleString("pt-BR")} · ${formatNumber(product.reviewCount)} avaliações</span></div>` : ""}
             <div class="pp-price">
@@ -793,8 +793,8 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     if (!els.reviewGrid) return;
     els.reviewGrid.innerHTML = reviews.map((review) => `
       <article class="review-card">
-        <div class="rc-head">${stars(review.rating)}<strong>${escapeHtml(review.name)}</strong></div>
-        <p>${escapeHtml(review.text)}</p>
+        <div class="rc-head">${stars(review.rating)}<strong>${escapeHtml(cleanText(review.name))}</strong></div>
+        <p>${escapeHtml(cleanText(review.text))}</p>
         <span>${escapeHtml(review.product || "Compra Kairos")}${review.city ? ` · ${escapeHtml(review.city)}` : ""}${review.date ? ` · ${formatReviewDate(review.date)}` : ""}</span>
       </article>
     `).join("");
@@ -1355,7 +1355,7 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
       return `
       <button class="category-tile ${state.categoryKey === key ? "active" : ""}" type="button" data-category="${escapeHtml(entry.label)}" data-category-key="${escapeHtml(key)}">
         <span class="ct-photo"><img src="${escapeHtml(categoryCover(entry.label))}" alt="" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'"></span>
-        <strong>${entry.label === "Todos" ? "Todos os produtos" : escapeHtml(entry.label)}</strong>
+        <strong>${entry.label === "Todos" ? "Todos os produtos" : escapeHtml(displayName(entry.label))}</strong>
         <small>${formatNumber(entry.count)} ${entry.count === 1 ? "item" : "itens"}</small>
       </button>`;
     }).join("");
@@ -1425,7 +1425,7 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
         </a>
         <button class="pc-fav ${favorite ? "active" : ""}" type="button" data-action="favorite" data-product-id="${id}" aria-label="${favorite ? "Remover dos favoritos" : "Favoritar"}" aria-pressed="${favorite}">${icon("heart")}</button>
         <div class="pc-body">
-          <span class="pc-cat">${escapeHtml(product.subcategory || product.category)}</span>
+          <span class="pc-cat">${escapeHtml(displayName(product.subcategory || product.category))}</span>
           <h3><a href="${href}" data-action="details" data-product-id="${id}">${escapeHtml(product.title)}</a></h3>
           ${storefront.showCardRating !== false && product.reviewCount > 0 ? `<div class="rating">${stars(product.reviewRating)}<span>${formatNumber(product.reviewCount)}</span></div>` : ""}
           <div class="price-row">
@@ -1573,6 +1573,15 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
   function stars(value) {
     const rating = Math.max(0, Math.min(5, Number(value || 0)));
     return `<span class="stars" style="--p:${(rating / 5 * 100).toFixed(0)}%" role="img" aria-label="${rating.toLocaleString("pt-BR")} de 5">&#9733;&#9733;&#9733;&#9733;&#9733;</span>`;
+  }
+
+  function cleanText(value) {
+    return String(value ?? "").replace(/[\p{Extended_Pictographic}\uFE0F\u200D]/gu, "").replace(/^[\s"'“”]+|[\s"'“”]+$/g, "").replace(/\s{2,}/g, " ").trim();
+  }
+
+  function displayName(label) {
+    const text = String(label || "");
+    return text.length > 3 && text === text.toUpperCase() ? text.charAt(0) + text.slice(1).toLowerCase() : text;
   }
 
   function icon(name) {
