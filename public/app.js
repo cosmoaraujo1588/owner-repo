@@ -154,7 +154,16 @@
   }
 
   function bindEvents() {
+    const mobileDepartmentsToggle = document.getElementById("mobileDepartmentsToggle");
+    mobileDepartmentsToggle?.addEventListener("click", () => {
+      const expanded = els.departmentNav?.classList.toggle("is-mobile-open") || false;
+      mobileDepartmentsToggle.setAttribute("aria-expanded", String(expanded));
+    });
     document.addEventListener("click", (event) => {
+      if (window.innerWidth <= 767 && !event.target.closest(".marketplace-header")) {
+        els.departmentNav?.classList.remove("is-mobile-open");
+        mobileDepartmentsToggle?.setAttribute("aria-expanded", "false");
+      }
       const control = event.target.closest("[data-scroll-target]");
       if (!control) return;
       const rail = document.getElementById(control.dataset.scrollTarget);
@@ -1277,7 +1286,7 @@
       .filter((category) => category.active !== false && productKeys.has(categoryKey(category.name)))
       .sort((a, b) => Number(a.order || 0) - Number(b.order || 0))
       .map((category) => category.name);
-    return unique([...fromCatalog, ...fromProducts]).filter(Boolean).slice(0, 80);
+    return unique([...fromCatalog, ...fromProducts]).filter(Boolean);
   }
 
   function selectDepartment(name) {
@@ -1308,9 +1317,10 @@
         ${subNames.map((sub) => `<button type="button" class="mega-menu-sub" data-nav-category="${escapeHtml(name)}" data-nav-subcategory="${escapeHtml(sub)}">${escapeHtml(sub)}</button>`).join("")}
       </div>`;
     }).join("");
-    const topDepartments = categories.slice(0, 7);
+    const topDepartments = categories.slice(0, 4);
     els.departmentNav.innerHTML = `
       <details class="department-dropdown">
+
         <summary><span aria-hidden="true">☰</span> Departamentos <span class="nav-chevron">⌄</span></summary>
         <div class="department-mega-menu">
           <div class="mega-menu-intro">
@@ -1322,8 +1332,12 @@
         </div>
       </details>
       ${topDepartments.map((name) => `<button type="button" class="department-nav-link" data-nav-category="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join("")}
-      <a href="#promocoes">Ofertas</a><a href="#produtos">Todos os produtos</a>
+      <a href="#promocoes">Ofertas</a><a href="#novidades">Novidades</a><a href="#produtos">Catálogo</a>
     `;
+    const mobileToggle = document.getElementById("mobileDepartmentsToggle");
+    if (mobileToggle) {
+      mobileToggle.setAttribute("aria-expanded", String(els.departmentNav.classList.contains("is-mobile-open")));
+    }
     els.departmentNav.querySelectorAll("[data-nav-category]").forEach((button) => {
       button.addEventListener("click", () => {
         const name = button.dataset.navCategory || "";
@@ -1342,7 +1356,7 @@
 
   function renderDepartmentShowcase() {
     if (!els.departmentShowcase) return;
-    const categories = departmentList().slice(0, 12);
+    const categories = departmentList();
     const section = els.departmentShowcase.closest(".marketplace-categories");
     if (!categories.length) {
       if (section) section.hidden = true;
@@ -1551,7 +1565,7 @@
       desktopPerPage: 12,
       tabletPerPage: 9,
       mobilePerPage: 6,
-      desktopColumns: 4,
+      desktopColumns: 5,
       tabletColumns: 3,
       mobileColumns: 2,
       paginationEnabled: true,
@@ -1577,7 +1591,7 @@
       ? Math.max(2, Math.min(3, Number(config.mobileColumns || 2)))
       : device === "tablet"
         ? Math.max(2, Math.min(4, Number(config.tabletColumns || 3)))
-        : Math.max(3, Math.min(6, Number(config.desktopColumns || 4)));
+        : Math.max(3, Math.min(6, Number(config.desktopColumns || 5)));
     els.catalogGrid.style.setProperty("--catalog-columns", columns);
   }
 
