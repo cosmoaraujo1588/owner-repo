@@ -97,7 +97,9 @@
     cartCount: document.getElementById("cartCount"),
     mobileBottomNav: document.getElementById("mobileBottomNav"),
     departmentNav: document.getElementById("departmentNav"),
-    departmentShowcase: document.getElementById("departmentShowcase")
+    departmentShowcase: document.getElementById("departmentShowcase"),
+    newArrivalsGrid: document.getElementById("newArrivalsGrid"),
+    categoryCollections: document.getElementById("categoryCollections")
   };
 
   document.addEventListener("DOMContentLoaded", init);
@@ -120,16 +122,15 @@
       const response = await fetch(`/api/catalog?t=${Date.now()}`, { cache: "no-store" });
       if (!response.ok) throw new Error("Catalog API unavailable");
       const catalog = await response.json();
-      const apiProducts = sanitizeProducts(catalog.products || []);
-const seedProducts = sanitizeProducts(SEED_PRODUCTS || []);
-
-state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
-      state.categories = normalizeCategories(catalog.categories || []);
-      state.subcategories = normalizeSubcategories(catalog.subcategories || []);
-      const settingsBanners = Array.isArray(catalog.settings?.banners) ? catalog.settings.banners : [];
-      const apiReviews = Array.isArray(catalog.reviews) ? catalog.reviews : [];
+      const apiProducts = sanitizeProducts(extractCatalogProducts(catalog));
+      const seedProducts = sanitizeProducts(Array.isArray(SEED_PRODUCTS) ? SEED_PRODUCTS : []);
+      state.products = apiProducts.length ? apiProducts.filter(isVisible) : seedProducts.filter(isVisible);
+      state.categories = normalizeCategories(extractCatalogList(catalog, "categories"));
+      state.subcategories = normalizeSubcategories(extractCatalogList(catalog, "subcategories"));
+      const settingsBanners = Array.isArray(catalog.settings?.banners) ? catalog.settings.banners : Array.isArray(catalog.response?.settings?.banners) ? catalog.response.settings.banners : [];
+      const apiReviews = Array.isArray(catalog.reviews) ? catalog.reviews : Array.isArray(catalog.response?.reviews) ? catalog.response.reviews : [];
       const settingsReviews = Array.isArray(catalog.settings?.reviews) ? catalog.settings.reviews : [];
-      state.settings = normalizeSettings({ ...DEFAULT_SETTINGS, ...(catalog.settings || {}), banners: settingsBanners, reviews: apiReviews.length ? apiReviews : settingsReviews });
+      state.settings = normalizeSettings({ ...DEFAULT_SETTINGS, ...(catalog.settings || catalog.response?.settings || catalog.data?.settings || {}), banners: settingsBanners, reviews: apiReviews.length ? apiReviews : settingsReviews });
     } catch {
       const localProducts = readJson("kairos:local-products", null);
       const localSettings = readJson("kairos:local-settings", null);
@@ -258,6 +259,7 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     renderCategories();
     renderDepartmentNav();
     renderDepartmentShowcase();
+    renderSubcategories();
     renderProducts();
     renderReviews();
     renderFaq();
@@ -809,8 +811,22 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     return sorted;
   }
 
+  function extractCatalogList(payload, key) {
+    const candidates = [payload?.[key], payload?.response?.[key], payload?.data?.[key], payload?.result?.[key]];
+    return candidates.find(Array.isArray) || [];
+  }
+
+  function extractCatalogProducts(payload) {
+    const candidates = [payload?.products, payload?.response?.products, payload?.data?.products, payload?.result?.products, payload?.response?.data?.products];
+    const found = candidates.find(Array.isArray);
+    if (found) return found;
+    const objectProducts = candidates.find((value) => value && typeof value === "object");
+    return objectProducts ? Object.values(objectProducts).filter((item) => item && typeof item === "object") : [];
+  }
+
   function sanitizeProducts(products) {
-    return products.map((product, index) => ({
+    if (!Array.isArray(products)) return [];
+    return products.filter((product) => product && typeof product === "object").map((product, index) => ({
       ...product,
       id: String(product.id || `produto-${index + 1}`),
       title: String(product.title || product.name || `Produto ${index + 1}`),
@@ -827,7 +843,7 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
       reviewRating: Number(product.reviewRating || product.rating || 0),
       createdAt: product.createdAt || product.created_at || null,
       reviewCount: Number(product.reviewCount || product.reviewsCount || 0),
-      visible: product.visible !== false && product.active !== false,
+      visible: product.visible !== false && product.active !== false && product.is_active !== false && product.published !== false,
       featured: product.featured !== false,
       bestSeller: Boolean(product.bestSeller),
       flashOffer: Boolean(product.flashOffer) || Boolean(product.oldPrice),
@@ -1190,7 +1206,7 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     ];
     els.categoryRail.innerHTML = categories.map((category) => `
       <button class="category-chip ${state.categoryKey === category.key ? "active" : ""}" type="button" data-category="${escapeHtml(category.label)}" data-category-key="${escapeHtml(category.key)}">
-        <span>${categoryIcon(category.label)}</span>
+        <span class="category-chip-symbol">${escapeHtml(category.label.slice(0,1).toUpperCase())}</span>
         <strong>${escapeHtml(category.label)}</strong>
         <small>${formatNumber(category.count)}</small>
       </button>
@@ -1251,6 +1267,7 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
         ${subNames.map((sub) => `<button type="button" class="mega-menu-sub" data-nav-category="${escapeHtml(name)}" data-nav-subcategory="${escapeHtml(sub)}">${escapeHtml(sub)}</button>`).join("")}
       </div>`;
     }).join("");
+    const topDepartments = categories.slice(0, 7);
     els.departmentNav.innerHTML = `
       <details class="department-dropdown">
         <summary><span aria-hidden="true">☰</span> Departamentos <span class="nav-chevron">⌄</span></summary>
@@ -1263,11 +1280,11 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
           <div class="mega-menu-grid">${menuItems || '<p class="mega-menu-empty">Os departamentos serão exibidos conforme o catálogo for publicado.</p>'}</div>
         </div>
       </details>
-      <a href="#produtos">Todos os produtos</a>
-      <a href="#promocoes">Ofertas</a>
-      <a href="/rastreio">Rastrear pedido</a>
-      <a href="/contato">Atendimento</a>
+      ${topDepartments.map((name) => `<button type="button" class="department-nav-link" data-nav-category="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join("")}
+      <a href="#promocoes">Ofertas</a><a href="#produtos">Todos os produtos</a>
     `;
+    document.getElementById("allDepartmentsTrigger")?.addEventListener("click", () => { const menu = els.departmentNav.querySelector("details"); if (menu) menu.open = !menu.open; });
+    document.getElementById("mobileMenuToggle")?.addEventListener("click", () => { const menu = els.departmentNav.querySelector("details"); if (menu) menu.open = !menu.open; });
     els.departmentNav.querySelectorAll("[data-nav-category]").forEach((button) => {
       button.addEventListener("click", () => {
         const name = button.dataset.navCategory || "";
@@ -1295,9 +1312,9 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     els.departmentShowcase.innerHTML = categories.map((name) => {
       const category = state.categories.find((item) => categoryKey(item.name) === categoryKey(name));
       const product = state.products.find((item) => isVisible(item) && categoryKey(item.category) === categoryKey(name) && item.image && item.image !== FALLBACK_IMAGE);
-      const image = category?.image && category.image !== FALLBACK_IMAGE ? category.image : product?.image || "";
+      const image = category?.image && category.image !== FALLBACK_IMAGE ? category.image : category?.imageUrl || category?.image_url || product?.image || "";
       return `<button class="department-tile" type="button" data-department-tile="${escapeHtml(name)}">
-        <span class="department-tile-image">${image ? `<img src="${escapeHtml(image)}" alt="" loading="lazy" decoding="async" onerror="this.closest('.department-tile-image').classList.add('no-image');this.remove()">` : '<span class="department-tile-symbol" aria-hidden="true">⌂</span>'}</span>
+        <span class="department-tile-image">${image ? `<img src="${escapeHtml(image)}" alt="" loading="lazy" decoding="async" onerror="this.closest('.department-tile-image').classList.add('no-image');this.remove()">` : '<span class="department-tile-symbol" aria-hidden="true">${escapeHtml(name.slice(0,1).toUpperCase())}</span>'}</span>
         <strong>${escapeHtml(name)}</strong>
         <span class="department-tile-count">${formatNumber(state.products.filter((item) => isVisible(item) && categoryKey(item.category) === categoryKey(name)).length)} produtos</span>
       </button>`;
@@ -1356,22 +1373,36 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     });
   }
 
+  function renderCategoryCollections(visible) {
+    if (!els.categoryCollections) return;
+    const names = departmentList().filter((name) => visible.some((product) => categoryKey(product.category) === categoryKey(name))).slice(0, 4);
+    if (!names.length) { els.categoryCollections.innerHTML = ""; return; }
+    els.categoryCollections.innerHTML = names.map((name) => {
+      const products = sortProducts(visible.filter((product) => categoryKey(product.category) === categoryKey(name))).slice(0, 5);
+      return '<section class="category-collection"><div class="marketplace-section-heading"><div><span class="eyebrow">Departamento</span><h2>' + escapeHtml(name) + '</h2></div><button type="button" data-collection-category="' + escapeHtml(name) + '">Ver departamento ›</button></div><div class="product-grid marketplace-rail">' + products.map(productCard).join("") + '</div></section>';
+    }).join("");
+    els.categoryCollections.querySelectorAll("[data-collection-category]").forEach((button) => button.addEventListener("click", () => selectDepartment(button.dataset.collectionCategory)));
+  }
+
   function renderProducts() {
     const visible = state.products.filter(isVisible);
     const best = visible.filter((item) => item.bestSeller).slice(0, 8);
     const flash = visible.filter((item) => item.flashOffer || item.oldPrice).slice(0, 8);
     const videos = visible.filter((item) => item.videoUrl).slice(0, 8);
+    const newest = [...visible].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)).slice(0, 10);
     const catalog = sortProducts(filterProducts(visible));
     const pagedCatalog = paginateProducts(catalog);
     const bestSection = els.bestSellerGrid?.closest(".section-block");
     const flashSection = els.flashGrid?.closest(".section-block");
     const videoSection = els.videoGrid?.closest(".section-block");
     renderGrid(els.bestSellerGrid, best, "");
+    renderGrid(els.newArrivalsGrid, newest, "");
     renderGrid(els.flashGrid, flash, "");
     renderGrid(els.videoGrid, videos, "Videos serao exibidos aqui quando cadastrados no painel.");
     renderGrid(els.catalogGrid, pagedCatalog, "");
     renderPagination(catalog.length, pagedCatalog.length);
     if (bestSection) bestSection.hidden = best.length === 0;
+    if (els.newArrivalsGrid?.closest(".section-block")) els.newArrivalsGrid.closest(".section-block").hidden = newest.length === 0;
     if (flashSection) flashSection.hidden = flash.length === 0;
     if (videoSection) videoSection.hidden = videos.length === 0;
     if (els.catalogCount) {
@@ -1379,6 +1410,7 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
       els.catalogCount.textContent = `${formatNumber(catalog.length)} ${scope}`;
     }
     if (els.emptyProducts) els.emptyProducts.hidden = catalog.length > 0;
+    renderCategoryCollections(visible);
   }
 
   function productCard(product) {
