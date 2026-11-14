@@ -124,14 +124,16 @@
       const catalog = await response.json();
       const apiProducts = sanitizeProducts(extractCatalogProducts(catalog));
       const seedProducts = sanitizeProducts(Array.isArray(SEED_PRODUCTS) ? SEED_PRODUCTS : []);
-      state.products = apiProducts.length ? apiProducts.filter(isVisible) : seedProducts.filter(isVisible);
+      const publishedApiProducts = apiProducts.filter(isVisible);
+      state.products = publishedApiProducts.length ? publishedApiProducts : seedProducts.filter(isVisible);
       state.categories = normalizeCategories(extractCatalogList(catalog, "categories"));
       state.subcategories = normalizeSubcategories(extractCatalogList(catalog, "subcategories"));
-      const settingsBanners = Array.isArray(catalog.settings?.banners) ? catalog.settings.banners : Array.isArray(catalog.response?.settings?.banners) ? catalog.response.settings.banners : [];
+      const catalogSettings = catalog.settings || catalog.response?.settings || catalog.data?.settings || {};
+      const settingsBanners = Array.isArray(catalogSettings.banners) ? catalogSettings.banners : [];
       const apiReviews = Array.isArray(catalog.reviews) ? catalog.reviews : Array.isArray(catalog.response?.reviews) ? catalog.response.reviews : [];
-      const activeSettings = catalog.settings || catalog.response?.settings || catalog.data?.settings || {};
+      const activeSettings = catalogSettings;
       const settingsReviews = Array.isArray(activeSettings.reviews) ? activeSettings.reviews : [];
-      state.settings = normalizeSettings({ ...DEFAULT_SETTINGS, ...(catalog.settings || catalog.response?.settings || catalog.data?.settings || {}), banners: settingsBanners, reviews: apiReviews.length ? apiReviews : settingsReviews });
+      state.settings = normalizeSettings({ ...DEFAULT_SETTINGS, ...catalogSettings, banners: settingsBanners, reviews: apiReviews.length ? apiReviews : settingsReviews });
     } catch {
       const localProducts = readJson("kairos:local-products", null);
       const localSettings = readJson("kairos:local-settings", null);
@@ -820,16 +822,35 @@
   }
 
   function extractCatalogList(payload, key) {
-    const candidates = [payload?.[key], payload?.response?.[key], payload?.data?.[key], payload?.result?.[key]];
-    return candidates.find(Array.isArray) || [];
+    const queue = [payload];
+    const seen = new Set();
+    while (queue.length && seen.size < 24) {
+      const node = queue.shift();
+      if (!node || typeof node !== "object" || seen.has(node)) continue;
+      seen.add(node);
+      if (Array.isArray(node[key])) return node[key];
+      if (node[key] && typeof node[key] === "object") return Object.values(node[key]).filter((item) => item && typeof item === "object");
+      ["response", "data", "result", "catalog"].forEach((name) => { if (node[name] && typeof node[name] === "object") queue.push(node[name]); });
+    }
+    return [];
   }
 
   function extractCatalogProducts(payload) {
-    const candidates = [payload?.products, payload?.response?.products, payload?.data?.products, payload?.result?.products, payload?.response?.data?.products];
-    const found = candidates.find(Array.isArray);
-    if (found) return found;
-    const objectProducts = candidates.find((value) => value && typeof value === "object");
-    return objectProducts ? Object.values(objectProducts).filter((item) => item && typeof item === "object") : [];
+    const queue = [payload];
+    const seen = new Set();
+    while (queue.length && seen.size < 24) {
+      const node = queue.shift();
+      if (!node || typeof node !== "object" || seen.has(node)) continue;
+      seen.add(node);
+      if (Array.isArray(node.products)) return node.products;
+      if (node.products && typeof node.products === "object") return Object.values(node.products).filter((item) => item && typeof item === "object");
+      ["response", "data", "result", "catalog"].forEach((name) => { if (node[name] && typeof node[name] === "object") queue.push(node[name]); });
+    }
+    return Array.isArray(payload) ? payload : [];
+  }
+
+  function isDisabledValue(value) {
+    return value === false || value === 0 || ["false", "0", "inactive", "inativo", "draft", "rascunho", "hidden"].includes(String(value ?? "").trim().toLowerCase());
   }
 
   function sanitizeProducts(products) {
@@ -851,7 +872,8 @@
       reviewRating: Number(product.reviewRating || product.rating || 0),
       createdAt: product.createdAt || product.created_at || null,
       reviewCount: Number(product.reviewCount || product.reviewsCount || 0),
-      visible: product.visible !== false && product.active !== false && product.is_active !== false && product.published !== false && product.status !== "inactive" && product.status !== "draft",
+      visible: ![product.visible, product.active, product.is_active, product.published].some(isDisabledValue) && !isDisabledValue(product.status),
+      active: ![product.active, product.is_active].some(isDisabledValue),
       featured: Boolean(product.featured ?? product.is_featured ?? false),
       bestSeller: Boolean(product.bestSeller ?? product.best_seller ?? false),
       flashOffer: Boolean(product.flashOffer ?? product.flash_offer ?? false) || Boolean(product.oldPrice ?? product.old_price),
@@ -954,7 +976,7 @@
   }
 
   function isVisible(product) {
-    return product.visible !== false && product.active !== false;
+    return !isDisabledValue(product.visible) && !isDisabledValue(product.active) && !isDisabledValue(product.status);
   }
 
   function getDiscount(product) {
@@ -1314,11 +1336,12 @@
   function renderDepartmentShowcase() {
     if (!els.departmentShowcase) return;
     const categories = departmentList().slice(0, 8);
+    const section = els.departmentShowcase.closest(".marketplace-categories");
     if (!categories.length) {
-      els.departmentShowcase.closest(".department-showcase-section")?.setAttribute("hidden", "");
+      if (section) section.hidden = true;
       return;
     }
-    els.departmentShowcase.closest(".department-showcase-section")?.removeAttribute("hidden");
+    if (section) section.hidden = false;
     els.departmentShowcase.innerHTML = categories.map((name) => {
       const category = state.categories.find((item) => categoryKey(item.name) === categoryKey(name));
       const product = state.products.find((item) => isVisible(item) && categoryKey(item.category) === categoryKey(name) && item.image && item.image !== FALLBACK_IMAGE);
@@ -1396,9 +1419,9 @@
 
   function renderProducts() {
     const visible = state.products.filter(isVisible);
-    const best = visible.filter((item) => item.bestSeller).slice(0, 8);
-    const flash = visible.filter((item) => item.flashOffer || item.oldPrice).slice(0, 8);
-    const videos = visible.filter((item) => item.videoUrl).slice(0, 8);
+    const best = visible.filter((item) => item.bestSeller).slice(0, 10);
+    const flash = visible.filter((item) => item.flashOffer || item.oldPrice).slice(0, 10);
+    const videos = visible.filter((item) => item.videoUrl).slice(0, 10);
     const newest = visible.filter((item) => item.createdAt).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 10);
     const catalog = sortProducts(filterProducts(visible));
     const pagedCatalog = paginateProducts(catalog);
@@ -1421,6 +1444,8 @@
       els.catalogCount.textContent = `${formatNumber(catalog.length)} ${scope}`;
     }
     if (els.emptyProducts) els.emptyProducts.hidden = catalog.length > 0;
+    const catalogSection = els.catalogGrid?.closest(".section-block");
+    if (catalogSection) catalogSection.dataset.productCount = String(catalog.length);
     if (els.heroControls) els.heroControls.innerHTML = (normalizeBanners().length > 1 ? normalizeBanners().map((_,i)=>`<button type="button" class="hero-dot ${i===state.bannerIndex?"active":""}" data-hero-index="${i}" aria-label="Banner ${i+1}"></button>`).join("") : "");
     els.heroControls?.querySelectorAll("[data-hero-index]").forEach((button)=>button.addEventListener("click",()=>{state.bannerIndex=Number(button.dataset.heroIndex)||0;els.heroCarousel?.querySelectorAll(".hero-slide").forEach((slide,i)=>slide.classList.toggle("active",i===state.bannerIndex));els.heroControls.querySelectorAll(".hero-dot").forEach((dot,i)=>dot.classList.toggle("active",i===state.bannerIndex));}));
     renderCategoryCollections(visible);
