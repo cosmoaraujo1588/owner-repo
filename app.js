@@ -296,8 +296,8 @@
     const text = promo.text || fallbackText;
     if (container.classList.contains("marketplace-topbar")) { container.hidden = !enabled; return; }
     container.hidden = !enabled;
-    container.style.background = promo.backgroundColor || "#ff6b00";
-    container.style.color = promo.textColor || "#111827";
+    container.style.background = container.id === "promoBar" ? "#111111" : "#171717";
+    container.style.color = "#ffffff";
     container.style.setProperty("--marquee-speed", `${Math.max(8, Number(promo.speedSeconds || promo.speed || 22))}s`);
     container.innerHTML = `
       <div class="marquee-track">
