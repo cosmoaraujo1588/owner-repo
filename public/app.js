@@ -2,26 +2,6 @@
   "use strict";
 
   const FALLBACK_IMAGE = "./images/placeholder.svg";
-  const DEFAULT_HERO_BANNERS = [
-    {
-      id: "kairos-claro-1",
-      title: "Kairos Shopping",
-      desktopImage: "./assets/banner-kairos-claro-1.png",
-      mobileImage: "./assets/banner-kairos-claro-1.png",
-      link: "#produtos",
-      active: true,
-      order: 1
-    },
-    {
-      id: "kairos-claro-2",
-      title: "Kairos Shopping",
-      desktopImage: "./assets/banner-kairos-claro-2.png",
-      mobileImage: "./assets/banner-kairos-claro-2.png",
-      link: "#produtos",
-      active: true,
-      order: 2
-    }
-  ];
   const FAVORITES_KEY = "kairos:favorites";
   const CART_KEY = "kairos:cart";
   const SESSION_KEY = "kairos:session";
@@ -31,11 +11,11 @@
   const DEFAULT_SETTINGS = window.KAIROS_DEFAULT_SETTINGS || {};
   const SEED_PRODUCTS = Array.isArray(window.KAIROS_SEED_PRODUCTS) ? window.KAIROS_SEED_PRODUCTS : [];
   const DEFAULT_MOBILE_NAV_ITEMS = [
-    { icon: "&#127968;", label: "Inicio", href: "#inicio" },
-    { icon: "&#128194;", label: "Categorias", href: "#categorias" },
-    { icon: "&#128269;", label: "Busca", href: "#produtos" },
-    { icon: "&#128717;", label: "Sacolinha", href: "/carrinho" },
-    { icon: "&#128100;", label: "Conta", href: "/contato" }
+    { icon: "home", label: "Inicio", href: "#inicio" },
+    { icon: "grid", label: "Categorias", href: "#categorias" },
+    { icon: "search", label: "Busca", href: "#produtos" },
+    { icon: "bag", label: "Sacolinha", href: "/carrinho" },
+    { icon: "user", label: "Conta", href: "/contato" }
   ];
 
   const state = {
@@ -59,7 +39,9 @@
     bannerTimer: null,
     bannerIndex: 0,
     reviewTimer: null,
-    countdownTimer: null
+    countdownTimer: null,
+    heroTimer: null,
+    heroIndex: 0
   };
 
   const els = {
@@ -95,7 +77,15 @@
     headerWhatsapp: document.getElementById("headerWhatsapp"),
     floatingWhatsapp: document.getElementById("floatingWhatsapp"),
     cartCount: document.getElementById("cartCount"),
-    mobileBottomNav: document.getElementById("mobileBottomNav")
+    mobileBottomNav: document.getElementById("mobileBottomNav"),
+    heroStage: document.getElementById("heroStage"),
+    heroStats: document.getElementById("heroStats"),
+    siteHeader: document.getElementById("siteHeader"),
+    menuToggle: document.getElementById("menuToggle"),
+    deptButton: document.getElementById("deptButton"),
+    deptMenu: document.getElementById("deptMenu"),
+    deptLinks: document.getElementById("deptLinks"),
+    reviewSection: document.getElementById("avaliacoes")
   };
 
   document.addEventListener("DOMContentLoaded", init);
@@ -105,12 +95,17 @@
     await loadCatalog();
     renderAll();
     renderCartCount();
+    applyQueryParams();
     openProductFromLocation();
     trackEvent("page_view", { page: location.pathname || "/" });
     startPresence();
-    startActivityPopup();
     startRealtimeRefresh();
-    window.addEventListener("popstate", openProductFromLocation);
+    const yearEl = document.getElementById("year");
+    if (yearEl) yearEl.textContent = String(new Date().getFullYear());
+    window.addEventListener("popstate", () => {
+      if (currentProductFromUrl()) openProductFromLocation();
+      else if (els.productModal && !els.productModal.hidden) closeModal({ keepUrl: true });
+    });
   }
 
   async function loadCatalog() {
@@ -134,7 +129,7 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
       state.products = sanitizeProducts(localProducts || SEED_PRODUCTS);
       state.categories = normalizeCategories([]);
       state.subcategories = normalizeSubcategories([]);
-      state.settings = normalizeSettings({ ...DEFAULT_SETTINGS, ...(localSettings || {}) });
+      state.settings = normalizeSettings({ ...DEFAULT_SETTINGS, ...(localSettings || {}), reviews: [] });
     }
 
     try {
@@ -183,6 +178,9 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
       if (!target) return;
       const action = target.dataset.modalAction;
       if (action === "close") closeModal();
+      if (action === "category") { closeModal(); selectCategory(target.dataset.category); }
+      if (action === "gallery") showGalleryImage(target);
+      if (action === "video") showGalleryVideo(target);
       if (action === "buy") buyProduct(target.dataset.productId);
       if (action === "cart") toggleCart(target.dataset.productId);
       if (action === "share") shareProduct(target.dataset.productId);
@@ -218,14 +216,59 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
         return;
       }
 
+      const heroThumb = event.target.closest("[data-hero-index]");
+      if (heroThumb) {
+        setHeroSlide(Number(heroThumb.dataset.heroIndex));
+        if (state.heroTimer) clearInterval(state.heroTimer);
+        return;
+      }
+
+      const dept = event.target.closest("[data-dept]");
+      if (dept) {
+        const label = dept.dataset.dept;
+        selectCategory(label, dept.dataset.sub || "");
+        return;
+      }
+
+      const chip = event.target.closest("[data-category-key]");
+      if (chip) {
+        selectCategory(chip.dataset.category);
+        return;
+      }
+
+      const subChip = event.target.closest("[data-subcategory-key]");
+      if (subChip) {
+        state.subcategory = subChip.dataset.subcategory || "Todas";
+        state.subcategoryKey = subChip.dataset.subcategoryKey || categoryKey(state.subcategory);
+        resetCatalogPagination();
+        trackEvent("category_filter", { category: state.category, subcategory: state.subcategory });
+        renderSubcategories();
+        renderProducts();
+        return;
+      }
+
+      if (event.target.closest("#deptButton, #menuToggle")) {
+        toggleDepartments();
+        return;
+      }
+      if (els.deptMenu && !els.deptMenu.hidden && !event.target.closest(".dept-trigger")) closeDepartments();
+
       const button = event.target.closest("[data-action]");
       if (!button) return;
+      if (button.tagName === "A" && !(event.metaKey || event.ctrlKey || event.shiftKey || event.button === 1)) event.preventDefault();
+      else if (button.tagName === "A") return;
       const id = button.dataset.productId;
       if (button.dataset.action === "details") openProduct(id);
       if (button.dataset.action === "buy") buyProduct(id);
       if (button.dataset.action === "cart") toggleCart(id);
       if (button.dataset.action === "share") shareProduct(id);
       if (button.dataset.action === "favorite") toggleFavorite(id);
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      if (els.productModal && !els.productModal.hidden) closeModal();
+      closeDepartments();
     });
 
     els.trackingForm?.addEventListener("submit", (event) => {
@@ -254,7 +297,9 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     applySettings();
     renderBanners();
     renderCategories();
+    renderDepartments();
     renderProducts();
+    renderHero();
     renderReviews();
     renderFaq();
     renderAssistant();
@@ -265,9 +310,8 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
   function applySettings() {
     const promo = state.settings.promoBar || {};
     const promoText = promoTextWithCountdown();
-    setMarquee(els.promoBar, promo, promoText || "FRETE GRATIS PARA TODO O BRASIL");
-    setMarquee(els.footerPromoBar, promo, promoText || "FRETE GRATIS PARA TODO O BRASIL");
-    startScarcityCountdown();
+    setMarquee(els.promoBar, promo, promoText);
+    if (els.footerPromoBar) els.footerPromoBar.textContent = promoText;
 
     if (els.trackingPortal) els.trackingPortal.href = state.settings.trackingUrl;
     if (els.footerWhatsapp) els.footerWhatsapp.href = whatsappUrl();
@@ -280,61 +324,27 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
 
   function setMarquee(container, promo, fallbackText) {
     if (!container) return;
-    const enabled = promo.enabled !== false;
+    container.hidden = promo.enabled === false;
     const text = promo.text || fallbackText;
-    container.hidden = !enabled;
-    container.style.background = promo.backgroundColor || "#ff6b00";
-    container.style.color = promo.textColor || "#111827";
-    container.style.setProperty("--marquee-speed", `${Math.max(8, Number(promo.speedSeconds || promo.speed || 22))}s`);
     container.innerHTML = `
-      <div class="marquee-track">
-        <span>&#128666; ${escapeHtml(text)}</span>
-        <span>&#9889; ${escapeHtml(text)}</span>
-        <span>&#128230; ${escapeHtml(text)}</span>
-        <span>&#128666; ${escapeHtml(text)}</span>
+      <div class="ub-inner">
+        <span class="ub-msg">${icon("truck")}${escapeHtml(text)}</span>
+        <span class="ub-links"><a href="/rastreio">Rastrear pedido</a><a href="/contato">Atendimento</a></span>
       </div>
     `;
   }
 
   function promoTextWithCountdown() {
-    const conversion = conversionConfig();
-    const base = state.settings.promoBar?.text || "FRETE GRATIS PARA TODO O BRASIL";
-    if (conversion.scarcityEnabled === false) return base;
-    return `${conversion.scarcityText || "Ofertas limitadas terminam em"} ${formatCountdownRemaining()}`;
+    return state.settings.promoBar?.text || "Frete gratis para todo o Brasil";
   }
 
   function startScarcityCountdown() {
     if (state.countdownTimer) clearInterval(state.countdownTimer);
-    const conversion = conversionConfig();
-    if (conversion.scarcityEnabled === false) return;
-    ensureScarcityDeadline();
-    state.countdownTimer = setInterval(() => {
-      const promo = state.settings.promoBar || {};
-      const text = promoTextWithCountdown();
-      setMarquee(els.promoBar, promo, text);
-      setMarquee(els.footerPromoBar, promo, text);
-    }, 1000);
   }
 
-  function ensureScarcityDeadline() {
-    const conversion = conversionConfig();
-    const minutes = Math.max(1, Math.min(240, Number(conversion.countdownMinutes || 15)));
-    const current = Number(sessionStorage.getItem(SCARCITY_DEADLINE_KEY) || 0);
-    if (!current || current <= Date.now()) {
-      sessionStorage.setItem(SCARCITY_DEADLINE_KEY, String(Date.now() + minutes * 60 * 1000));
-    }
-  }
 
-  function formatCountdownRemaining() {
-    ensureScarcityDeadline();
-    const deadline = Number(sessionStorage.getItem(SCARCITY_DEADLINE_KEY) || 0);
-    const remaining = Math.max(0, deadline - Date.now());
-    const totalSeconds = Math.floor(remaining / 1000);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    return [hours, minutes, seconds].map((value) => String(value).padStart(2, "0")).join(":");
-  }
+
+
 
   function renderMobileBottomNav() {
     if (!els.mobileBottomNav) return;
@@ -349,49 +359,185 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
       const external = /^https?:\/\//i.test(href);
       return `
         <a href="${escapeHtml(href)}" ${external ? 'target="_blank" rel="noopener"' : ""} ${opensGroup ? 'data-whatsapp-group="mobile_bottom_nav"' : ""}>
-          <span aria-hidden="true">${item.icon || "&#128717;"}</span>
+          ${icon(navIconFor(item))}
           <small>${escapeHtml(item.label || "Loja")}</small>
         </a>
       `;
     }).join("");
+    renderCartCount();
+  }
+
+  function renderHero() {
+    if (!els.heroStage) return;
+    const visible = state.products.filter(isVisible).filter((item) => item.image && item.image !== FALLBACK_IMAGE);
+    const pool = [...visible.filter((item) => item.featured && item.bestSeller), ...visible.filter((item) => item.featured), ...visible];
+    const seenCategories = new Set();
+    const picks = [];
+    pool.forEach((item) => {
+      if (picks.length >= 4 || picks.includes(item)) return;
+      const key = categoryKey(item.category);
+      if (seenCategories.has(key)) return;
+      seenCategories.add(key);
+      picks.push(item);
+    });
+    const categoriesCount = new Set(visible.map((item) => categoryKey(item.category))).size;
+    if (els.heroStats) {
+      els.heroStats.innerHTML = `
+        <li><strong>${formatNumber(state.products.filter(isVisible).length)}</strong><span>produtos no catálogo</span></li>
+        <li><strong>${formatNumber(categoriesCount)}</strong><span>departamentos</span></li>
+        <li><strong>100%</strong><span>com frete grátis</span></li>
+      `;
+    }
+    if (!picks.length) {
+      els.heroStage.innerHTML = "";
+      return;
+    }
+    state.heroIndex = Math.min(state.heroIndex, picks.length - 1);
+    els.heroStage.innerHTML = `
+      <div class="stage-main">
+        ${picks.map((product, index) => {
+          const discount = getDiscount(product);
+          const id = escapeHtml(product.id);
+          return `
+            <article class="stage-slide ${index === state.heroIndex ? "active" : ""}" data-hero-slide="${index}">
+              <a class="stage-photo" href="/produto/${encodeURIComponent(product.slug)}" data-action="details" data-product-id="${id}" aria-label="${escapeHtml(product.title)}"><img src="${escapeHtml(product.image)}" alt="${escapeHtml(product.title)}" ${index === 0 ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async"></a>
+              <div class="stage-info">
+                <span class="stage-cat">${escapeHtml(product.category)}</span>
+                <h2>${escapeHtml(product.title)}</h2>
+                <div class="price-row"><strong>${formatCurrency(product.price)}</strong>${product.oldPrice && discount ? `<del>${formatCurrency(product.oldPrice)}</del><span class="off">-${discount}%</span>` : ""}</div>
+                <span class="installment">${installmentText(product.price)}</span>
+                <a class="btn btn-primary" href="/produto/${encodeURIComponent(product.slug)}" data-action="details" data-product-id="${id}">Ver produto ${icon("arrow")}</a>
+              </div>
+            </article>`;
+        }).join("")}
+      </div>
+      <div class="stage-thumbs" role="tablist" aria-label="Produtos em destaque">
+        ${picks.map((product, index) => `
+          <button type="button" role="tab" class="${index === state.heroIndex ? "active" : ""}" data-hero-index="${index}" aria-selected="${index === state.heroIndex}" aria-label="${escapeHtml(shortTitle(product.title))}">
+            <img src="${escapeHtml(product.image)}" alt="" loading="lazy" decoding="async">
+          </button>`).join("")}
+      </div>
+    `;
+    if (state.heroTimer) clearInterval(state.heroTimer);
+    if (picks.length > 1) {
+      state.heroTimer = setInterval(() => setHeroSlide((state.heroIndex + 1) % picks.length), 6000);
+    }
+  }
+
+  function setHeroSlide(index) {
+    state.heroIndex = index;
+    els.heroStage?.querySelectorAll("[data-hero-slide]").forEach((node) => node.classList.toggle("active", Number(node.dataset.heroSlide) === index));
+    els.heroStage?.querySelectorAll("[data-hero-index]").forEach((node) => {
+      const on = Number(node.dataset.heroIndex) === index;
+      node.classList.toggle("active", on);
+      node.setAttribute("aria-selected", String(on));
+    });
+  }
+
+  function selectCategory(label, sub) {
+    state.category = label || "Todos";
+    state.categoryKey = categoryKey(state.category);
+    state.subcategory = sub || "Todas";
+    state.subcategoryKey = sub ? categoryKey(sub) : "todas";
+    state.search = "";
+    if (els.searchInput) els.searchInput.value = "";
+    resetCatalogPagination();
+    trackEvent("category_filter", { category: state.category, subcategory: state.subcategory });
+    closeDepartments();
+    renderCategories();
+    renderProducts();
+    document.getElementById("produtos")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function departmentData() {
+    const visible = state.products.filter(isVisible);
+    const map = new Map();
+    visible.forEach((product) => {
+      const key = categoryKey(product.category);
+      if (!map.has(key)) map.set(key, { label: product.category, count: 0, subs: new Map() });
+      const entry = map.get(key);
+      entry.count += 1;
+      if (product.subcategory) entry.subs.set(product.subcategory, (entry.subs.get(product.subcategory) || 0) + 1);
+    });
+    return Array.from(map.values()).sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, "pt-BR"));
+  }
+
+  function renderDepartments() {
+    const departments = departmentData();
+    if (els.deptLinks) {
+      els.deptLinks.innerHTML = departments.slice(0, 6).map((entry) => `<button type="button" data-dept="${escapeHtml(entry.label)}">${escapeHtml(entry.label)}</button>`).join("");
+    }
+    if (els.deptMenu) {
+      els.deptMenu.innerHTML = `
+        <div class="dept-grid">
+          ${departments.map((entry) => `
+            <div class="dept-col">
+              <button type="button" class="dept-title" data-dept="${escapeHtml(entry.label)}">${escapeHtml(entry.label)} <small>${formatNumber(entry.count)}</small></button>
+              ${Array.from(entry.subs.keys()).slice(0, 5).map((sub) => `<button type="button" class="dept-sub" data-dept="${escapeHtml(entry.label)}" data-sub="${escapeHtml(sub)}">${escapeHtml(sub)}</button>`).join("")}
+            </div>`).join("")}
+        </div>
+        <button type="button" class="dept-all" data-dept="Todos">Ver todos os produtos ${icon("arrow")}</button>
+      `;
+    }
+  }
+
+  function toggleDepartments(force) {
+    const open = typeof force === "boolean" ? force : els.deptMenu?.hidden;
+    if (els.deptMenu) els.deptMenu.hidden = !open;
+    els.deptButton?.setAttribute("aria-expanded", String(Boolean(open)));
+    els.menuToggle?.setAttribute("aria-expanded", String(Boolean(open)));
+    els.siteHeader?.classList.toggle("nav-open", Boolean(open));
+    if (open && els.siteHeader) {
+      const main = els.siteHeader.querySelector(".header-main");
+      els.siteHeader.style.setProperty("--hdr", `${Math.round(main.getBoundingClientRect().bottom)}px`);
+    }
+  }
+
+  function closeDepartments() {
+    toggleDepartments(false);
   }
 
   function renderBanners() {
     if (!els.heroCarousel) return;
     const banners = normalizeBanners();
-    if (!banners.length) return;
+    if (state.bannerTimer) clearInterval(state.bannerTimer);
+    if (!banners.length) {
+      els.heroCarousel.hidden = true;
+      els.heroCarousel.innerHTML = "";
+      return;
+    }
+    els.heroCarousel.hidden = false;
+    state.bannerIndex = Math.min(state.bannerIndex, banners.length - 1);
     els.heroCarousel.innerHTML = banners.map((banner, index) => {
       const desktop = banner.desktopImage || banner.image || state.settings.bannerUrl;
       const mobile = banner.mobileImage || desktop;
-      const desktopVideo = banner.videoUrl || banner.desktopVideoUrl || state.settings.bannerVideoUrl || "";
-      const mobileVideo = banner.mobileVideoUrl || desktopVideo || state.settings.bannerMobileVideoUrl || "";
+      const desktopVideo = banner.videoUrl || banner.desktopVideoUrl || "";
+      const mobileVideo = banner.mobileVideoUrl || desktopVideo || "";
       const href = banner.link || banner.buttonLink || "#produtos";
       return `
-        <a class="hero-slide ${index === state.bannerIndex ? "active" : ""}" href="${escapeHtml(href)}" ${href.startsWith("http") ? 'target="_blank" rel="noopener"' : ""}>
+        <a class="banner-slide ${index === state.bannerIndex ? "active" : ""}" href="${escapeHtml(href)}" ${/^https?:/i.test(href) ? 'target="_blank" rel="noopener"' : ""}>
           ${desktopVideo || mobileVideo ? bannerVideoMarkup(desktopVideo, mobileVideo, desktop, banner.title) : `
             <picture>
               <source media="(max-width: 640px)" srcset="${escapeHtml(mobile)}">
-              <img src="${escapeHtml(desktop)}" alt="${escapeHtml(banner.title || "Banner Kairos Shopping")}" ${index === 0 ? 'fetchpriority="high"' : 'loading="lazy"'} onerror="this.onerror=null;this.src='./assets/banner-kairos-claro-1.png'">
+              <img src="${escapeHtml(desktop)}" alt="${escapeHtml(banner.title || "Campanha Kairos Shopping")}" loading="lazy">
             </picture>
           `}
         </a>
       `;
     }).join("");
-
-    if (state.bannerTimer) clearInterval(state.bannerTimer);
     if (banners.length > 1) {
       state.bannerTimer = setInterval(() => {
         state.bannerIndex = (state.bannerIndex + 1) % banners.length;
-        els.heroCarousel.querySelectorAll(".hero-slide").forEach((slide, index) => {
+        els.heroCarousel.querySelectorAll(".banner-slide").forEach((slide, index) => {
           slide.classList.toggle("active", index === state.bannerIndex);
         });
-      }, 5000);
+      }, 6000);
     }
   }
 
   function bannerVideoMarkup(desktopVideo, mobileVideo, poster, title) {
     return `
-      <video class="hero-video" autoplay muted loop playsinline preload="metadata" poster="${escapeHtml(poster || "./assets/banner-kairos-claro-1.png")}" aria-label="${escapeHtml(title || "Banner Kairos Shopping")}">
+      <video class="hero-video" autoplay muted loop playsinline preload="metadata" poster="${escapeHtml(poster || "")}" aria-label="${escapeHtml(title || "Banner Kairos Shopping")}">
         ${mobileVideo ? `<source media="(max-width: 640px)" src="${escapeHtml(mobileVideo)}">` : ""}
         <source src="${escapeHtml(desktopVideo || mobileVideo)}">
       </video>
@@ -411,88 +557,138 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     const product = findProduct(id);
     if (!product) return;
     if (!options.keepUrl) {
-      const url = productUrl(product);
-      history.pushState({ productId: product.id }, "", url);
-      applyProductSeo(product);
+      history.pushState({ productId: product.id }, "", `/produto/${encodeURIComponent(product.slug || slugify(product.title))}`);
     }
+    applyProductSeo(product);
     if (!options.silent) {
       trackEvent("product_view", { product_id: product.id, product_name: product.title, category: product.category, price: Number(product.price || 0) });
       trackPixel("ViewContent", { content_ids: [product.id], content_name: product.title, content_category: product.category, value: Number(product.price || 0), currency: "BRL" });
     }
+    const previousScroll = options.silent ? (els.productModal.scrollTop || 0) : 0;
     const favorite = state.favorites.includes(product.id);
     const inCart = state.cart.includes(product.id);
     const related = relatedProducts(product);
+    const discount = getDiscount(product);
+    const images = [...new Set([product.image || FALLBACK_IMAGE, ...(product.gallery || []).filter(Boolean)])];
+    const ytId = youtubeId(product.videoUrl);
+    const pid = escapeHtml(product.id);
+    const thumbs = [
+      ...images.map((src, index) => `<button type="button" class="gthumb ${index === 0 ? "active" : ""}" data-modal-action="gallery" data-src="${escapeHtml(src)}" aria-label="Foto ${index + 1}"><img src="${escapeHtml(src)}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'"></button>`),
+      ...(product.videoUrl ? [`<button type="button" class="gthumb gthumb-video" data-modal-action="video" aria-label="Vídeo do produto">${icon("play")}<span>Vídeo</span></button>`] : [])
+    ];
     els.productModal.hidden = false;
+    document.body.classList.add("product-open");
     els.productModal.innerHTML = `
-      <div class="modal-backdrop" data-modal-action="close"></div>
-      <article class="modal-card">
-        <button class="modal-close" type="button" data-modal-action="close">×</button>
-        <div class="modal-media">
-          ${(() => {
-            const imgs = [product.image || FALLBACK_IMAGE, ...(product.gallery || []).filter(Boolean)];
-            const unique = [...new Set(imgs)];
-            if (unique.length <= 1) {
-              return `<img id="modalMainImg" src="${escapeHtml(unique[0])}" alt="${escapeHtml(product.title)}" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'">`;
-            }
-            const thumbs = unique.map((src, i) => `
-              <button type="button" class="gallery-thumb${i === 0 ? " active" : ""}" data-src="${escapeHtml(src)}" aria-label="Imagem ${i + 1}" onclick="
-                document.getElementById('modalMainImg').src=this.dataset.src;
-                document.querySelectorAll('.gallery-thumb').forEach(t=>t.classList.remove('active'));
-                this.classList.add('active');
-              ">
-                <img src="${escapeHtml(src)}" alt="Foto ${i + 1}" loading="lazy" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'">
-              </button>
-            `).join("");
-            return `
-              <img id="modalMainImg" src="${escapeHtml(unique[0])}" alt="${escapeHtml(product.title)}" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'">
-              <div class="gallery-thumbs">${thumbs}</div>
-            `;
-          })()}
-          ${product.videoUrl ? `<a class="video-link" href="${escapeHtml(product.videoUrl)}" target="_blank" rel="noopener">Assistir video do produto</a>` : ""}
-        </div>
-        <div class="modal-content">
-          <span class="product-category">${escapeHtml(product.category)}${product.subcategory ? ` · ${escapeHtml(product.subcategory)}` : ""}</span>
-          <h2>${escapeHtml(product.title)}</h2>
-          <div class="rating">${stars(product.reviewRating)} <span>${formatNumber(product.reviewCount)} avaliacoes</span></div>
-          <div class="price-row large"><strong>${formatCurrency(product.price)}</strong>${product.oldPrice ? `<del>${formatCurrency(product.oldPrice)}</del>` : ""}</div>
-          <p class="installment">${installmentText(product.price)}</p>
-          <span class="free-shipping">Frete gratis para todo o Brasil</span>
-          <p class="modal-short">${escapeHtml(product.shortDescription || "")}</p>
-          <div class="modal-actions">
-            <button class="primary-button" type="button" data-modal-action="buy" data-product-id="${escapeHtml(product.id)}">Comprar agora</button>
-            <button class="cart-button" type="button" data-modal-action="cart" data-product-id="${escapeHtml(product.id)}">${inCart ? "Remover da sacolinha" : "Adicionar a sacolinha"}</button>
-            <button class="secondary-button" type="button" data-modal-action="share" data-product-id="${escapeHtml(product.id)}">Compartilhar</button>
-            <button class="secondary-button" type="button" data-modal-action="favorite" data-product-id="${escapeHtml(product.id)}">${favorite ? "Remover favorito" : "Favoritar"}</button>
+      <div class="pp-topbar">
+        <button type="button" class="pp-back" data-modal-action="close">${icon("arrow")}<span>Voltar à loja</span></button>
+        <a class="brand" href="/"><img src="/assets/logo-kairos-oficial.png" alt="" width="40" height="40"><span class="brand-text"><strong>KAIRÓS</strong><small>SHOPPING</small></span></a>
+        <a class="pp-cart" href="/carrinho">${icon("bag")}<span>Sacolinha</span><b>${state.cart.length}</b></a>
+      </div>
+      <article class="pp">
+        <nav class="pp-crumbs" aria-label="Você está em">
+          <button type="button" data-modal-action="close">Início</button><span>/</span>
+          <button type="button" data-modal-action="category" data-category="${escapeHtml(product.category)}">${escapeHtml(product.category)}</button>
+          ${product.subcategory ? `<span>/</span><span>${escapeHtml(product.subcategory)}</span>` : ""}
+        </nav>
+        <div class="pp-grid">
+          <div class="pp-gallery ${thumbs.length > 1 ? "has-thumbs" : ""}">
+            ${thumbs.length > 1 ? `<div class="gthumbs">${thumbs.join("")}</div>` : ""}
+            <div class="gstage" id="gStage">
+              <img id="modalMainImg" src="${escapeHtml(images[0])}" alt="${escapeHtml(product.title)}" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'">
+              ${discount ? `<span class="pc-badge">-${discount}%</span>` : ""}
+            </div>
           </div>
-          ${accordion("Descricao completa", product.description)}
-          ${accordion("Entrega", "Logo apos o pagamento, o pedido sera processado em ate 2 dias uteis. O tempo total de envio geralmente varia entre 3 e 15 dias uteis, dependendo do fornecedor e da sua localidade.")}
-          ${accordion("Trocas e devolucoes", state.settings.content?.returns || "Consulte a politica de trocas e devolucoes da loja.")}
-          ${related.length ? `
-            <section class="related-products">
-              <h3>Voce tambem pode gostar</h3>
-              <div class="related-grid">
-                ${related.map((item) => `
-                  <button type="button" class="related-card" data-action="details" data-product-id="${escapeHtml(item.id)}">
-                    <img src="${escapeHtml(item.image || FALLBACK_IMAGE)}" alt="${escapeHtml(item.title)}" loading="lazy" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'">
-                    <span>${escapeHtml(item.title)}</span>
-                    <strong>${formatCurrency(item.price)}</strong>
-                  </button>
-                `).join("")}
+          <div class="pp-buy">
+            <span class="pc-cat">${escapeHtml(product.category)}${product.subcategory ? ` · ${escapeHtml(product.subcategory)}` : ""}</span>
+            <h1>${escapeHtml(product.title)}</h1>
+            ${product.reviewCount > 0 ? `<div class="rating">${stars(product.reviewRating)}<span>${Number(product.reviewRating).toLocaleString("pt-BR")} · ${formatNumber(product.reviewCount)} avaliações</span></div>` : ""}
+            <div class="pp-price">
+              <div class="price-row large"><strong>${formatCurrency(product.price)}</strong>${product.oldPrice && discount ? `<del>${formatCurrency(product.oldPrice)}</del><span class="off">-${discount}%</span>` : ""}</div>
+              <p class="installment">${installmentText(product.price)}</p>
+            </div>
+            <ul class="pp-perks">
+              <li>${icon("truck")}<span><strong>Frete grátis</strong> para todo o Brasil</span></li>
+              <li>${icon("shield")}<span><strong>Compra segura</strong> no checkout oficial</span></li>
+              <li>${icon("pin")}<span><strong>Pedido com rastreamento</strong></span></li>
+            </ul>
+            <div class="pp-actions">
+              <button class="btn btn-primary btn-lg" type="button" data-modal-action="buy" data-product-id="${pid}">Comprar agora</button>
+              <button class="btn btn-outline btn-lg" type="button" data-modal-action="cart" data-product-id="${pid}">${icon("bag")}${inCart ? "Remover da sacolinha" : "Adicionar à sacolinha"}</button>
+              <div class="pp-secondary">
+                <button type="button" data-modal-action="favorite" data-product-id="${pid}" class="${favorite ? "active" : ""}">${icon("heart")}${favorite ? "Favoritado" : "Favoritar"}</button>
+                <button type="button" data-modal-action="share" data-product-id="${pid}">${icon("share")}Compartilhar</button>
+                <a href="${escapeHtml(whatsappUrl(product))}" target="_blank" rel="noopener">${icon("chat")}Tirar dúvidas</a>
               </div>
-            </section>
-          ` : ""}
+            </div>
+          </div>
         </div>
+        <div class="pp-details">
+          <section>
+            <h2>Sobre o produto</h2>
+            <div class="pp-text">${escapeHtml(product.description || product.shortDescription || "Consulte o atendimento para mais detalhes deste produto.")}</div>
+          </section>
+          <aside>
+            <h3>Entrega</h3>
+            <p>Logo após o pagamento, o pedido é processado em até 2 dias úteis. O envio geralmente leva de 3 a 15 dias úteis, conforme o fornecedor e a sua localidade.</p>
+            <h3>Trocas e devoluções</h3>
+            <p>${escapeHtml(state.settings.content?.returns || "Consulte a política de trocas e devoluções da loja.")}</p>
+          </aside>
+        </div>
+        ${related.length ? `
+          <section class="pp-related">
+            <h2>Você também pode gostar</h2>
+            <div class="product-grid">${related.map(productCard).join("")}</div>
+          </section>` : ""}
       </article>
     `;
+    els.productModal.scrollTop = previousScroll;
+    els.productModal.dataset.ytId = ytId;
+    els.productModal.dataset.videoUrl = product.videoUrl || "";
   }
 
-  function closeModal() {
+  function closeModal(options = {}) {
     els.productModal.hidden = true;
     els.productModal.innerHTML = "";
-    if (location.pathname.startsWith("/produto/")) {
+    document.body.classList.remove("product-open");
+    if (!options.keepUrl && location.pathname.startsWith("/produto/")) {
       history.pushState({}, "", "/");
-      applyProductSeo(null);
     }
+    applyProductSeo(null);
+  }
+
+  function showGalleryImage(button) {
+    const stage = document.getElementById("gStage");
+    if (!stage) return;
+    stage.querySelector("iframe, video")?.remove();
+    let img = document.getElementById("modalMainImg");
+    if (!img) {
+      img = document.createElement("img");
+      img.id = "modalMainImg";
+      stage.prepend(img);
+    }
+    img.hidden = false;
+    img.src = button.dataset.src;
+    els.productModal.querySelectorAll(".gthumb").forEach((node) => node.classList.toggle("active", node === button));
+  }
+
+  function showGalleryVideo(button) {
+    const stage = document.getElementById("gStage");
+    if (!stage) return;
+    const ytId = els.productModal.dataset.ytId;
+    const url = els.productModal.dataset.videoUrl || "";
+    stage.querySelector("iframe, video")?.remove();
+    const img = document.getElementById("modalMainImg");
+    if (ytId) {
+      if (img) img.hidden = true;
+      stage.insertAdjacentHTML("afterbegin", `<iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(ytId)}?rel=0" title="Vídeo do produto" allow="accelerometer; encrypted-media; picture-in-picture" allowfullscreen loading="lazy"></iframe>`);
+    } else if (/\.(mp4|webm)(\?|$)/i.test(url)) {
+      if (img) img.hidden = true;
+      stage.insertAdjacentHTML("afterbegin", `<video src="${escapeHtml(url)}" controls playsinline></video>`);
+    } else if (url) {
+      window.open(url, "_blank", "noopener");
+      return;
+    }
+    els.productModal.querySelectorAll(".gthumb").forEach((node) => node.classList.toggle("active", node === button));
   }
 
   async function buyProduct(id) {
@@ -593,21 +789,15 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
 
   function renderReviews() {
     const reviews = normalizeReviews(state.settings.reviews);
+    if (els.reviewSection) els.reviewSection.hidden = reviews.length === 0;
     if (!els.reviewGrid) return;
     els.reviewGrid.innerHTML = reviews.map((review) => `
       <article class="review-card">
-        <div>${stars(review.rating)} <strong>${escapeHtml(review.name)}</strong></div>
+        <div class="rc-head">${stars(review.rating)}<strong>${escapeHtml(review.name)}</strong></div>
         <p>${escapeHtml(review.text)}</p>
-        <span>${escapeHtml(review.product || "Compra Kairos")}${review.city ? ` - ${escapeHtml(review.city)}` : ""}${review.date ? ` - ${formatReviewDate(review.date)}` : ""}</span>
+        <span>${escapeHtml(review.product || "Compra Kairos")}${review.city ? ` · ${escapeHtml(review.city)}` : ""}${review.date ? ` · ${formatReviewDate(review.date)}` : ""}</span>
       </article>
     `).join("");
-    if (state.reviewTimer) clearInterval(state.reviewTimer);
-    state.reviewTimer = setInterval(() => {
-      if (!els.reviewGrid || els.reviewGrid.scrollWidth <= els.reviewGrid.clientWidth) return;
-      const next = els.reviewGrid.scrollLeft + Math.min(320, els.reviewGrid.clientWidth);
-      const resetAt = els.reviewGrid.scrollWidth - els.reviewGrid.clientWidth - 8;
-      els.reviewGrid.scrollTo({ left: next >= resetAt ? 0 : next, behavior: "smooth" });
-    }, 5000);
   }
 
   function renderFaq() {
@@ -666,33 +856,9 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     els.socialLinks.innerHTML = links.map(([name, url]) => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(name)}</a>`).join("");
   }
 
-  function startActivityPopup() {
-    const config = state.settings.purchasePopup || {};
-    if (config.enabled === false) return;
-    const delay = Math.max(3, Number(config.delaySeconds || 8)) * 1000;
-    const interval = Math.max(20, Number(config.intervalSeconds || 36)) * 1000;
-    setTimeout(showActivityPopup, delay);
-    setInterval(showActivityPopup, interval);
-  }
 
-  function showActivityPopup() {
-    const products = state.products.filter(isVisible).slice(0, 20);
-    if (!products.length || !els.activityPopup) return;
-    const product = products[Math.floor(Math.random() * products.length)];
-    const soldToday = soldCount(product);
-    els.activityPopup.hidden = false;
-    els.activityPopup.innerHTML = `
-      <button type="button" class="activity-close" aria-label="Fechar">x</button>
-      <img src="${escapeHtml(product.image || FALLBACK_IMAGE)}" alt="${escapeHtml(product.title)}" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'">
-      <div>
-        <strong>${formatNumber(soldToday)} clientes compraram</strong>
-        <span>${escapeHtml(shortTitle(product.title))}</span>
-      </div>
-      <button type="button" class="activity-link" data-action="details" data-product-id="${escapeHtml(product.id)}">Ver produto</button>
-    `;
-    els.activityPopup.querySelector("button").onclick = () => els.activityPopup.hidden = true;
-    setTimeout(() => { if (els.activityPopup) els.activityPopup.hidden = true; }, Math.max(4, Number(state.settings.purchasePopup?.visibleSeconds || 6)) * 1000);
-  }
+
+
 
   function startRealtimeRefresh() {
     setInterval(async () => {
@@ -757,7 +923,10 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
   }
 
   function renderCartCount() {
-    if (els.cartCount) els.cartCount.textContent = String(state.cart.length);
+    if (els.cartCount) {
+      els.cartCount.textContent = String(state.cart.length);
+      els.cartCount.hidden = state.cart.length === 0;
+    }
     const mobileCart = els.mobileBottomNav?.querySelector('a[href="/carrinho"]');
     if (mobileCart) mobileCart.dataset.count = String(state.cart.length);
   }
@@ -845,7 +1014,7 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
       visible: product.visible !== false && product.active !== false,
       featured: product.featured !== false,
       bestSeller: Boolean(product.bestSeller),
-      flashOffer: Boolean(product.flashOffer) || Boolean(product.oldPrice),
+      flashOffer: Boolean(product.flashOffer),
       order: Number(product.order || product.position || index),
       shortDescription: String(product.shortDescription || product.description || "").slice(0, 220),
       description: String(product.description || product.shortDescription || "")
@@ -876,7 +1045,7 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
       social: settings.social || {},
       content: settings.content || {},
       storefront: settings.storefront || {},
-      reviews: Array.isArray(settings.reviews) ? settings.reviews : defaultReviews()
+      reviews: Array.isArray(settings.reviews) ? settings.reviews : []
     };
   }
 
@@ -905,13 +1074,24 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
   function normalizeMobileNavItems(items) {
     const source = Array.isArray(items) && items.length ? items : DEFAULT_MOBILE_NAV_ITEMS;
     const normalized = source.slice(0, 5).map((item, index) => ({
-      icon: String(item.icon || DEFAULT_MOBILE_NAV_ITEMS[index]?.icon || "&#128717;"),
+      icon: String(item.icon || DEFAULT_MOBILE_NAV_ITEMS[index]?.icon || "bag"),
       label: String(item.label || DEFAULT_MOBILE_NAV_ITEMS[index]?.label || "Loja"),
       href: String(item.href || DEFAULT_MOBILE_NAV_ITEMS[index]?.href || "#inicio")
     }));
     if (!normalized.some((item) => item.href === "/carrinho")) normalized[Math.max(0, normalized.length - 2)] = DEFAULT_MOBILE_NAV_ITEMS[3];
     if (!normalized.some((item) => item.href === "/contato")) normalized[normalized.length - 1] = DEFAULT_MOBILE_NAV_ITEMS[4];
     return normalized;
+  }
+
+  function navIconFor(item) {
+    const text = normalizeTerm(item.label);
+    if (item.href === "/carrinho" || text.includes("sacol") || text.includes("carrinho")) return "bag";
+    if (item.href === "/contato" || text.includes("conta") || text.includes("contato")) return "user";
+    if (text.includes("rastre")) return "box";
+    if (text.includes("oferta") || text.includes("promo")) return "bolt";
+    if (text.includes("busca")) return "search";
+    if (text.includes("categ") || text.includes("produto")) return "grid";
+    return "home";
   }
 
   function normalizeReviews(value) {
@@ -921,13 +1101,7 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
       .sort((a, b) => new Date(b.date || b.created_at || 0) - new Date(a.date || a.created_at || 0));
   }
 
-  function defaultReviews() {
-    return [
-      { name: "Ana Clara", product: "Compra online", city: "SP", rating: 5, text: "Loja organizada e facil de comprar pelo celular.", featured: true },
-      { name: "Marcos Silva", product: "Atendimento", city: "MG", rating: 5, text: "Encontrei o produto rapido e o checkout abriu certinho.", featured: true },
-      { name: "Juliana Rocha", product: "Rastreamento", city: "RJ", rating: 4.5, text: "Gostei das informacoes de entrega e rastreio.", featured: true }
-    ];
-  }
+
 
   function safeImage(value) {
     const src = String(value || "");
@@ -1074,17 +1248,16 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
   }
 
   function relatedProducts(product) {
-    return state.products
-      .filter((item) => isVisible(item) && item.id !== product.id && categoryKey(item.category) === categoryKey(product.category))
-      .slice(0, 4);
+    const others = state.products.filter((item) => isVisible(item) && item.id !== product.id);
+    const same = others.filter((item) => categoryKey(item.category) === categoryKey(product.category));
+    return [...same, ...others.filter((item) => !same.includes(item))].slice(0, 4);
   }
 
   function normalizeBanners() {
-    const active = (state.settings.banners || [])
-      .filter((banner) => banner && banner.active !== false)
-      .sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
-    if (active.length) return active.slice(0, 4);
-    return DEFAULT_HERO_BANNERS;
+    return (state.settings.banners || [])
+      .filter((banner) => banner && banner.active !== false && (banner.desktopImage || banner.image || banner.videoUrl || banner.desktopVideoUrl))
+      .sort((a, b) => Number(a.order || 0) - Number(b.order || 0))
+      .slice(0, 4);
   }
 
   function applyProductSeo(product) {
@@ -1092,7 +1265,7 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     setMeta("description", product ? (product.shortDescription || product.description || "Produto Kairos Shopping").slice(0, 155) : "Compre produtos selecionados na Kairos Shopping. Frete gratis para todo o Brasil, pedido com rastreamento e checkout externo oficial por produto.");
     setMeta("og:title", product ? product.title : "Kairos Shopping", true);
     setMeta("og:description", product ? (product.shortDescription || product.description || "Produto Kairos Shopping").slice(0, 180) : "Tudo que voce procura, em um so lugar. Produtos selecionados, frete gratis e rastreamento.", true);
-    setMeta("og:image", absoluteUrl(product?.image || "./assets/banner-kairos-claro-1.png"), true);
+    setMeta("og:image", absoluteUrl(product?.image || "./assets/capa-kairos-nova.jpeg"), true);
     const url = product ? productUrl(product) : `${publicSiteUrl()}/`;
     setMeta("og:url", url, true);
     setMeta("twitter:url", url);
@@ -1110,14 +1283,11 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     try {
       return new URL(value || "/", publicSiteUrl()).href;
     } catch {
-      return `${PUBLIC_SITE_URL}/assets/banner-kairos-claro-1.png`;
+      return `${PUBLIC_SITE_URL}/assets/capa-kairos-nova.jpeg`;
     }
   }
 
-  function soldCount(product) {
-    const base = Array.from(String(product.id || product.title || "")).reduce((sum, char) => sum + char.charCodeAt(0), 0);
-    return 18 + (base % 43);
-  }
+
 
   function shortTitle(value) {
     const text = String(value || "");
@@ -1177,123 +1347,62 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
 
   function renderCategories() {
     if (!els.categoryRail) return;
-    const visible = state.products.filter(isVisible);
-    const counts = visible.reduce((acc, product) => {
-      const label = product.category || "Ofertas";
-      const key = categoryKey(label);
-      if (!acc[key]) acc[key] = { label, count: 0 };
-      acc[key].count += 1;
-      return acc;
-    }, {});
-    const merged = new Map();
-    state.categories
-      .filter((category) => category.active !== false)
-      .sort((a, b) => Number(a.order || 0) - Number(b.order || 0))
-      .forEach((category) => {
-        const key = categoryKey(category.name);
-        merged.set(key, { id: category.id, label: category.name, key, count: counts[key]?.count || 0 });
-      });
-    Object.values(counts).forEach((category) => {
-      const key = categoryKey(category.label);
-      if (!merged.has(key)) merged.set(key, { label: category.label, key, count: category.count });
-    });
-    const categories = [
-      { label: "Todos", key: "todos", count: visible.length },
-      ...Array.from(merged.values()).sort((a, b) => (b.count || 0) - (a.count || 0) || a.label.localeCompare(b.label, "pt-BR"))
-    ];
-    els.categoryRail.innerHTML = categories.map((category) => `
-      <button class="category-chip ${state.categoryKey === category.key ? "active" : ""}" type="button" data-category="${escapeHtml(category.label)}" data-category-key="${escapeHtml(category.key)}">
-        <span>${categoryIcon(category.label)}</span>
-        <strong>${escapeHtml(category.label)}</strong>
-        <small>${formatNumber(category.count)}</small>
-      </button>
-    `).join("");
-    els.categoryRail.querySelectorAll("[data-category-key]").forEach((button) => {
-      button.addEventListener("click", () => {
-        state.category = button.dataset.category;
-        state.categoryKey = button.dataset.categoryKey || categoryKey(state.category);
-        state.subcategory = "Todas";
-        state.subcategoryKey = "todas";
-        resetCatalogPagination();
-        trackEvent("category_filter", { category: state.category });
-        renderCategories();
-        renderSubcategories();
-        renderProducts();
-        document.getElementById("produtos")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      });
-    });
+    const departments = departmentData();
+    const total = state.products.filter(isVisible).length;
+    const tiles = [{ label: "Todos", count: total }, ...departments];
+    els.categoryRail.innerHTML = tiles.map((entry) => {
+      const key = categoryKey(entry.label);
+      return `
+      <button class="category-tile ${state.categoryKey === key ? "active" : ""}" type="button" data-category="${escapeHtml(entry.label)}" data-category-key="${escapeHtml(key)}">
+        <span class="ct-photo"><img src="${escapeHtml(categoryCover(entry.label))}" alt="" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'"></span>
+        <strong>${entry.label === "Todos" ? "Todos os produtos" : escapeHtml(entry.label)}</strong>
+        <small>${formatNumber(entry.count)} ${entry.count === 1 ? "item" : "itens"}</small>
+      </button>`;
+    }).join("");
     renderSubcategories();
   }
 
   function renderSubcategories() {
     if (!els.subcategoryRail) return;
     const visible = state.products.filter(isVisible);
-    const selectedCategory = state.categories.find((category) => categoryKey(category.name) === state.categoryKey);
     const productsInCategory = visible.filter((product) => state.categoryKey === "todos" || categoryKey(product.category) === state.categoryKey);
-    const counts = productsInCategory.reduce((acc, product) => {
-      if (!product.subcategory) return acc;
+    const counts = new Map();
+    productsInCategory.forEach((product) => {
+      if (!product.subcategory) return;
       const key = categoryKey(product.subcategory);
-      if (!acc[key]) acc[key] = { label: product.subcategory, count: 0 };
-      acc[key].count += 1;
-      return acc;
-    }, {});
-    const merged = new Map();
-    state.subcategories
-      .filter((subcategory) => subcategory.active !== false)
-      .filter((subcategory) => state.categoryKey === "todos" || !subcategory.categoryId || subcategory.categoryId === selectedCategory?.id)
-      .sort((a, b) => Number(a.order || 0) - Number(b.order || 0))
-      .forEach((subcategory) => {
-        const key = categoryKey(subcategory.name);
-        merged.set(key, { label: subcategory.name, key, count: counts[key]?.count || 0 });
-      });
-    Object.values(counts).forEach((subcategory) => {
-      const key = categoryKey(subcategory.label);
-      if (!merged.has(key)) merged.set(key, { label: subcategory.label, key, count: subcategory.count });
+      const entry = counts.get(key) || { label: product.subcategory, key, count: 0 };
+      entry.count += 1;
+      counts.set(key, entry);
     });
-    const subcategories = [
-      { label: "Todas", key: "todas", count: productsInCategory.length },
-      ...Array.from(merged.values()).sort((a, b) => (b.count || 0) - (a.count || 0) || a.label.localeCompare(b.label, "pt-BR"))
-    ];
-    els.subcategoryRail.hidden = subcategories.length <= 1;
-    els.subcategoryRail.innerHTML = subcategories.map((subcategory) => `
-      <button class="subcategory-chip ${state.subcategoryKey === subcategory.key ? "active" : ""}" type="button" data-subcategory="${escapeHtml(subcategory.label)}" data-subcategory-key="${escapeHtml(subcategory.key)}">
-        ${escapeHtml(subcategory.label)}
-        <small>${formatNumber(subcategory.count)}</small>
-      </button>
+    const subs = Array.from(counts.values()).sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, "pt-BR"));
+    const chips = [{ label: "Todas", key: "todas", count: productsInCategory.length }, ...subs];
+    const filtered = state.categoryKey !== "todos";
+    els.subcategoryRail.hidden = !filtered || subs.length === 0;
+    els.subcategoryRail.innerHTML = chips.map((chip) => `
+      <button class="chip ${state.subcategoryKey === chip.key ? "active" : ""}" type="button" data-subcategory="${escapeHtml(chip.label)}" data-subcategory-key="${escapeHtml(chip.key)}">${escapeHtml(chip.label)} <small>${formatNumber(chip.count)}</small></button>
     `).join("");
-    els.subcategoryRail.querySelectorAll("[data-subcategory-key]").forEach((button) => {
-      button.addEventListener("click", () => {
-        state.subcategory = button.dataset.subcategory || "Todas";
-        state.subcategoryKey = button.dataset.subcategoryKey || categoryKey(state.subcategory);
-        resetCatalogPagination();
-        trackEvent("category_filter", { category: state.category, subcategory: state.subcategory });
-        renderSubcategories();
-        renderProducts();
-        document.getElementById("produtos")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      });
-    });
   }
 
   function renderProducts() {
     const visible = state.products.filter(isVisible);
     const best = visible.filter((item) => item.bestSeller).slice(0, 8);
-    const flash = visible.filter((item) => item.flashOffer || item.oldPrice).slice(0, 8);
+    const flash = visible.filter((item) => item.flashOffer).slice(0, 8);
     const videos = visible.filter((item) => item.videoUrl).slice(0, 8);
     const catalog = sortProducts(filterProducts(visible));
     const pagedCatalog = paginateProducts(catalog);
     const bestSection = els.bestSellerGrid?.closest(".section-block");
     const flashSection = els.flashGrid?.closest(".section-block");
     const videoSection = els.videoGrid?.closest(".section-block");
-    renderGrid(els.bestSellerGrid, best.length ? best : visible.slice(0, 8), "Novos produtos serao destacados em breve.");
+    renderGrid(els.bestSellerGrid, best.length ? best : visible.slice(0, 8), "");
     renderGrid(els.flashGrid, flash, "");
-    renderGrid(els.videoGrid, videos, "Videos serao exibidos aqui quando cadastrados no painel.");
+    renderGrid(els.videoGrid, videos, "");
     renderGrid(els.catalogGrid, pagedCatalog, "");
     renderPagination(catalog.length, pagedCatalog.length);
     if (bestSection) bestSection.hidden = visible.length === 0;
     if (flashSection) flashSection.hidden = flash.length === 0;
     if (videoSection) videoSection.hidden = videos.length === 0;
     if (els.catalogCount) {
-      const scope = state.subcategoryKey !== "todas" ? `em ${state.subcategory}` : state.categoryKey === "todos" ? "produtos ativos" : `em ${state.category}`;
+      const scope = state.subcategoryKey !== "todas" ? `em ${state.subcategory}` : state.categoryKey === "todos" ? (catalog.length === 1 ? "produto" : "produtos") : `em ${state.category}`;
       els.catalogCount.textContent = `${formatNumber(catalog.length)} ${scope}`;
     }
     if (els.emptyProducts) els.emptyProducts.hidden = catalog.length > 0;
@@ -1304,37 +1413,31 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     const favorite = state.favorites.includes(product.id);
     const inCart = state.cart.includes(product.id);
     const storefront = storefrontConfig();
-    const showBadges = storefront.showCardBadge !== false;
-    const showRating = storefront.showCardRating !== false;
-    const showDescription = storefront.showCardDescription !== false;
+    const badge = storefront.showCardBadge !== false ? badgeText(product) : "";
+    const href = `/produto/${encodeURIComponent(product.slug || slugify(product.title))}`;
+    const id = escapeHtml(product.id);
     return `
-      <article class="product-card" data-product-id="${escapeHtml(product.id)}">
-        <div class="product-image-wrap">
-          <img src="${escapeHtml(product.image || FALLBACK_IMAGE)}" alt="${escapeHtml(product.title)}" loading="lazy" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'">
-          <button class="icon-button favorite ${favorite ? "active" : ""}" type="button" data-action="favorite" data-product-id="${escapeHtml(product.id)}" aria-label="Favoritar produto">&#9825;</button>
-          ${showBadges ? `<div class="badges">
-            ${product.videoUrl ? "<span>Video disponivel</span>" : ""}
-            ${discount ? `<span>${discount}% OFF</span>` : ""}
-            ${product.tag ? `<span>${escapeHtml(product.tag)}</span>` : ""}
-          </div>` : ""}
-        </div>
-        <div class="product-info">
-          <span class="product-category">${escapeHtml(product.category)}</span>
-          <h3>${escapeHtml(product.title)}</h3>
-          ${showDescription ? `<p>${escapeHtml(product.shortDescription || product.description || "").slice(0, 120)}</p>` : ""}
-          ${showRating ? `<div class="rating">${stars(product.reviewRating)} <span>${formatNumber(product.reviewCount)} avaliacoes</span></div>` : ""}
+      <article class="product-card" data-product-id="${id}">
+        <a class="pc-media" href="${href}" data-action="details" data-product-id="${id}" aria-label="${escapeHtml(product.title)}">
+          <img src="${escapeHtml(product.image || FALLBACK_IMAGE)}" alt="${escapeHtml(product.title)}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'">
+          ${badge ? `<span class="pc-badge">${escapeHtml(badge)}</span>` : ""}
+          ${product.videoUrl ? `<span class="pc-video">${icon("play")}Vídeo</span>` : ""}
+        </a>
+        <button class="pc-fav ${favorite ? "active" : ""}" type="button" data-action="favorite" data-product-id="${id}" aria-label="${favorite ? "Remover dos favoritos" : "Favoritar"}" aria-pressed="${favorite}">${icon("heart")}</button>
+        <div class="pc-body">
+          <span class="pc-cat">${escapeHtml(product.subcategory || product.category)}</span>
+          <h3><a href="${href}" data-action="details" data-product-id="${id}">${escapeHtml(product.title)}</a></h3>
+          ${storefront.showCardRating !== false && product.reviewCount > 0 ? `<div class="rating">${stars(product.reviewRating)}<span>${formatNumber(product.reviewCount)}</span></div>` : ""}
           <div class="price-row">
             <strong>${formatCurrency(product.price)}</strong>
-            ${product.oldPrice ? `<del>${formatCurrency(product.oldPrice)}</del>` : ""}
+            ${product.oldPrice && discount ? `<del>${formatCurrency(product.oldPrice)}</del><span class="off">-${discount}%</span>` : ""}
           </div>
           <span class="installment">${installmentText(product.price)}</span>
-          <span class="free-shipping">Frete gratis</span>
-          <div class="product-actions">
-            <button type="button" class="secondary-button compact" data-action="details" data-product-id="${escapeHtml(product.id)}">Ver detalhes</button>
-            <button type="button" class="primary-button compact" data-action="buy" data-product-id="${escapeHtml(product.id)}">Comprar agora</button>
+          <span class="pc-ship">${icon("truck")}Frete grátis</span>
+          <div class="pc-actions">
+            <button type="button" class="btn btn-primary" data-action="buy" data-product-id="${id}">Comprar agora</button>
+            <button type="button" class="btn-icon ${inCart ? "active" : ""}" data-action="cart" data-product-id="${id}" aria-label="${inCart ? "Remover da sacolinha" : "Adicionar à sacolinha"}" title="${inCart ? "Na sacolinha" : "Adicionar à sacolinha"}">${icon("bag")}</button>
           </div>
-          <button type="button" class="cart-button compact" data-action="cart" data-product-id="${escapeHtml(product.id)}">${inCart ? "Na sacolinha" : "Adicionar a sacolinha"}</button>
-          <button type="button" class="share-link" data-action="share" data-product-id="${escapeHtml(product.id)}">Compartilhar produto</button>
         </div>
       </article>
     `;
@@ -1465,20 +1568,40 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     }));
   }
 
-  function categoryIcon(category) {
-    const text = normalizeTerm(category);
-    if (text.includes("eletr")) return "&#128241;";
-    if (text.includes("roup") || text.includes("moda")) return "&#128085;";
-    if (text.includes("util") || text.includes("casa")) return "&#127968;";
-    if (text.includes("brinqu") || text.includes("infantil")) return "&#129528;";
-    if (text.includes("auto")) return "&#128663;";
-    if (text.includes("promo") || text.includes("oferta")) return "&#9889;";
-    return "&#128717;";
-  }
+
 
   function stars(value) {
-    const rating = Math.round(Number(value || 5) * 2) / 2;
-    return `<span class="stars" aria-label="${rating} de 5">&#9733;&#9733;&#9733;&#9733;&#9733;</span>`;
+    const rating = Math.max(0, Math.min(5, Number(value || 0)));
+    return `<span class="stars" style="--p:${(rating / 5 * 100).toFixed(0)}%" role="img" aria-label="${rating.toLocaleString("pt-BR")} de 5">&#9733;&#9733;&#9733;&#9733;&#9733;</span>`;
+  }
+
+  function icon(name) {
+    return `<svg class="ic" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+  }
+
+  function badgeText(product) {
+    const tag = String(product.tag || "").replace(/[^\p{L}\p{N}\s%$.,-]/gu, "").trim();
+    if (!tag || /frete/i.test(tag)) return "";
+    return tag.slice(0, 28);
+  }
+
+  function youtubeId(url) {
+    const match = String(url || "").match(/(?:youtu\.be\/|youtube\.com\/(?:shorts\/|embed\/|watch\?(?:.*&)?v=))([\w-]{11})/i);
+    return match ? match[1] : "";
+  }
+
+  function categoryCover(label) {
+    const key = categoryKey(label);
+    const item = state.products.filter(isVisible).find((product) => key === "todos" || categoryKey(product.category) === key);
+    return item ? item.image : FALLBACK_IMAGE;
+  }
+
+  function applyQueryParams() {
+    const q = new URLSearchParams(location.search).get("q");
+    if (!q) return;
+    state.search = q.trim();
+    if (els.searchInput) els.searchInput.value = state.search;
+    renderProducts();
   }
 
   function installmentText(price) {

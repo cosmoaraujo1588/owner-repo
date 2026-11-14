@@ -27,14 +27,14 @@
     const items = cart.map((id) => products.find((product) => String(product.id) === String(id))).filter(Boolean);
     clearButton.hidden = items.length === 0;
     if (!items.length) {
-      list.innerHTML = `<div class="empty"><h2>Sua sacolinha esta vazia</h2><p>Salve produtos para comparar e comprar quando quiser.</p><a href="/#produtos">Ver produtos</a></div>`;
+      list.innerHTML = `<div class="empty"><h2>Sua sacolinha esta vazia</h2><p>Salve produtos para comparar e comprar quando quiser.</p><a class="btn btn-primary" href="/#produtos">Ver produtos</a></div>`;
       return;
     }
     list.innerHTML = items.map((product) => `
       <article class="cart-item">
-        <img src="${escapeHtml(product.image || FALLBACK_IMAGE)}" alt="${escapeHtml(product.title)}" loading="lazy" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'">
-        <div><span>${escapeHtml(product.category || "Produto")}</span><h2>${escapeHtml(product.title)}</h2><strong>${currency(product.price)}</strong><p>ou 3x de ${currency(Number(product.price || 0) / 3)} sem juros</p><p>Frete gratis para todo o Brasil</p></div>
-        <div class="cart-actions"><button class="buy" type="button" data-buy="${escapeHtml(product.id)}">Comprar</button><button class="remove" type="button" data-remove="${escapeHtml(product.id)}">Remover</button></div>
+        <div class="ci-photo"><img src="${escapeHtml(product.image || FALLBACK_IMAGE)}" alt="${escapeHtml(product.title)}" loading="lazy" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'"></div>
+        <div><span class="ci-cat">${escapeHtml(product.category || "Produto")}</span><h2>${escapeHtml(product.title)}</h2><strong>${currency(product.price)}</strong><p>ou 3x de ${currency(Number(product.price || 0) / 3)} sem juros</p><p>Frete grátis para todo o Brasil</p></div>
+        <div class="cart-actions"><button class="btn btn-primary" type="button" data-buy="${escapeHtml(product.id)}">Comprar agora</button><button class="remove" type="button" data-remove="${escapeHtml(product.id)}">Remover</button></div>
       </article>
     `).join("");
   }
