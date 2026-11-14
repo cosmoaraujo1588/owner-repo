@@ -126,7 +126,8 @@
       const apiProducts = sanitizeProducts(extractCatalogProducts(catalog));
       const seedProducts = sanitizeProducts(Array.isArray(SEED_PRODUCTS) ? SEED_PRODUCTS : []);
       const publishedApiProducts = apiProducts.filter(isVisible);
-      state.products = publishedApiProducts.length ? publishedApiProducts : seedProducts.filter(isVisible);
+      // A successful API response is authoritative: never replace an empty published catalog with stale seed data.
+      state.products = publishedApiProducts;
       state.categories = normalizeCategories(extractCatalogList(catalog, "categories"));
       state.subcategories = normalizeSubcategories(extractCatalogList(catalog, "subcategories"));
       const catalogSettings = catalog.settings || catalog.response?.settings || catalog.data?.settings || {};
@@ -264,18 +265,26 @@
   }
 
   function renderAll() {
-    applySettings();
-    renderBanners();
-    renderCategories();
-    renderDepartmentNav();
-    renderDepartmentShowcase();
-    renderSubcategories();
-    renderProducts();
-    renderReviews();
-    renderFaq();
-    renderAssistant();
-    renderSocial();
-    renderMobileBottomNav();
+    // Render the catalog first and isolate optional modules so a non-critical widget
+    // cannot prevent real products from appearing in the storefront.
+    const steps = [
+      ["products", renderProducts],
+      ["settings", applySettings],
+      ["banners", renderBanners],
+      ["categories", renderCategories],
+      ["departments", renderDepartmentNav],
+      ["department showcase", renderDepartmentShowcase],
+      ["subcategories", renderSubcategories],
+      ["reviews", renderReviews],
+      ["FAQ", renderFaq],
+      ["assistant", renderAssistant],
+      ["social links", renderSocial],
+      ["mobile navigation", renderMobileBottomNav]
+    ];
+    steps.forEach(([name, render]) => {
+      try { render(); }
+      catch (error) { console.error("[Kairos] Falha ao renderizar " + name, error); }
+    });
   }
 
   function applySettings() {
@@ -366,8 +375,12 @@
       const external = /^https?:\/\//i.test(href);
       return `
         <a href="${escapeHtml(href)}" ${external ? 'target="_blank" rel="noopener"' : ""} ${opensGroup ? 'data-whatsapp-group="mobile_bottom_nav"' : ""}>
-          <span aria-hidden="true">${item.icon || "&#128717;"}</span>
-          <small>${escapeHtml(item.label || "Loja")}</small>
+          <span class="mobile-nav-icon" aria-hidden="true">${href === "/carrinho"
+            ? '<svg viewBox="0 0 24 24" focusable="false"><path d="M3 3h2l2.2 11.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 1.9-1.4L21 8H6"/><circle cx="10" cy="20" r="1"/><circle cx="18" cy="20" r="1"/></svg>'
+            : href === "/contato"
+              ? '<svg viewBox="0 0 24 24" focusable="false"><path d="M4 13v-2a8 8 0 0 1 16 0v2"/><path d="M4 13h3v6H6a2 2 0 0 1-2-2v-4Zm16 0h-3v6h1a2 2 0 0 0 2-2v-4Z"/><path d="M17 19a5 5 0 0 1-5 2"/></svg>'
+              : item.icon || "&#128717;"}</span>
+          <small>${href === "/contato" ? "Contato" : escapeHtml(item.label || "Loja")}</small>
         </a>
       `;
     }).join("");
@@ -842,7 +855,7 @@
   }
 
   function isDisabledValue(value) {
-    return value === false || value === 0 || ["false", "0", "inactive", "inativo", "draft", "rascunho", "hidden"].includes(String(value ?? "").trim().toLowerCase());
+    return value === false || value === 0 || ["false", "0", "inactive", "inativo", "draft", "rascunho", "hidden", "unpublished", "archived", "deleted"].includes(String(value ?? "").trim().toLowerCase());
   }
 
   function sanitizeProducts(products) {
@@ -864,8 +877,8 @@
       reviewRating: Number(product.reviewRating || product.rating || 0),
       createdAt: product.createdAt || product.created_at || null,
       reviewCount: Number(product.reviewCount || product.reviewsCount || 0),
-      visible: ![product.visible, product.active, product.is_active, product.published].some(isDisabledValue) && !isDisabledValue(product.status),
-      active: ![product.active, product.is_active].some(isDisabledValue),
+      visible: ![product.visible, product.is_visible, product.active, product.is_active, product.published].some(isDisabledValue) && !isDisabledValue(product.status),
+      active: ![product.active, product.is_active, product.visible, product.is_visible].some(isDisabledValue),
       featured: Boolean(product.featured ?? product.is_featured ?? false),
       bestSeller: Boolean(product.bestSeller ?? product.best_seller ?? false),
       flashOffer: Boolean(product.flashOffer ?? product.flash_offer ?? false) || Boolean(product.oldPrice ?? product.old_price),
@@ -968,7 +981,11 @@
   }
 
   function isVisible(product) {
-    return !isDisabledValue(product.visible) && !isDisabledValue(product.active) && !isDisabledValue(product.status);
+    if (!product || typeof product !== "object") return false;
+    const flags = ["visible", "is_visible", "active", "is_active", "published"]
+      .filter((key) => product[key] !== undefined && product[key] !== null)
+      .map((key) => product[key]);
+    return !flags.some(isDisabledValue) && !isDisabledValue(product.status);
   }
 
   function getDiscount(product) {
