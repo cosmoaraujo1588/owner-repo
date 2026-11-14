@@ -388,27 +388,28 @@
 
   function renderBanners() {
     if (!els.heroCarousel) return;
-    const banners = normalizeBanners();
-    if (!banners.length) { els.heroCarousel.innerHTML = ""; return; }
-    els.heroCarousel.innerHTML = banners.map((banner, index) => {
-      const desktop = banner.desktopImage || banner.image || state.settings.bannerUrl;
-      const mobile = banner.mobileImage || desktop;
-      const desktopVideo = banner.videoUrl || banner.desktopVideoUrl || state.settings.bannerVideoUrl || "";
-      const mobileVideo = banner.mobileVideoUrl || desktopVideo || state.settings.bannerMobileVideoUrl || "";
-      const href = banner.link || banner.buttonLink || "#promocoes";
-      const title = banner.title && !/^kairos shopping$/i.test(banner.title) ? banner.title : "Tudo o que você procura, em um só lugar";
-      const subtitle = banner.subtitle || banner.description || "Tecnologia, casa, beleza, moda e muito mais para o seu dia a dia.";
-      const media = desktopVideo || mobileVideo ? bannerVideoMarkup(desktopVideo, mobileVideo, desktop, title) : '<picture><source media="(max-width: 640px)" srcset="' + escapeHtml(mobile) + '"><img src="' + escapeHtml(desktop) + '" alt="' + escapeHtml(title) + '" ' + (index === 0 ? 'fetchpriority="high"' : 'loading="lazy"') + ' onerror="this.onerror=null;this.src=\'./assets/banner-kairos-claro-1.png\'"></picture>';
-      return '<a class="hero-slide ' + (index === state.bannerIndex ? "active" : "") + '" href="' + escapeHtml(href) + '" ' + (href.startsWith("http") ? 'target="_blank" rel="noopener"' : "") + '>' + media +
-        '<span class="hero-copy"><small>OFERTAS E NOVIDADES KAIROS</small><strong>' + escapeHtml(title) + '</strong><em>' + escapeHtml(subtitle) + '</em><b>Confira as ofertas <span aria-hidden="true">›</span></b></span></a>';
-    }).join("");
-    if (state.bannerTimer) clearInterval(state.bannerTimer);
-    if (banners.length > 1) {
-      state.bannerTimer = setInterval(() => {
-        state.bannerIndex = (state.bannerIndex + 1) % banners.length;
-        els.heroCarousel.querySelectorAll(".hero-slide").forEach((slide, index) => slide.classList.toggle("active", index === state.bannerIndex));
-      }, 5500);
+    // Use a real, published catalog photo as the hero protagonist. No promotional
+    // price, discount, or fabricated campaign copy is introduced here.
+    const heroProduct = state.products.find((product) => product.featured || product.isFeatured) || state.products[0];
+    if (!heroProduct || !heroProduct.image) {
+      els.heroCarousel.innerHTML = "";
+      return;
     }
+    const title = "Produtos que facilitam o seu dia";
+    const subtitle = "Descubra escolhas selecionadas em diferentes categorias.";
+    const href = productUrl(heroProduct);
+    els.heroCarousel.innerHTML = `
+      <a class="hero-slide active hero-product-slide" href="${escapeHtml(href)}">
+        <div class="hero-product-copy">
+          <small>ESCOLHAS KAIROS</small>
+          <strong>${escapeHtml(title)}</strong>
+          <em>${escapeHtml(subtitle)}</em>
+          <b>Conhecer produto <span aria-hidden="true">›</span></b>
+        </div>
+        <div class="hero-product-media">
+          <img src="${escapeHtml(heroProduct.image)}" alt="${escapeHtml(heroProduct.title || "Produto em destaque")}" fetchpriority="high" decoding="async">
+        </div>
+      </a>`;
   }
   function bannerVideoMarkup(desktopVideo, mobileVideo, poster, title) {
     return `
@@ -1323,10 +1324,6 @@
       ${topDepartments.map((name) => `<button type="button" class="department-nav-link" data-nav-category="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join("")}
       <a href="#promocoes">Ofertas</a><a href="#produtos">Todos os produtos</a>
     `;
-    const allDepartmentsButton = document.getElementById("allDepartmentsTrigger");
-    if (allDepartmentsButton) allDepartmentsButton.onclick = () => { const menu = els.departmentNav.querySelector("details"); if (menu) menu.open = !menu.open; };
-    const mobileMenuButton = document.getElementById("mobileMenuToggle");
-    if (mobileMenuButton) mobileMenuButton.onclick = () => { const menu = els.departmentNav.querySelector("details"); if (menu) menu.open = !menu.open; };
     els.departmentNav.querySelectorAll("[data-nav-category]").forEach((button) => {
       button.addEventListener("click", () => {
         const name = button.dataset.navCategory || "";
