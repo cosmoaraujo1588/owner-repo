@@ -1261,11 +1261,12 @@
   }
 
   function departmentList() {
+    const fromProducts = unique(state.products.filter(isVisible).map((product) => product.category).filter(Boolean));
+    const productKeys = new Set(fromProducts.map(categoryKey));
     const fromCatalog = state.categories
-      .filter((category) => category.active !== false)
+      .filter((category) => category.active !== false && productKeys.has(categoryKey(category.name)))
       .sort((a, b) => Number(a.order || 0) - Number(b.order || 0))
       .map((category) => category.name);
-    const fromProducts = state.products.filter(isVisible).map((product) => product.category).filter(Boolean);
     return unique([...fromCatalog, ...fromProducts]).filter(Boolean).slice(0, 80);
   }
 
