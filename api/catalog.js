@@ -127,6 +127,7 @@ function fromProduct(row) {
     featured: row.featured !== false,
     active: row.active !== false,
     visible: row.active !== false,
+    active: row.active !== false,
     bestSeller: Boolean(row.best_seller),
     flashOffer: Boolean(row.flash_offer),
     reviewRating: Number(row.review_rating || 0),
