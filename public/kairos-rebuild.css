@@ -37,3 +37,56 @@
 .mobile-bottom-nav .mobile-nav-icon{display:grid;place-items:center;width:23px;height:23px}
 .mobile-bottom-nav .mobile-nav-icon svg{width:20px;height:20px}
 @media(max-width:767px){.marketplace-brand img{width:142px;height:50px;object-fit:contain;object-position:left center}.marketplace-actions .header-action-icon{width:22px;height:22px}.marketplace-actions .header-action-icon svg{width:20px;height:20px}.footer-brand img{width:150px;height:56px}}
+
+
+/* KAIROS V9 — clean identity, single department navigation and product-led hero. */
+.marketplace-brand{display:flex;align-items:center;min-width:0;padding:0!important;background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important}
+.marketplace-brand img,.brand img{display:block;width:76px;height:76px;max-width:100%;object-fit:contain;object-position:center;background:transparent!important;border:0!important;border-radius:0!important;padding:0!important;box-shadow:none!important}
+.footer-brand img{display:block;width:76px;height:76px;max-width:100%;object-fit:contain;object-position:left center;background:transparent!important;border:0!important;border-radius:0!important;padding:0!important;box-shadow:none!important}
+.marketplace-header-main{display:grid;grid-template-columns:100px minmax(0,1fr) 150px;align-items:center;gap:24px;min-height:92px}
+.marketplace-search{grid-column:2;grid-row:1;width:100%;min-width:0}
+.marketplace-actions{grid-column:3;grid-row:1;justify-self:end}
+.marketplace-departments{display:flex;align-items:center;gap:4px;min-height:50px;padding:0 max(24px,calc((100% - 1320px)/2));border-top:1px solid var(--ks-line);overflow:visible}
+.marketplace-departments .department-dropdown{flex:0 0 auto}
+.marketplace-departments .department-dropdown>summary{display:flex;align-items:center;min-height:44px;padding:0 16px;border-radius:7px;font-size:13px;font-weight:750;cursor:pointer;list-style:none}
+.marketplace-departments .department-dropdown>summary::-webkit-details-marker{display:none}
+.marketplace-departments .department-dropdown>summary:hover,.marketplace-departments .department-nav-link:hover,.marketplace-departments>a:hover{background:#fff3e9;color:var(--ks-orange-dark)}
+.marketplace-departments .department-nav-link,.marketplace-departments>a{display:flex;align-items:center;min-height:44px;padding:0 13px;border:0;border-radius:7px;background:transparent;color:var(--ks-ink);font-size:12px;font-weight:700;white-space:nowrap}
+.marketplace-departments .department-mega-menu{z-index:150;box-shadow:0 16px 40px #1112}
+.marketplace-hero{margin-top:18px;overflow:hidden;border-radius:14px;background:#f6f7f8}
+.marketplace-hero-media{aspect-ratio:3.5/1;min-height:280px;max-height:390px}
+.hero-product-slide{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,.9fr);align-items:center;gap:28px;padding:28px clamp(24px,5vw,72px);background:linear-gradient(110deg,#f7f8fa 0%,#fff 58%,#f3f5f7 100%);color:#1b1f24}
+.hero-product-copy{display:flex;flex-direction:column;align-items:flex-start;gap:13px;max-width:520px;z-index:1}
+.hero-product-copy small{color:var(--ks-orange-dark);font-size:11px;font-weight:800;letter-spacing:.12em}
+.hero-product-copy strong{max-width:500px;font-size:clamp(28px,3.3vw,46px);line-height:1.08;letter-spacing:-.035em}
+.hero-product-copy em{max-width:420px;color:#626b75;font-size:16px;font-style:normal;line-height:1.55}
+.hero-product-copy>b{display:inline-flex;align-items:center;gap:10px;margin-top:7px;padding:13px 21px;border-radius:7px;background:var(--ks-orange);color:#171717;font-size:14px;font-weight:800}
+.hero-product-media{display:flex;align-items:center;justify-content:center;min-width:0;height:100%;min-height:220px}
+.hero-product-media img{display:block;width:100%;height:100%;max-height:300px;object-fit:contain;mix-blend-mode:multiply}
+.floating-whatsapp{display:grid;place-items:center;width:54px;height:54px;right:22px;bottom:88px;border:0;border-radius:50%;background:#25D366;color:#fff;box-shadow:0 5px 16px #0002;font-size:0;transform:none;rotate:0deg}
+.floating-whatsapp svg{display:block;width:29px;height:29px;fill:#fff;transform:none;rotate:0deg}
+@media(min-width:768px) and (max-width:1199px){.marketplace-header-main{grid-template-columns:88px minmax(0,1fr) 140px;gap:16px}.marketplace-brand img,.brand img{width:68px;height:68px}.marketplace-departments{padding-inline:18px;overflow-x:auto}.marketplace-departments .department-nav-link,.marketplace-departments>a,.marketplace-departments .department-dropdown>summary{padding-inline:10px;font-size:11px}.hero-product-slide{gap:16px;padding:24px 36px}.hero-product-copy strong{font-size:32px}}
+@media(max-width:767px){
+ .marketplace-header-main{width:calc(100% - 24px);min-height:70px;grid-template-columns:72px minmax(0,1fr) 92px;gap:8px}
+ .marketplace-brand img,.brand img{width:64px;height:64px}
+ .marketplace-search{grid-column:1/-1;grid-row:2;margin:0 0 10px}
+ .marketplace-actions{grid-column:3;grid-row:1;gap:3px}
+ .marketplace-departments{display:flex;min-height:42px;padding:0 12px;gap:4px;overflow-x:auto;overflow-y:visible;white-space:nowrap;scrollbar-width:thin}
+ .marketplace-departments .department-dropdown{flex:0 0 auto}
+ .marketplace-departments .department-dropdown>summary,.marketplace-departments .department-nav-link,.marketplace-departments>a{min-height:38px;padding-inline:10px;font-size:11px}
+ .marketplace-departments .department-mega-menu{position:absolute;left:8px;right:8px;top:100%;width:auto;max-height:60vh;overflow:auto}
+ .marketplace-hero{margin-top:10px;border-radius:9px}
+ .marketplace-hero-media{aspect-ratio:1.45/1;min-height:220px;max-height:300px}
+ .hero-product-slide{grid-template-columns:minmax(0,1fr) minmax(112px,.8fr);gap:8px;padding:18px 14px}
+ .hero-product-copy{gap:9px}
+ .hero-product-copy small{font-size:8px;letter-spacing:.08em}
+ .hero-product-copy strong{font-size:clamp(19px,5.2vw,27px);line-height:1.1}
+ .hero-product-copy em{font-size:11px;line-height:1.4}
+ .hero-product-copy>b{gap:5px;margin-top:3px;padding:9px 11px;font-size:10px}
+ .hero-product-media{min-height:160px}
+ .hero-product-media img{max-height:210px}
+ .footer-brand img{width:68px;height:68px}
+ .floating-whatsapp{right:14px;bottom:76px;width:48px;height:48px}
+ .floating-whatsapp svg{width:26px;height:26px}
+}
+@media(max-width:380px){.marketplace-header-main{grid-template-columns:60px minmax(0,1fr) 84px;gap:6px}.marketplace-brand img,.brand img{width:56px;height:56px}.marketplace-actions a{min-width:38px}.hero-product-slide{grid-template-columns:minmax(0,1fr) 104px;padding:14px 10px}.hero-product-copy strong{font-size:18px}.hero-product-copy em{font-size:10px}.hero-product-media{min-height:145px}}
