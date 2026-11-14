@@ -265,8 +265,8 @@ body.marketplace-home{background:#F5F5F5;color:#171717;overflow-x:clip}
  .product-info{padding:9px}
  .product-title-button h3{font-size:12px}
  .price-row>strong{font-size:15px}
- .product-actions{grid-template-columns:1fr}
- .product-actions .secondary-button{display:none}
+ .product-actions{grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
+ .product-actions .primary-button,.product-actions .secondary-button{display:flex;align-items:center;justify-content:center;padding:7px 5px;font-size:9px;white-space:nowrap}
  .department-showcase{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
  .department-tile{height:158px;min-height:158px}
  .department-tile-image{height:96px}
