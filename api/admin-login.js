@@ -1,4 +1,4 @@
-import { adminConfigured, createToken, sendJson } from "./_supabase.js";
+import { adminConfigured, checkAdminCredentials, createToken, sendJson } from "./_supabase.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return sendJson(res, 405, { error: "Method not allowed" });
@@ -7,8 +7,7 @@ export default async function handler(req, res) {
   }
 
   const body = await readBody(req);
-  const user = process.env.ADMIN_USER || "admin";
-  if (body.user === user && body.password === process.env.ADMIN_PASSWORD) {
+  if (checkAdminCredentials(body.user, body.password)) {
     return sendJson(res, 200, { token: createToken(), open: false });
   }
   return sendJson(res, 401, { error: "Usuario ou senha invalidos" });
@@ -17,10 +16,15 @@ export default async function handler(req, res) {
 function readBody(req) {
   return new Promise((resolve) => {
     let raw = "";
-    req.on("data", (chunk) => raw += chunk);
+    req.on("data", (chunk) => {
+      raw += chunk;
+      if (raw.length > 10000) raw = raw.slice(0, 10000);
+    });
     req.on("end", () => {
-      try { resolve(JSON.parse(raw || "{}")); }
-      catch { resolve({}); }
+      try {
+        const parsed = JSON.parse(raw || "{}");
+        resolve(parsed && typeof parsed === "object" ? parsed : {});
+      } catch { resolve({}); }
     });
   });
 }

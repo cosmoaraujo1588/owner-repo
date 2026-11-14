@@ -50,8 +50,34 @@ export function slugify(value) {
     .replace(/^-|-$/g, "") || `item-${Date.now()}`;
 }
 
+const TOKEN_TTL_MS = 1000 * 60 * 60 * 12;
+
+// Valores de ambiente: remove espacos/quebras de linha acidentais ao colar na Vercel.
+// Somente as variaveis sao normalizadas; o que a pessoa digita nunca e alterado.
+function envText(name) {
+  return String(process.env[name] ?? "").trim();
+}
+
 export function adminConfigured() {
-  return Boolean(process.env.ADMIN_PASSWORD && process.env.ADMIN_SECRET);
+  return Boolean(envText("ADMIN_PASSWORD") && envText("ADMIN_SECRET"));
+}
+
+export function adminUsername() {
+  return envText("ADMIN_USER") || "admin";
+}
+
+function safeEqual(a, b) {
+  const left = crypto.createHash("sha256").update(String(a)).digest();
+  const right = crypto.createHash("sha256").update(String(b)).digest();
+  return crypto.timingSafeEqual(left, right);
+}
+
+export function checkAdminCredentials(user, password) {
+  if (!adminConfigured()) return false;
+  // Ambas as comparacoes sempre executam (sem curto-circuito) e em tempo constante.
+  const userOk = safeEqual(user ?? "", adminUsername());
+  const passwordOk = safeEqual(password ?? "", envText("ADMIN_PASSWORD"));
+  return userOk && passwordOk;
 }
 
 export function isAdmin(req) {
@@ -62,10 +88,10 @@ export function isAdmin(req) {
   return verifyToken(token);
 }
 
-export function createToken() {
+export function createToken(ttlMs = TOKEN_TTL_MS) {
   const payload = {
     role: "admin",
-    exp: Date.now() + 1000 * 60 * 60 * 12
+    exp: Date.now() + ttlMs
   };
   const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
   const signature = sign(body);
@@ -80,7 +106,7 @@ function verifyToken(token) {
   if (expected.length !== received.length || !crypto.timingSafeEqual(expected, received)) return false;
   try {
     const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
-    return payload.role === "admin" && payload.exp > Date.now();
+    return payload.role === "admin" && Number(payload.exp) > Date.now();
   } catch {
     return false;
   }
@@ -88,6 +114,6 @@ function verifyToken(token) {
 
 function sign(body) {
   const secret = process.env.ADMIN_SECRET;
-  if (!secret) throw new Error("ADMIN_SECRET nao configurado");
+  if (!secret || !secret.trim()) throw new Error("ADMIN_SECRET nao configurado");
   return crypto.createHmac("sha256", secret).update(body).digest("base64url");
 }

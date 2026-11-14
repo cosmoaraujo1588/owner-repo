@@ -42,6 +42,7 @@
   async function init() {
     cacheEls();
     await ensureAdminAccess();
+    document.getElementById("adminLogout")?.addEventListener("click", logoutAdmin);
     bindNavigation();
     bindForms();
     await loadCatalog();
@@ -57,28 +58,130 @@
     }, 15000);
   }
 
+  // ---- Autenticacao do painel (mesmo mecanismo: /api/admin-login + token Bearer) ----
+  let loginPromise = null;
+
+  function tokenExpired(token) {
+    try {
+      const body = String(token || "").split(".")[0];
+      const json = atob(body.replace(/-/g, "+").replace(/_/g, "/"));
+      return !(Number(JSON.parse(json).exp) > Date.now());
+    } catch {
+      return true;
+    }
+  }
+
+  function clearToken() {
+    state.token = "";
+    try { localStorage.removeItem(TOKEN_KEY); } catch { /* ignore */ }
+  }
+
+  function setLocked(locked) {
+    document.body.classList.toggle("admin-locked", locked);
+    const overlay = document.getElementById("adminLogin");
+    if (overlay) overlay.hidden = !locked;
+    const shell = document.querySelector(".admin-shell");
+    if (shell) shell.inert = locked;
+  }
+
+  function showLoginMessage(text, tone) {
+    const box = document.getElementById("adminLoginMsg");
+    if (!box) return;
+    box.textContent = text || "";
+    box.hidden = !text;
+    box.classList.toggle("is-info", tone === "info");
+  }
+
+  function requestLogin(notice) {
+    if (loginPromise) return loginPromise;
+    loginPromise = new Promise((resolve) => {
+      const form = document.getElementById("adminLoginForm");
+      const submit = document.getElementById("adminLoginSubmit");
+      const userInput = document.getElementById("adminUser");
+      const passInput = document.getElementById("adminPassword");
+      if (!form) { resolve(); return; }
+
+      setLocked(true);
+      showLoginMessage(notice || "", "info");
+      passInput.value = "";
+      setTimeout(() => (userInput.value ? passInput : userInput).focus(), 0);
+
+      form.onsubmit = async (event) => {
+        event.preventDefault();
+        if (submit.disabled) return;
+        if (!userInput.value || !passInput.value) {
+          showLoginMessage("Informe o usuário e a senha.");
+          return;
+        }
+        submit.disabled = true;
+        submit.textContent = "Entrando...";
+        showLoginMessage("");
+        try {
+          const response = await fetch("/api/admin-login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user: userInput.value, password: passInput.value })
+          });
+          if (response.status === 401) {
+            showLoginMessage("Usuário ou senha incorretos.");
+            passInput.value = "";
+            passInput.focus();
+          } else if (response.status === 503) {
+            showLoginMessage("Painel administrativo não configurado neste ambiente. Defina ADMIN_PASSWORD e ADMIN_SECRET na Vercel para este deployment.");
+          } else if (!response.ok) {
+            showLoginMessage(`O servidor respondeu com erro inesperado (código ${response.status}). Tente novamente em instantes.`);
+          } else {
+            const data = await response.json().catch(() => ({}));
+            if (!data.token) {
+              showLoginMessage("O servidor não devolveu um acesso válido. Tente novamente.");
+            } else {
+              state.token = data.token;
+              try { localStorage.setItem(TOKEN_KEY, state.token); } catch { /* ignore */ }
+              passInput.value = "";
+              setLocked(false);
+              resolve();
+            }
+          }
+        } catch {
+          showLoginMessage("Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.");
+        } finally {
+          submit.disabled = false;
+          submit.textContent = "Entrar";
+        }
+      };
+    }).finally(() => { loginPromise = null; });
+    return loginPromise;
+  }
+
   async function ensureAdminAccess() {
+    let protectedPanel = true;
     try {
       const config = await fetch("/api/config", { cache: "no-store" }).then((res) => res.json());
-      if (!config.adminProtected || state.token) return;
-      const user = prompt("Usuario administrador");
-      const password = prompt("Senha do painel");
-      const response = await fetch("/api/admin-login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user, password })
-      });
-      if (!response.ok) {
-        alert("Acesso administrativo invalido.");
-        location.href = "./index.html";
-        return;
-      }
-      const data = await response.json();
-      state.token = data.token || "";
-      if (state.token) localStorage.setItem(TOKEN_KEY, state.token);
+      if (config && config.adminProtected === false) protectedPanel = false;
     } catch {
-      // If the API is not available, keep local open mode for development.
+      // Sem resposta do servidor: mantem o painel protegido e deixa o login informar o erro.
     }
+    if (!protectedPanel) { setLocked(false); return; }
+    if (state.token && !tokenExpired(state.token)) { setLocked(false); return; }
+    clearToken();
+    await requestLogin();
+  }
+
+  // Fetch autenticado: se o token for recusado (expirado/invalido), pede novo login e repete uma vez.
+  async function authFetch(url, options = {}, retry = true) {
+    const headers = { ...(options.headers || {}), ...(state.token ? { Authorization: `Bearer ${state.token}` } : {}) };
+    const response = await fetch(url, { ...options, headers });
+    if (response.status === 401 && retry) {
+      clearToken();
+      await requestLogin("Sua sessão expirou ou não é válida. Entre novamente.");
+      return authFetch(url, options, false);
+    }
+    return response;
+  }
+
+  function logoutAdmin() {
+    clearToken();
+    location.reload();
   }
 
   function cacheEls() {
@@ -97,7 +200,7 @@
 
   async function loadCatalog() {
     try {
-      const response = await fetch(`/api/catalog?includeInactive=1&t=${Date.now()}`, { cache: "no-store" });
+      const response = await authFetch(`/api/catalog?includeInactive=1&t=${Date.now()}`, { cache: "no-store" });
       if (!response.ok) throw new Error("API indisponivel");
       const catalog = await response.json();
       state.products = normalizeProducts(catalog.products || []);
@@ -130,12 +233,9 @@
     };
 
     try {
-      const response = await fetch("/api/catalog", {
+      const response = await authFetch("/api/catalog", {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          ...(state.token ? { Authorization: `Bearer ${state.token}` } : {})
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
       if (!response.ok) throw new Error(await response.text());
@@ -157,8 +257,7 @@
   async function loadReports() {
     try {
       const range = document.getElementById("reportRange")?.value || "today";
-      const response = await fetch(`/api/events?range=${encodeURIComponent(range)}&t=${Date.now()}`, {
-        headers: state.token ? { Authorization: `Bearer ${state.token}` } : {},
+      const response = await authFetch(`/api/events?range=${encodeURIComponent(range)}&t=${Date.now()}`, {
         cache: "no-store"
       });
       if (!response.ok) throw new Error("reports unavailable");
@@ -173,8 +272,7 @@
 
   async function loadLeads() {
     try {
-      const response = await fetch(`/api/leads?t=${Date.now()}`, {
-        headers: state.token ? { Authorization: `Bearer ${state.token}` } : {},
+      const response = await authFetch(`/api/leads?t=${Date.now()}`, {
         cache: "no-store"
       });
       if (!response.ok) throw new Error("leads unavailable");
@@ -458,9 +556,8 @@
     formData.append("file", file);
     formData.append("title", title);
     formData.append("purpose", purpose);
-    const response = await fetch("/api/upload", {
+    const response = await authFetch("/api/upload", {
       method: "POST",
-      headers: state.token ? { Authorization: `Bearer ${state.token}` } : {},
       body: formData
     });
     const data = await response.json().catch(() => ({}));

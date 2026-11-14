@@ -8,9 +8,11 @@ export default async function handler(req, res) {
 
 async function getCatalog(req, res) {
   res.setHeader("Cache-Control", "no-store, max-age=0, must-revalidate");
+  const includeInactive = req.query?.includeInactive === "1";
+  // Itens inativos (rascunhos) so podem ser lidos pelo painel autenticado.
+  if (includeInactive && !isAdmin(req)) return sendJson(res, 401, { error: "Unauthorized" });
   const supabase = getSupabase();
   if (!supabase) return sendJson(res, 503, { error: "Supabase not configured" });
-  const includeInactive = req.query?.includeInactive === "1";
 
   let productsQuery = supabase.from("products").select("*").order("display_order", { ascending: true });
   if (!includeInactive) productsQuery = productsQuery.eq("active", true);

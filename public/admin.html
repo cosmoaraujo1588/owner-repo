@@ -7,8 +7,55 @@
     <meta name="robots" content="noindex,nofollow">
     <link rel="icon" href="./assets/logo-kairos-oficial.png">
     <link rel="stylesheet" href="./styles.css?v=20260605-sync-grid">
+    <style>
+      .admin-locked .admin-shell { visibility: hidden; }
+      .admin-login {
+        position: fixed; inset: 0; z-index: 9999; display: grid; place-items: center; padding: 20px;
+        background: radial-gradient(1100px 520px at 12% -10%, rgba(255,157,46,.22), transparent 60%), #0b0b0c;
+        overflow-y: auto;
+      }
+      .admin-login[hidden] { display: none; }
+      .admin-login-card {
+        width: min(100%, 400px); background: #fff; color: #111827; border-radius: 14px; padding: 32px 28px 28px;
+        box-shadow: 0 28px 80px rgba(0,0,0,.45); border-top: 4px solid #c9a227;
+      }
+      .admin-login-logo { display: block; height: 44px; width: auto; max-width: 70%; margin: 0 auto 18px; object-fit: contain; }
+      .admin-login-card h1 { margin: 0 0 4px; font-size: 1.35rem; text-align: center; }
+      .admin-login-sub { margin: 0 0 20px; text-align: center; color: #64748b; font-size: .92rem; }
+      .admin-login-card label { display: block; margin: 14px 0 6px; font-size: .85rem; font-weight: 600; }
+      .admin-login-card input {
+        width: 100%; height: 46px; padding: 0 14px; font-size: 1rem; border: 1px solid #d5dae1; border-radius: 10px;
+        background: #fff; color: #111827; outline: none;
+      }
+      .admin-login-card input:focus { border-color: #ff6b00; box-shadow: 0 0 0 3px rgba(255,107,0,.18); }
+      .admin-login-msg {
+        margin: 14px 0 0; padding: 10px 12px; border-radius: 8px; font-size: .88rem; line-height: 1.35;
+        background: #fef3f2; color: #b42318; border: 1px solid #fecdca;
+      }
+      .admin-login-msg[hidden] { display: none; }
+      .admin-login-msg.is-info { background: #fff8eb; color: #7a4b00; border-color: #f6dca8; }
+      .admin-login-submit {
+        width: 100%; height: 48px; margin-top: 20px; border: 0; border-radius: 10px; cursor: pointer;
+        background: #ff6b00; color: #fff; font-size: 1rem; font-weight: 700;
+      }
+      .admin-login-submit:hover { background: #e55f00; }
+      .admin-login-submit:disabled { opacity: .65; cursor: wait; }
+    </style>
   </head>
-  <body class="admin-body">
+  <body class="admin-body admin-locked">
+    <div class="admin-login" id="adminLogin" role="dialog" aria-modal="true" aria-labelledby="adminLoginTitle" hidden>
+      <form class="admin-login-card" id="adminLoginForm" novalidate>
+        <img class="admin-login-logo" src="./assets/logo-kairos-oficial.png" alt="Kairos Shopping">
+        <h1 id="adminLoginTitle">Acesso ao painel</h1>
+        <p class="admin-login-sub">Entre com suas credenciais de administrador.</p>
+        <label for="adminUser">Usuário</label>
+        <input id="adminUser" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+        <label for="adminPassword">Senha</label>
+        <input id="adminPassword" name="password" type="password" autocomplete="current-password" required>
+        <p class="admin-login-msg" id="adminLoginMsg" role="alert" aria-live="polite" hidden></p>
+        <button class="admin-login-submit" id="adminLoginSubmit" type="submit">Entrar</button>
+      </form>
+    </div>
     <div class="admin-shell">
       <aside class="admin-sidebar">
         <a class="brand" href="./admin.html">
@@ -38,6 +85,7 @@
           <div class="admin-actions">
             <button class="secondary-button compact admin-menu-toggle" type="button" id="adminMenuToggle">Menu</button>
             <a class="secondary-button compact" href="./index.html" target="_blank">Abrir loja</a>
+            <button class="secondary-button compact" type="button" id="adminLogout">Sair</button>
             <button class="primary-button compact" type="button" id="saveAllButton">Salvar tudo</button>
           </div>
         </div>
