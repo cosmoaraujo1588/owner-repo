@@ -99,6 +99,7 @@
     departmentNav: document.getElementById("departmentNav"),
     departmentShowcase: document.getElementById("departmentShowcase"),
     newArrivalsGrid: document.getElementById("newArrivalsGrid"),
+    featuredGrid: document.getElementById("featuredGrid"),
     categoryCollections: document.getElementById("categoryCollections")
   };
 
@@ -375,36 +376,27 @@
   function renderBanners() {
     if (!els.heroCarousel) return;
     const banners = normalizeBanners();
-    if (!banners.length) return;
+    if (!banners.length) { els.heroCarousel.innerHTML = ""; return; }
     els.heroCarousel.innerHTML = banners.map((banner, index) => {
       const desktop = banner.desktopImage || banner.image || state.settings.bannerUrl;
       const mobile = banner.mobileImage || desktop;
       const desktopVideo = banner.videoUrl || banner.desktopVideoUrl || state.settings.bannerVideoUrl || "";
       const mobileVideo = banner.mobileVideoUrl || desktopVideo || state.settings.bannerMobileVideoUrl || "";
-      const href = banner.link || banner.buttonLink || "#produtos";
-      return `
-        <a class="hero-slide ${index === state.bannerIndex ? "active" : ""}" href="${escapeHtml(href)}" ${href.startsWith("http") ? 'target="_blank" rel="noopener"' : ""}>
-          ${desktopVideo || mobileVideo ? bannerVideoMarkup(desktopVideo, mobileVideo, desktop, banner.title) : `
-            <picture>
-              <source media="(max-width: 640px)" srcset="${escapeHtml(mobile)}">
-              <img src="${escapeHtml(desktop)}" alt="${escapeHtml(banner.title || "Banner Kairos Shopping")}" ${index === 0 ? 'fetchpriority="high"' : 'loading="lazy"'} onerror="this.onerror=null;this.src='./assets/banner-kairos-claro-1.png'">
-            </picture>
-          `}
-        </a>
-      `;
+      const href = banner.link || banner.buttonLink || "#promocoes";
+      const title = banner.title && !/^kairos shopping$/i.test(banner.title) ? banner.title : "Tudo o que você procura, em um só lugar";
+      const subtitle = banner.subtitle || banner.description || "Tecnologia, casa, beleza, moda e muito mais para o seu dia a dia.";
+      const media = desktopVideo || mobileVideo ? bannerVideoMarkup(desktopVideo, mobileVideo, desktop, title) : '<picture><source media="(max-width: 640px)" srcset="' + escapeHtml(mobile) + '"><img src="' + escapeHtml(desktop) + '" alt="' + escapeHtml(title) + '" ' + (index === 0 ? 'fetchpriority="high"' : 'loading="lazy"') + ' onerror="this.onerror=null;this.src=\'./assets/banner-kairos-claro-1.png\'"></picture>';
+      return '<a class="hero-slide ' + (index === state.bannerIndex ? "active" : "") + '" href="' + escapeHtml(href) + '" ' + (href.startsWith("http") ? 'target="_blank" rel="noopener"' : "") + '>' + media +
+        '<span class="hero-copy"><small>OFERTAS E NOVIDADES KAIROS</small><strong>' + escapeHtml(title) + '</strong><em>' + escapeHtml(subtitle) + '</em><b>Confira as ofertas <span aria-hidden="true">›</span></b></span></a>';
     }).join("");
-
     if (state.bannerTimer) clearInterval(state.bannerTimer);
     if (banners.length > 1) {
       state.bannerTimer = setInterval(() => {
         state.bannerIndex = (state.bannerIndex + 1) % banners.length;
-        els.heroCarousel.querySelectorAll(".hero-slide").forEach((slide, index) => {
-          slide.classList.toggle("active", index === state.bannerIndex);
-        });
-      }, 5000);
+        els.heroCarousel.querySelectorAll(".hero-slide").forEach((slide, index) => slide.classList.toggle("active", index === state.bannerIndex));
+      }, 5500);
     }
   }
-
   function bannerVideoMarkup(desktopVideo, mobileVideo, poster, title) {
     return `
       <video class="hero-video" autoplay muted loop playsinline preload="metadata" poster="${escapeHtml(poster || "./assets/banner-kairos-claro-1.png")}" aria-label="${escapeHtml(title || "Banner Kairos Shopping")}">
@@ -1336,7 +1328,7 @@
 
   function renderDepartmentShowcase() {
     if (!els.departmentShowcase) return;
-    const categories = departmentList().slice(0, 8);
+    const categories = departmentList().slice(0, 12);
     const section = els.departmentShowcase.closest(".marketplace-categories");
     if (!categories.length) {
       if (section) section.hidden = true;
@@ -1424,14 +1416,17 @@
     const flash = visible.filter((item) => item.flashOffer || item.oldPrice).slice(0, 10);
     const videos = visible.filter((item) => item.videoUrl).slice(0, 10);
     const newest = visible.filter((item) => item.createdAt).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 10);
+    const featured = visible.filter((item) => item.featured && !item.bestSeller && !(item.flashOffer || item.oldPrice)).slice(0, 10);
     const catalog = sortProducts(filterProducts(visible));
     const pagedCatalog = paginateProducts(catalog);
     const bestSection = els.bestSellerGrid?.closest(".section-block");
     const flashSection = els.flashGrid?.closest(".section-block");
     const videoSection = els.videoGrid?.closest(".section-block");
+    const featuredSection = els.featuredGrid?.closest(".section-block");
     renderGrid(els.bestSellerGrid, best, "");
     renderGrid(els.newArrivalsGrid, newest, "");
     renderGrid(els.flashGrid, flash, "");
+    renderGrid(els.featuredGrid, featured, "");
     renderGrid(els.videoGrid, videos, "");
     renderGrid(els.catalogGrid, pagedCatalog, "");
     renderPagination(catalog.length, pagedCatalog.length);
@@ -1439,6 +1434,7 @@
     if (els.newArrivalsGrid?.closest(".section-block")) els.newArrivalsGrid.closest(".section-block").hidden = newest.length === 0;
     if (flashSection) flashSection.hidden = flash.length === 0;
     if (videoSection) videoSection.hidden = videos.length === 0;
+    if (featuredSection) featuredSection.hidden = featured.length === 0;
 
     if (els.catalogCount) {
       const scope = state.subcategoryKey !== "todas" ? `em ${state.subcategory}` : state.categoryKey === "todos" ? "produtos ativos" : `em ${state.category}`;
@@ -1455,42 +1451,17 @@
   function productCard(product) {
     const discount = getDiscount(product);
     const favorite = state.favorites.includes(product.id);
-    const inCart = state.cart.includes(product.id);
-    const storefront = storefrontConfig();
-    const showBadges = storefront.showCardBadge !== false;
-    const showRating = storefront.showCardRating !== false;
-    const showDescription = storefront.showCardDescription !== false;
-    return `
-      <article class="product-card" data-product-id="${escapeHtml(product.id)}">
-        <div class="product-image-wrap">
-          <img src="${escapeHtml(product.image || FALLBACK_IMAGE)}" alt="${escapeHtml(product.title)}" loading="lazy" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'">
-          <button class="icon-button favorite ${favorite ? "active" : ""}" type="button" data-action="favorite" data-product-id="${escapeHtml(product.id)}" aria-label="Favoritar produto">&#9825;</button>
-          ${showBadges ? `<div class="badges">
-            ${product.videoUrl ? "<span>Video disponivel</span>" : ""}
-            ${discount ? `<span>${discount}% OFF</span>` : ""}
-            ${product.tag ? `<span>${escapeHtml(product.tag)}</span>` : ""}
-          </div>` : ""}
-        </div>
-        <div class="product-info">
-          <span class="product-category">${escapeHtml(product.category)}</span>
-          <h3>${escapeHtml(product.title)}</h3>
-          ${showDescription ? `<p>${escapeHtml(product.shortDescription || product.description || "").slice(0, 120)}</p>` : ""}
-          ${showRating && product.reviewCount > 0 && product.reviewRating > 0 ? `<div class="rating">${stars(product.reviewRating)} <span>${formatNumber(product.reviewCount)} avaliacoes</span></div>` : ""}
-          <div class="price-row">
-            <strong>${formatCurrency(product.price)}</strong>
-            ${product.oldPrice ? `<del>${formatCurrency(product.oldPrice)}</del>` : ""}
-          </div>
-          <div class="product-actions">
-            <button type="button" class="secondary-button compact" data-action="details" data-product-id="${escapeHtml(product.id)}">Ver detalhes</button>
-            <button type="button" class="primary-button compact" data-action="buy" data-product-id="${escapeHtml(product.id)}">Comprar agora</button>
-          </div>
-          <button type="button" class="cart-button compact" data-action="cart" data-product-id="${escapeHtml(product.id)}">${inCart ? "Na sacolinha" : "Adicionar a sacolinha"}</button>
-          <button type="button" class="share-link" data-action="share" data-product-id="${escapeHtml(product.id)}">Compartilhar produto</button>
-        </div>
-      </article>
-    `;
+    const showRating = storefrontConfig().showCardRating !== false;
+    const rating = showRating && product.reviewCount > 0 && product.reviewRating > 0 ? '<div class="rating">' + stars(product.reviewRating) + '<span>' + formatNumber(product.reviewCount) + ' avaliações</span></div>' : "";
+    const oldPrice = product.oldPrice && product.oldPrice > product.price ? '<del>' + formatCurrency(product.oldPrice) + '</del>' : "";
+    const discountTag = discount ? '<span class="discount-chip">' + discount + '% OFF</span>' : "";
+    return '<article class="product-card" data-product-id="' + escapeHtml(product.id) + '">' +
+      '<div class="product-image-wrap"><img src="' + escapeHtml(product.image || FALLBACK_IMAGE) + '" alt="' + escapeHtml(product.title) + '" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=\'' + FALLBACK_IMAGE + '\';this.classList.add(\'image-fallback\')"></div>' +
+      '<div class="product-info"><div class="product-meta"><span class="product-category">' + escapeHtml(product.category) + '</span><button class="favorite-button ' + (favorite ? "active" : "") + '" type="button" data-action="favorite" data-product-id="' + escapeHtml(product.id) + '" aria-label="' + (favorite ? "Remover dos favoritos" : "Adicionar aos favoritos") + '">' + (favorite ? "♥" : "♡") + '</button></div>' +
+      '<button class="product-title-button" type="button" data-action="details" data-product-id="' + escapeHtml(product.id) + '"><h3>' + escapeHtml(product.title) + '</h3></button>' + rating +
+      '<div class="price-row"><strong>' + formatCurrency(product.price) + '</strong>' + oldPrice + discountTag + '</div>' +
+      '<div class="product-actions"><button type="button" class="primary-button compact" data-action="buy" data-product-id="' + escapeHtml(product.id) + '">Comprar agora</button><button type="button" class="secondary-button compact" data-action="details" data-product-id="' + escapeHtml(product.id) + '">Ver detalhes</button></div></div></article>';
   }
-
   function filterProducts(products) {
     const term = normalizeTerm(state.search);
     return products.filter((product) => {
