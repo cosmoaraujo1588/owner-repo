@@ -32,12 +32,12 @@
     <link rel="canonical" href="https://www.kairosshopping.com.br/">
     <link rel="alternate" hreflang="pt-BR" href="https://www.kairosshopping.com.br/">
     <link rel="alternate" hreflang="x-default" href="https://www.kairosshopping.com.br/">
-    <meta name="theme-color" content="#ff6b00">
+    <meta name="theme-color" content="#F47721">
     <link rel="icon" href="./assets/logo-kairos-oficial.png">
     <link rel="stylesheet" href="./styles.css?v=20260606-fix-catalog">
     <link rel="stylesheet" href="./visual-upgrade.css?v=20260607-safe-visual">
     <link rel="stylesheet" href="./premium-store.css?v=20260613-premium">
-    <link rel="stylesheet" href="./kairos-rebuild.css?v=20261114-visual">
+    <link rel="stylesheet" href="./kairos-rebuild.css?v=20261114-marketplace-v3">
     <script type="application/ld+json" id="structuredData">
       {
         "@context": "https://schema.org",
@@ -100,18 +100,9 @@
           <a id="headerWhatsapp" href="#" target="_blank" rel="noopener" aria-label="WhatsApp"><span>&#128172;</span><small>WhatsApp</small></a>
         </nav>
       </div>
-      <nav class="department-nav" aria-label="Navegacao da loja">
-        <details>
-          <summary>&#9776; Todas as categorias</summary>
-          <div class="department-menu">
-            <a href="#categorias">Ver categorias</a>
-            <a href="#mais-vendidos">Mais vendidos</a>
-            <a href="#promocoes">Promocoes</a>
-            <a href="#videos">Produtos com video</a>
-          </div>
-        </details>
-        <a href="#produtos">Produtos</a>
-        <a href="#mais-vendidos">Mais vendidos</a>
+      <nav class="department-nav" id="departmentNav" aria-label="Departamentos da loja">
+        <a href="#categorias">Todos os departamentos</a>
+        <a href="#produtos">Todos os produtos</a>
         <a href="#promocoes">Ofertas</a>
         <a href="/rastreio">Rastrear pedido</a>
       </nav>
@@ -128,6 +119,14 @@
         </div>
       </section>
 
+      <section class="section-block department-showcase-section" id="departamentos">
+        <div class="section-heading">
+          <span>Explore a loja</span>
+          <h2>Compre por departamento</h2>
+        </div>
+        <div class="department-showcase" id="departmentShowcase"></div>
+      </section>
+
       <section class="section-block categories-block" id="categorias">
         <div class="section-heading">
           <span>Compre por departamento</span>
@@ -138,11 +137,11 @@
       </section>
 
       <section class="trust-row" aria-label="Beneficios da loja">
-        <div><strong>Frete gratis</strong><span>Para todo o Brasil</span></div>
-        <div><strong>Compra segura</strong><span>Checkout externo oficial</span></div>
+        <div><strong>Catálogo multicategoria</strong><span>Departamentos organizados</span></div>
+        <div><strong>Checkout do produto</strong><span>Compra no parceiro indicado</span></div>
         <div><strong>Rastreamento</strong><span>Acompanhe seu pedido</span></div>
         <div><strong>Atendimento rapido</strong><span>Suporte pelo WhatsApp</span></div>
-        <div><strong>Produtos selecionados</strong><span>Ofertas organizadas</span></div>
+        <div><strong>Informações claras</strong><span>Preço e detalhes do produto</span></div>
       </section>
 
       <section class="section-block" id="mais-vendidos">
@@ -182,8 +181,8 @@
           </select>
         </div>
         <div class="product-grid catalog-grid" id="catalogGrid"></div>
-<div class="pagination-controls" id="catalogPagination"></div>
-<p class="empty-state" id="emptyProducts" hidden>Nenhum produto ativo encontrado agora. Fale com a Kairos Shopping pelo WhatsApp para receber ofertas atualizadas.</p>
+        <div class="pagination-controls" id="catalogPagination"></div>
+        <p class="empty-state" id="emptyProducts" hidden>Nenhum produto ativo encontrado agora. Fale com a Kairos Shopping pelo WhatsApp para receber ofertas atualizadas.</p>
       </section>
 
       <section class="section-block video-strip" id="videos">
@@ -194,10 +193,10 @@
         <div class="product-grid" id="videoGrid"></div>
       </section>
 
-      <section class="section-block reviews-section">
+      <section class="section-block reviews-section" id="avaliacoes">
         <div class="section-heading">
           <span>Prova social</span>
-          <h2>Clientes que confiam na Kairos Shopping</h2>
+          <h2>Avaliações de clientes</h2>
         </div>
         <div class="review-grid" id="reviewGrid"></div>
       </section>
@@ -332,9 +331,9 @@
     <div class="share-menu" id="shareMenu" hidden></div>
     <div class="activity-popup" id="activityPopup" hidden></div>
 
-    <script src="./data/seed-products.js?v=20260704-catalog-fallback"></script>
-<script src="./data/settings.js?v=20260704-catalog-fallback"></script>
-<script src="./app.js?v=20260704-catalog-fallback" defer></script>
-    <script src="./product-description-fix.js?v=20260704-descfix" defer></script>
+    <script src="./data/seed-products.js?v=20260606-fix-catalog"></script>
+    <script src="./data/settings.js?v=20260606-fix-catalog"></script>
+    <script src="./app.js?v=20261114-marketplace-v3" defer></script>
+    <script src="./product-description-fix.js?v=20260607-descfix" defer></script>
   </body>
 </html>
