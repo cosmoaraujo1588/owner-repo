@@ -804,6 +804,7 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     if (state.sort === "price-low") sorted.sort((a, b) => a.price - b.price);
     if (state.sort === "price-high") sorted.sort((a, b) => b.price - a.price);
     if (state.sort === "rating") sorted.sort((a, b) => (b.reviewRating || 0) - (a.reviewRating || 0));
+    if (state.sort === "newest") sorted.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
     if (state.sort === "relevance") sorted.sort((a, b) => Number(b.featured) - Number(a.featured) || (a.order || 0) - (b.order || 0));
     return sorted;
   }
@@ -824,6 +825,7 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
       keywords: Array.isArray(product.keywords) ? product.keywords : String(product.keywords || product.tags || "").split(",").map((item) => item.trim()).filter(Boolean),
       tag: String(product.tag || ""),
       reviewRating: Number(product.reviewRating || product.rating || 0),
+      createdAt: product.createdAt || product.created_at || null,
       reviewCount: Number(product.reviewCount || product.reviewsCount || 0),
       visible: product.visible !== false && product.active !== false,
       featured: product.featured !== false,
