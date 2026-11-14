@@ -154,16 +154,11 @@
   }
 
   function bindEvents() {
-    const mobileDepartmentsToggle = document.getElementById("mobileDepartmentsToggle");
-    mobileDepartmentsToggle?.addEventListener("click", () => {
-      const expanded = els.departmentNav?.classList.toggle("is-mobile-open") || false;
-      mobileDepartmentsToggle.setAttribute("aria-expanded", String(expanded));
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") els.departmentNav?.querySelector("details")?.removeAttribute("open");
     });
     document.addEventListener("click", (event) => {
-      if (window.innerWidth <= 767 && !event.target.closest(".marketplace-header")) {
-        els.departmentNav?.classList.remove("is-mobile-open");
-        mobileDepartmentsToggle?.setAttribute("aria-expanded", "false");
-      }
+      if (!event.target.closest("#departmentDropdown")) els.departmentNav?.querySelector("details")?.removeAttribute("open");
       const control = event.target.closest("[data-scroll-target]");
       if (!control) return;
       const rail = document.getElementById(control.dataset.scrollTarget);
@@ -1317,12 +1312,10 @@
         ${subNames.map((sub) => `<button type="button" class="mega-menu-sub" data-nav-category="${escapeHtml(name)}" data-nav-subcategory="${escapeHtml(sub)}">${escapeHtml(sub)}</button>`).join("")}
       </div>`;
     }).join("");
-    const topDepartments = categories.slice(0, 4);
     els.departmentNav.innerHTML = `
-      <details class="department-dropdown">
-
-        <summary><span aria-hidden="true">☰</span> Departamentos <span class="nav-chevron">⌄</span></summary>
-        <div class="department-mega-menu">
+      <details class="department-dropdown" id="departmentDropdown">
+        <summary aria-label="Abrir departamentos" aria-haspopup="true"><span class="nav-departments-icon" aria-hidden="true">☰</span> Departamentos <span class="nav-chevron" aria-hidden="true">⌄</span></summary>
+        <div class="department-mega-menu" role="region" aria-label="Departamentos e subcategorias">
           <div class="mega-menu-intro">
             <strong>Explore por departamento</strong>
             <span>${categories.length} departamentos disponíveis</span>
@@ -1331,13 +1324,12 @@
           <div class="mega-menu-grid">${menuItems || '<p class="mega-menu-empty">Os departamentos serão exibidos conforme o catálogo for publicado.</p>'}</div>
         </div>
       </details>
-      ${topDepartments.map((name) => `<button type="button" class="department-nav-link" data-nav-category="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join("")}
-      <a href="#promocoes">Ofertas</a><a href="#novidades">Novidades</a><a href="#produtos">Catálogo</a>
+      <a href="#promocoes">Ofertas</a>
+      <a href="#novidades">Novidades</a>
+      <a href="#mais-vendidos">Mais vendidos</a>
+      <a href="#produtos">Catálogo completo</a>
+      <a href="/rastreio">Rastrear pedido</a>
     `;
-    const mobileToggle = document.getElementById("mobileDepartmentsToggle");
-    if (mobileToggle) {
-      mobileToggle.setAttribute("aria-expanded", String(els.departmentNav.classList.contains("is-mobile-open")));
-    }
     els.departmentNav.querySelectorAll("[data-nav-category]").forEach((button) => {
       button.addEventListener("click", () => {
         const name = button.dataset.navCategory || "";
