@@ -1453,7 +1453,7 @@
     const discount = getDiscount(product);
     const favorite = state.favorites.includes(product.id);
     const showRating = storefrontConfig().showCardRating !== false;
-    const rating = showRating && product.reviewCount > 0 && product.reviewRating > 0 ? '<div class="rating">' + stars(product.reviewRating) + '<span>' + formatNumber(product.reviewCount) + ' avaliações</span></div>' : "";
+    const rating = showRating && product.reviewCount > 0 && product.reviewRating > 0 ? '<div class="rating">' + stars(product.reviewRating) + '<span>' + formatNumber(product.reviewCount) + ' avaliações</span></div>' : '<div class="rating rating-empty" aria-hidden="true"></div>';
     const oldPrice = product.oldPrice && product.oldPrice > product.price ? '<del>' + formatCurrency(product.oldPrice) + '</del>' : "";
     const discountTag = discount ? '<span class="discount-chip">' + discount + '% OFF</span>' : "";
     return '<article class="product-card" data-product-id="' + escapeHtml(product.id) + '">' +
