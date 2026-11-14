@@ -125,6 +125,7 @@ function fromProduct(row) {
     videoThumb: row.video_thumb || "",
     checkoutUrl: row.checkout_url || "",
     featured: row.featured !== false,
+    active: row.active !== false,
     visible: row.active !== false,
     bestSeller: Boolean(row.best_seller),
     flashOffer: Boolean(row.flash_offer),
