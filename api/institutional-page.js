@@ -103,6 +103,7 @@ function sendPage(res, status, title, content, description = content, pageKey = 
   <header><nav><img src="/assets/logo-kairos-oficial.png" alt="Kairos Shopping"><strong>Kairos Shopping</strong><a href="/">Inicio</a><a href="/#produtos">Produtos</a><a href="/#categorias">Categorias</a><a href="/rastreio">Rastreio</a></nav></header>
   <main><article><h1>${escapeHtml(title)}</h1>${paragraphs(content)}<div class="actions">${pageKey === "rastreio" ? `<a class="button" href="${TRACKING_URL}" target="_blank" rel="noopener">Abrir portal de rastreio</a>` : ""}<a class="button secondary" href="/#produtos">Ver produtos</a><a class="button secondary" href="/contato">Contato</a></div></article></main>
   <footer><div class="footer-inner"><strong>Kairos Shopping</strong><p>Envio para todo o Brasil, pedido com rastreamento e atendimento pelos canais oficiais.</p><a href="mailto:${EMAIL}">${EMAIL}</a></div></footer>
+  <script src="/cookie-notice.js?v=20261115-ck" defer></script>
 </body>
 </html>`);
 }
