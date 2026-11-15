@@ -63,22 +63,24 @@
           <span>Painel Kairos</span>
         </a>
         <nav class="admin-nav" id="adminNav">
-          <span class="nav-group">Visao geral</span>
+          <span class="nav-group">1. Visao geral</span>
           <button class="active" data-section="dashboard" type="button">Dashboard</button>
-          <button data-section="reports" type="button">Relatorios em Tempo Real</button>
           <button data-section="leads" type="button">Leads</button>
-          <span class="nav-group">Produtos</span>
+          <span class="nav-group">2. Produtos e catalogo</span>
           <button data-section="products" type="button">Produtos</button>
-          <button data-section="associations" type="button">Associações de Produtos</button>
           <button data-section="categories" type="button">Categorias</button>
-          <button data-section="reviews" type="button">Avaliacoes</button>
-          <span class="nav-group">Apresentacao da loja</span>
+          <span class="nav-group">3. Associacoes comerciais</span>
+          <button data-section="associations" type="button">Associações de Produtos</button>
+          <span class="nav-group">5. Desempenho e conversao</span>
+          <button data-section="reports" type="button">Relatorios em Tempo Real</button>
+          <span class="nav-group">6. Marketing e campanhas</span>
           <button data-section="banners" type="button">Banners</button>
-          <button data-section="content" type="button">Paginas Institucionais</button>
-          <span class="nav-group">Conversao</span>
           <button data-section="conversion" type="button">Conversao e Campanhas</button>
           <button data-section="marketing" type="button">Marketing e Trafego Pago</button>
-          <span class="nav-group">Configuracoes</span>
+          <span class="nav-group">7. Conteudo e SEO</span>
+          <button data-section="content" type="button">Paginas Institucionais</button>
+          <button data-section="reviews" type="button">Avaliacoes</button>
+          <span class="nav-group">8. Configuracoes</span>
           <button data-section="settings" type="button">Configuracoes da Loja</button>
         </nav>
       </aside>
@@ -191,6 +193,14 @@
               <label>Miniatura do video<input name="videoThumb" type="url"></label>
               <label>Avaliacao<input name="reviewRating" type="number" min="1" max="5" step="0.5" value="5"></label>
               <label>Qtd. avaliacoes<input name="reviewCount" type="number" min="0" value="120"></label>
+              <div class="full comp-box" id="prodComp">
+                <h3>Produtos complementares</h3>
+                <p class="admin-hint">Ate 3 produtos sugeridos no carrinho quando este produto for adicionado. Compartilha os dados da tela "Associações de Produtos".</p>
+                <label class="bump-check"><input type="checkbox" id="compEnabled" checked> Recomendacoes ativas para este produto</label>
+                <div id="compSelected"></div>
+                <input type="search" id="compSearch" placeholder="Pesquisar produto cadastrado para adicionar..." autocomplete="off">
+                <div class="assoc-results" id="compResults"></div>
+              </div>
               <label><input name="featured" type="checkbox" checked> Produto em destaque</label>
               <label><input name="bestSeller" type="checkbox"> Mais vendido</label>
               <label><input name="flashOffer" type="checkbox"> Oferta relampago</label>

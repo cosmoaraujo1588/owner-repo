@@ -2129,3 +2129,8 @@ th {
 .assoc-row button{padding:5px 9px;font-size:.78rem}
 .short-row{display:grid;grid-template-columns:1fr minmax(120px,200px);gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:.88rem}
 .short-row small{display:block;color:#6b7280}
+
+.admin-nav button .nav-ic{width:18px;height:18px;margin-right:9px;vertical-align:-4px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.admin-nav button .nav-badge{float:right;background:#ff6a00;color:#fff;border-radius:999px;font-size:.68rem;padding:1px 7px;font-weight:800}
+.comp-box{border:1px dashed #d1d5db;border-radius:10px;padding:12px;display:grid;gap:8px;background:#fafafa}
+.comp-box h3{margin:0}

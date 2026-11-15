@@ -299,6 +299,10 @@
     });
     document.getElementById("saveAllButton")?.addEventListener("click", saveCatalog);
     document.getElementById("newProductButton")?.addEventListener("click", () => forms.productForm.reset());
+    forms.productForm?.addEventListener("reset", () => setTimeout(() => loadProdComp(""), 0));
+    document.getElementById("prodComp")?.addEventListener("click", onProdCompClick);
+    document.getElementById("prodComp")?.addEventListener("input", (e) => { if (e.target.id === "compSearch") renderProdComp(); });
+    document.getElementById("prodComp")?.addEventListener("change", (e) => { if (e.target.id === "compEnabled") comp.disabled = !e.target.checked; });
     document.getElementById("newCategoryButton")?.addEventListener("click", () => forms.categoryForm.reset());
     document.getElementById("newSubcategoryButton")?.addEventListener("click", () => forms.subcategoryForm?.reset());
     document.getElementById("newReviewButton")?.addEventListener("click", () => forms.reviewForm.reset());
@@ -368,7 +372,7 @@
         description: clean(data.description),
         checkoutUrl: clean(data.checkoutUrl),
         image: productImage,
-        gallery: [],
+        gallery: state.products.find((item) => item.id === id)?.gallery || [],
         videoUrl: clean(data.videoUrl),
         videoThumb: clean(data.videoThumb),
         reviewRating: number(data.reviewRating) || 5,
@@ -379,7 +383,8 @@
         visible: Boolean(form.elements.visible.checked),
         order: state.products.find((item) => item.id === id)?.order ?? state.products.length
       };
-      upsert(state.products, product);
+      upsert(state.products, { ...(state.products.find((item) => item.id === id) || {}), ...product });
+      saveProdComp(id);
       ensureCategoriesFromProducts();
       ensureSubcategoriesFromProducts();
       form.reset();
@@ -818,6 +823,91 @@
     await saveCatalog();
   }
 
+  // ---- Produtos complementares no cadastro (mesma estrutura de dados: settings.orderBump.links/disabled) ----
+  const comp = { ids: [], disabled: false };
+  const COMP_MAX = 3;
+
+  function loadProdComp(productId) {
+    const ob = state.settings.orderBump || {};
+    const d = assoc.draft && assoc.dirty ? assoc.draft : { links: ob.links || {}, disabled: ob.disabled || {} };
+    comp.ids = productId ? [...(d.links[productId] || [])] : [];
+    comp.disabled = productId ? Boolean(d.disabled[productId]) : false;
+    const search = document.getElementById("compSearch");
+    if (search) search.value = "";
+    renderProdComp();
+  }
+
+  function renderProdComp() {
+    const sel = document.getElementById("compSelected");
+    const res = document.getElementById("compResults");
+    if (!sel || !res) return;
+    const self = forms.productForm?.elements.id.value || "";
+    document.getElementById("compEnabled").checked = !comp.disabled;
+    sel.innerHTML = comp.ids.length ? comp.ids.map((id, i) => {
+      const p = productById(id);
+      return productRow(p || { title: "Produto removido do catalogo", price: 0 }, `<button class="secondary-button compact" type="button" data-comp-up="${i}" ${i === 0 ? "disabled" : ""}>↑</button><button class="secondary-button compact" type="button" data-comp-down="${i}" ${i === comp.ids.length - 1 ? "disabled" : ""}>↓</button><button class="danger-button compact" type="button" data-comp-remove="${i}">Remover</button>`);
+    }).join("") : '<p class="admin-hint">Nenhum complementar selecionado.</p>';
+    const term = (document.getElementById("compSearch")?.value || "").toLowerCase().trim();
+    const full = comp.ids.length >= COMP_MAX;
+    res.innerHTML = term ? (full ? '<p class="admin-hint" style="padding:8px">Limite de 3 complementares atingido. Remova um para adicionar outro.</p>' : state.products
+      .filter((p) => String(p.id) !== String(self) && !comp.ids.map(String).includes(String(p.id)) && `${p.title} ${p.category}`.toLowerCase().includes(term))
+      .slice(0, 8).map((p) => productRow(p, `<button class="secondary-button compact" type="button" data-comp-add="${escapeHtml(p.id)}">Adicionar</button>`)).join("") || '<p class="admin-hint" style="padding:8px">Nenhum produto encontrado.</p>') : "";
+  }
+
+  function onProdCompClick(event) {
+    const t = event.target.closest("button");
+    if (!t) return;
+    if (t.dataset.compAdd && comp.ids.length < COMP_MAX) comp.ids.push(t.dataset.compAdd);
+    else if (t.dataset.compRemove !== undefined) comp.ids.splice(Number(t.dataset.compRemove), 1);
+    else if (t.dataset.compUp !== undefined) { const i = Number(t.dataset.compUp); [comp.ids[i - 1], comp.ids[i]] = [comp.ids[i], comp.ids[i - 1]]; }
+    else if (t.dataset.compDown !== undefined) { const i = Number(t.dataset.compDown); [comp.ids[i + 1], comp.ids[i]] = [comp.ids[i], comp.ids[i + 1]]; }
+    else return;
+    renderProdComp();
+  }
+
+  // Grava as associacoes do formulario junto com o produto (e sincroniza o rascunho da tela independente).
+  function saveProdComp(id) {
+    const ob = { ...(state.settings.orderBump || {}) };
+    const links = { ...(ob.links || {}) };
+    const disabled = { ...(ob.disabled || {}) };
+    const ids = comp.ids.filter((x) => String(x) !== String(id) && productById(x));
+    if (ids.length) links[id] = ids; else delete links[id];
+    if (comp.disabled && ids.length) disabled[id] = true; else delete disabled[id];
+    state.settings.orderBump = { ...ob, links, disabled };
+    if (assoc.draft) {
+      if (ids.length) assoc.draft.links[id] = [...ids]; else delete assoc.draft.links[id];
+      if (comp.disabled && ids.length) assoc.draft.disabled[id] = true; else delete assoc.draft.disabled[id];
+    }
+  }
+
+  // ---- Menu: icones e indicadores ----
+  const NAV_ICONS = {
+    dashboard: '<path d="M3 12 12 4l9 8M5 10v10h14V10"/>', leads: '<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.5 2.7-6 6-6s6 2.500 6 6M17 5.500a3 3 0 0 1 0 5.500M21 20c0-2.500-1.300-4.500-3.500-5.500"/>',
+    products: '<path d="m12 3 8 4.500v9L12 21l-8-4.500v-9L12 3Z"/><path d="m4 7.500 8 4.500 8-4.500M12 12v9"/>', categories: '<rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/>',
+    associations: '<path d="M10 14a4 4 0 0 0 5.700 0l3-3a4 4 0 0 0-5.700-5.700l-1 1M14 10a4 4 0 0 0-5.700 0l-3 3a4 4 0 0 0 5.700 5.700l1-1"/>', reports: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+    live: '<circle cx="12" cy="12" r="3"/><path d="M6.300 6.300a8 8 0 0 0 0 11.400M17.700 6.300a8 8 0 0 1 0 11.400"/>', performance: '<path d="m3 17 6-6 4 4 8-8M15 7h6v6"/>',
+    banners: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 15 5-4 4 3 3-2 6 4"/>', conversion: '<path d="M13 3 5 14h6l-1 7 8-11h-6l1-7Z"/>', marketing: '<path d="M3 11v2l14 6V5L3 11ZM17 8a4 4 0 0 1 0 8"/>',
+    content: '<path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7"/>', reviews: '<path d="m12 3 2.800 5.800 6.200.9-4.500 4.400 1.100 6.200L12 17.400 6.400 20.300l1.100-6.200L3 9.700l6.200-.9L12 3Z"/>', settings: '<circle cx="12" cy="12" r="3"/><path d="M19.400 15a1.700 1.700 0 0 0 .3 1.800l.1.1a2 2 0 1 1-2.800 2.800l-.1-.1a1.700 1.700 0 0 0-1.800-.3 1.700 1.700 0 0 0-1 1.500V21a2 2 0 1 1-4 0v-.1a1.700 1.700 0 0 0-1-1.500 1.700 1.700 0 0 0-1.800.3l-.1.100a2 2 0 1 1-2.800-2.800l.1-.1a1.700 1.700 0 0 0 .3-1.800 1.700 1.700 0 0 0-1.500-1H3a2 2 0 1 1 0-4h.1a1.700 1.700 0 0 0 1.500-1 1.700 1.700 0 0 0-.3-1.800l-.1-.1a2 2 0 1 1 2.800-2.800l.1.1a1.700 1.700 0 0 0 1.800.3h0a1.700 1.700 0 0 0 1-1.500V3a2 2 0 1 1 4 0v.1a1.700 1.700 0 0 0 1 1.500 1.700 1.700 0 0 0 1.800-.3l.1-.1a2 2 0 1 1 2.800 2.800l-.1.100a1.700 1.700 0 0 0-.3 1.800v0a1.700 1.700 0 0 0 1.500 1H21a2 2 0 1 1 0 4h-.1a1.700 1.700 0 0 0-1.500 1Z"/>'
+  };
+
+  function decorateNav() {
+    const badges = {
+      products: state.products.length,
+      leads: state.leads.length,
+      associations: Object.keys((state.settings.orderBump && state.settings.orderBump.links) || {}).length,
+      banners: ((state.settings.banners) || []).filter((b) => b.active !== false).length
+    };
+    document.querySelectorAll("#adminNav button[data-section]").forEach((button) => {
+      const key = button.dataset.section;
+      if (!button.querySelector(".nav-ic") && NAV_ICONS[key]) button.insertAdjacentHTML("afterbegin", `<svg class="nav-ic" viewBox="0 0 24 24" aria-hidden="true">${NAV_ICONS[key]}</svg>`);
+      let badge = button.querySelector(".nav-badge");
+      if (badges[key]) {
+        if (!badge) { badge = document.createElement("span"); badge.className = "nav-badge"; button.appendChild(badge); }
+        badge.textContent = badges[key];
+      } else if (badge) badge.remove();
+    });
+  }
+
   async function mediaValue(form, fileField, urlValue, title, purpose) {
     const file = form.elements[fileField]?.files?.[0];
     if (file) return uploadMedia(file, title, purpose);
@@ -838,6 +928,8 @@
     renderSubcategories();
     renderBanners();
     fillConversion();
+    renderProdComp();
+    decorateNav();
     renderReviews();
     renderReports();
     renderLeads();
@@ -1237,6 +1329,7 @@
     forms.productForm.elements.bestSeller.checked = Boolean(product.bestSeller);
     forms.productForm.elements.flashOffer.checked = Boolean(product.flashOffer);
     forms.productForm.elements.visible.checked = product.visible !== false;
+    loadProdComp(product.id);
   }
 
   function fillCategoryForm(category) {
