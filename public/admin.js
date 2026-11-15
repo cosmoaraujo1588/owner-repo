@@ -194,7 +194,7 @@
 
     [
       "productForm", "categoryForm", "subcategoryForm", "bannerForm", "reviewForm", "contentForm",
-      "marketingForm", "settingsForm"
+      "marketingForm", "settingsForm", "conversionForm"
     ].forEach((id) => forms[id] = document.getElementById(id));
   }
 
@@ -315,7 +315,21 @@
     document.getElementById("exportLeadsCsv")?.addEventListener("click", exportLeadsCsv);
   }
 
+  function bindFilePreviews() {
+    document.addEventListener("change", (event) => {
+      const input = event.target;
+      if (!(input instanceof HTMLInputElement) || input.type !== "file" || !/^image/.test(input.accept || "")) return;
+      let preview = input.parentElement.querySelector(".file-preview");
+      const file = input.files && input.files[0];
+      if (!file) { if (preview) preview.remove(); return; }
+      if (!/^image\/(jpeg|jpg|png|webp)$/i.test(file.type)) { toast("Formato nao aceito. Use JPG, PNG ou WebP."); input.value = ""; return; }
+      if (!preview) { preview = document.createElement("img"); preview.className = "file-preview"; preview.alt = "Previa"; input.parentElement.appendChild(preview); }
+      preview.src = URL.createObjectURL(file);
+    });
+  }
+
   function bindForms() {
+    bindFilePreviews();
     forms.productForm?.addEventListener("submit", async (event) => {
       event.preventDefault();
       const form = event.currentTarget;
@@ -451,11 +465,55 @@
           mobileVideoUrl: mobileVideoUrl || videoUrl,
           link: clean(data.carouselLink) || "#produtos",
           order: number(data.carouselOrder) || banners.length + 1,
-          active: Boolean(form.elements.carouselActive.checked)
+          active: Boolean(form.elements.carouselActive.checked),
+          altText: clean(data.carouselAlt),
+          startAt: localToIso(data.carouselStart),
+          endAt: localToIso(data.carouselEnd)
         });
+        if (banners.filter((item) => item.active !== false).length > 5) toast("Atencao: a loja exibe no maximo 5 banners ativos.");
         state.settings.banners = banners;
         resetBannerCarouselFields();
       }
+      await saveCatalog();
+    });
+
+    forms.conversionForm?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const el = form.elements;
+      const select = document.getElementById("bumpProduct");
+      const links = { ...((state.settings.orderBump && state.settings.orderBump.links) || {}) };
+      if (select && select.value) {
+        const ids = [...document.querySelectorAll("#bumpLinkList input:checked")].map((input) => input.value);
+        if (ids.length) links[select.value] = ids; else delete links[select.value];
+      }
+      const campEnd = localToIso(el.campEnd.value);
+      if (el.campEnabled.checked && !campEnd) { toast("Informe a data e hora de termino da campanha."); return; }
+      const campStart = localToIso(el.campStart.value);
+      if (campStart && campEnd && Date.parse(campStart) >= Date.parse(campEnd)) { toast("O inicio da campanha deve ser anterior ao termino."); return; }
+      state.settings.socialProof = {
+        enabled: el.proofEnabled.checked,
+        firstDelay: Math.max(2, number(el.proofFirstDelay.value) || 8),
+        interval: Math.max(10, number(el.proofInterval.value) || 25),
+        duration: Math.max(3, number(el.proofDuration.value) || 6),
+        maxPerVisit: Math.min(20, Math.max(1, number(el.proofMax.value) || 5))
+      };
+      state.settings.orderBump = {
+        enabled: el.bumpEnabled.checked,
+        autoByCategory: el.bumpAuto.checked,
+        title: clean(el.bumpTitle.value) || "Complete seu pedido",
+        max: Math.min(6, Math.max(1, number(el.bumpMax.value) || 3)),
+        links
+      };
+      state.settings.campaign = {
+        enabled: el.campEnabled.checked,
+        title: clean(el.campTitle.value),
+        text: clean(el.campText.value),
+        category: clean(el.campCategory.value),
+        link: clean(el.campLink.value),
+        startAt: campStart,
+        endAt: campEnd
+      };
       await saveCatalog();
     });
 
@@ -550,7 +608,11 @@
     if (!file.type || !file.type.startsWith(expectedType)) {
       throw new Error(isVideo ? "O arquivo selecionado precisa ser um video." : "O arquivo selecionado precisa ser uma imagem.");
     }
-    if (!isVideo && file.size > 4 * 1024 * 1024) throw new Error("Imagem muito grande. Use uma imagem de ate 4MB.");
+    if (!isVideo) {
+      if (!/^image\/(jpeg|jpg|png|webp)$/i.test(file.type)) throw new Error("Formato nao aceito. Use JPG, PNG ou WebP.");
+      file = await optimizeImage(file);
+    }
+    if (!isVideo && file.size > 4 * 1024 * 1024) throw new Error("Imagem muito grande mesmo apos otimizacao. Use uma imagem de ate 4MB.");
     if (isVideo && file.size > 25 * 1024 * 1024) throw new Error("Video muito grande. Use um video curto ate 25MB.");
     const formData = new FormData();
     formData.append("file", file);
@@ -569,6 +631,83 @@
       throw new Error("O storage nao retornou uma URL publica https para o arquivo.");
     }
     return publicUrl;
+  }
+
+  // Reduz para no maximo 1600px e converte para WebP no navegador (mantem proporcao).
+  async function optimizeImage(file) {
+    try {
+      const bitmap = await createImageBitmap(file);
+      const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+      const width = Math.round(bitmap.width * scale);
+      const height = Math.round(bitmap.height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext("2d").drawImage(bitmap, 0, 0, width, height);
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/webp", 0.85));
+      if (!blob || blob.type !== "image/webp" || blob.size >= file.size) return file;
+      return new File([blob], file.name.replace(/\.[^.]+$/, "") + ".webp", { type: "image/webp" });
+    } catch {
+      return file;
+    }
+  }
+
+  function showBannerPreview(url) {
+    const box = document.getElementById("bannerPreview");
+    if (!box) return;
+    box.hidden = !url;
+    const img = box.querySelector("img");
+    if (img) img.src = url || "";
+  }
+
+  function localToIso(value) {
+    if (!value) return "";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? "" : date.toISOString();
+  }
+
+  function isoToLocal(value) {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  }
+
+  function fillConversion() {
+    const form = forms.conversionForm;
+    if (!form) return;
+    const sp = state.settings.socialProof || {};
+    const ob = state.settings.orderBump || {};
+    const cp = state.settings.campaign || {};
+    const set = (name, value) => { if (form.elements[name] !== undefined && value !== undefined && value !== null) form.elements[name].value = value; };
+    form.elements.proofEnabled.checked = sp.enabled !== false;
+    set("proofFirstDelay", sp.firstDelay ?? 8); set("proofInterval", sp.interval ?? 25); set("proofDuration", sp.duration ?? 6); set("proofMax", sp.maxPerVisit ?? 5);
+    form.elements.bumpEnabled.checked = ob.enabled !== false;
+    form.elements.bumpAuto.checked = ob.autoByCategory !== false;
+    set("bumpTitle", ob.title || "Complete seu pedido"); set("bumpMax", ob.max ?? 3);
+    form.elements.campEnabled.checked = cp.enabled === true;
+    set("campTitle", cp.title || ""); set("campText", cp.text || ""); set("campCategory", cp.category || ""); set("campLink", cp.link || "");
+    form.elements.campStart.value = isoToLocal(cp.startAt);
+    form.elements.campEnd.value = isoToLocal(cp.endAt);
+    const select = document.getElementById("bumpProduct");
+    if (select && !select.dataset.ready) {
+      select.innerHTML = state.products.map((p) => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.title)}</option>`).join("");
+      select.dataset.ready = "1";
+      select.addEventListener("change", renderBumpLinks);
+    }
+    renderBumpLinks();
+  }
+
+  function renderBumpLinks() {
+    const select = document.getElementById("bumpProduct");
+    const box = document.getElementById("bumpLinkList");
+    if (!select || !box) return;
+    const links = (state.settings.orderBump && state.settings.orderBump.links) || {};
+    const chosen = Array.isArray(links[select.value]) ? links[select.value] : [];
+    const options = state.products.filter((p) => String(p.id) !== String(select.value));
+    const ordered = [...chosen.map((id) => options.find((p) => String(p.id) === String(id))).filter(Boolean), ...options.filter((p) => !chosen.map(String).includes(String(p.id)))];
+    box.innerHTML = ordered.map((p) => `<label class="bump-check"><input type="checkbox" value="${escapeHtml(p.id)}" ${chosen.map(String).includes(String(p.id)) ? "checked" : ""}> ${escapeHtml(p.title)}${p.visible === false || p.active === false ? " (inativo)" : ""}</label>`).join("");
   }
 
   async function mediaValue(form, fileField, urlValue, title, purpose) {
@@ -590,6 +729,7 @@
     renderCategories();
     renderSubcategories();
     renderBanners();
+    fillConversion();
     renderReviews();
     renderReports();
     renderLeads();
@@ -740,9 +880,10 @@
           <img src="${escapeHtml(banner.desktopImage || banner.mobileImage || state.settings.bannerUrl || "./assets/banner-principal-kairos.jpg")}" alt="${escapeHtml(banner.title || "Banner")}" onerror="this.onerror=null;this.src='./assets/banner-principal-kairos.jpg'">
           <div>
             <h3>${escapeHtml(banner.title || "Banner Kairos")}</h3>
-            <p>${banner.active === false ? "Inativo" : "Ativo"} - ordem ${banner.order || 0}</p>
+            <p>${banner.active === false ? "Inativo" : "Ativo"} - ordem ${banner.order || 0}${banner.startAt || banner.endAt ? ` - periodo: ${escapeHtml(formatDateTime(banner.startAt) || "sempre")} ate ${escapeHtml(formatDateTime(banner.endAt) || "sem fim")}` : ""}</p>
           </div>
           <div class="admin-item-actions">
+            <button class="secondary-button compact" type="button" data-banner-toggle="${escapeHtml(banner.id)}">${banner.active === false ? "Ativar" : "Desativar"}</button>
             <button class="secondary-button compact" type="button" data-banner-edit="${escapeHtml(banner.id)}">Editar</button>
             <button class="danger-button compact" type="button" data-banner-delete="${escapeHtml(banner.id)}">Excluir</button>
           </div>
@@ -751,6 +892,14 @@
 
     els.bannerList.querySelectorAll("[data-banner-edit]").forEach((button) => {
       button.addEventListener("click", () => fillBannerForm(banners.find((item) => item.id === button.dataset.bannerEdit)));
+    });
+    els.bannerList.querySelectorAll("[data-banner-toggle]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const item = banners.find((entry) => entry.id === button.dataset.bannerToggle);
+        if (!item) return;
+        item.active = item.active === false;
+        await saveCatalog();
+      });
     });
     els.bannerList.querySelectorAll("[data-banner-delete]").forEach((button) => {
       button.addEventListener("click", async () => {
@@ -1012,14 +1161,19 @@
     forms.bannerForm.elements.carouselLink.value = banner.link || "#produtos";
     forms.bannerForm.elements.carouselOrder.value = banner.order || 1;
     forms.bannerForm.elements.carouselActive.checked = banner.active !== false;
+    forms.bannerForm.elements.carouselAlt.value = banner.altText || "";
+    forms.bannerForm.elements.carouselStart.value = isoToLocal(banner.startAt);
+    forms.bannerForm.elements.carouselEnd.value = isoToLocal(banner.endAt);
+    showBannerPreview(banner.desktopImage || banner.image || "");
     forms.bannerForm.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function resetBannerCarouselFields() {
     if (!forms.bannerForm) return;
-    ["bannerId", "carouselTitle", "carouselSubtitle", "carouselDesktopImage", "carouselMobileImage", "carouselVideoUrl", "carouselMobileVideoUrl", "carouselLink"].forEach((name) => {
+    ["bannerId", "carouselTitle", "carouselSubtitle", "carouselDesktopImage", "carouselMobileImage", "carouselVideoUrl", "carouselMobileVideoUrl", "carouselLink", "carouselAlt", "carouselStart", "carouselEnd"].forEach((name) => {
       if (forms.bannerForm.elements[name]) forms.bannerForm.elements[name].value = "";
     });
+    showBannerPreview("");
     ["carouselDesktopFile", "carouselMobileFile", "carouselVideoFile", "carouselMobileVideoFile"].forEach((name) => {
       if (forms.bannerForm.elements[name]) forms.bannerForm.elements[name].value = "";
     });

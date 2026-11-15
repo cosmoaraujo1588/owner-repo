@@ -63,15 +63,21 @@
           <span>Painel Kairos</span>
         </a>
         <nav class="admin-nav" id="adminNav">
+          <span class="nav-group">Visao geral</span>
           <button class="active" data-section="dashboard" type="button">Dashboard</button>
           <button data-section="reports" type="button">Relatorios em Tempo Real</button>
           <button data-section="leads" type="button">Leads</button>
+          <span class="nav-group">Produtos</span>
           <button data-section="products" type="button">Produtos</button>
           <button data-section="categories" type="button">Categorias</button>
-          <button data-section="banners" type="button">Banners</button>
           <button data-section="reviews" type="button">Avaliacoes</button>
+          <span class="nav-group">Apresentacao da loja</span>
+          <button data-section="banners" type="button">Banners</button>
           <button data-section="content" type="button">Paginas Institucionais</button>
+          <span class="nav-group">Conversao</span>
+          <button data-section="conversion" type="button">Conversao e Campanhas</button>
           <button data-section="marketing" type="button">Marketing e Trafego Pago</button>
+          <span class="nav-group">Configuracoes</span>
           <button data-section="settings" type="button">Configuracoes da Loja</button>
         </nav>
       </aside>
@@ -265,6 +271,10 @@
             <label class="full">Carrossel: video mobile - upload<input name="carouselMobileVideoFile" type="file" accept="video/*"></label>
             <label>Carrossel: link<input name="carouselLink"></label>
             <label>Ordem<input name="carouselOrder" type="number" value="1"></label>
+            <label class="full">Texto alternativo (acessibilidade/SEO)<input name="carouselAlt" maxlength="140"></label>
+            <label>Exibir a partir de<input name="carouselStart" type="datetime-local"></label>
+            <label>Exibir ate<input name="carouselEnd" type="datetime-local"></label>
+            <div class="full banner-preview" id="bannerPreview" hidden><img alt="Previa do banner"></div>
             <label><input name="carouselActive" type="checkbox" checked> Banner ativo no carrossel</label>
             <label>Barra promocional<input name="promoText"></label>
             <label>Cor da barra<input name="promoColor" type="color" value="#ff6b00"></label>
@@ -314,6 +324,37 @@
             <div class="admin-actions full">
               <button class="primary-button" type="submit">Salvar paginas</button>
             </div>
+          </form>
+        </section>
+
+        <section class="admin-section" id="section-conversion">
+          <form class="admin-card form-grid" id="conversionForm">
+            <h2 class="full">Prova social (popup)</h2>
+            <p class="full admin-hint">Mostra destaques reais do catalogo (Mais vendido / Oferta relampago). Nao informa compradores, cidades nem vendas inventadas.</p>
+            <label><input name="proofEnabled" type="checkbox" checked> Ativar popup</label>
+            <label>Primeiro popup apos (s)<input name="proofFirstDelay" type="number" min="2" value="8"></label>
+            <label>Intervalo entre popups (s)<input name="proofInterval" type="number" min="10" value="25"></label>
+            <label>Duracao na tela (s)<input name="proofDuration" type="number" min="3" value="6"></label>
+            <label>Maximo por visita<input name="proofMax" type="number" min="1" max="20" value="5"></label>
+            <h2 class="full">Produtos relacionados no carrinho (order bump)</h2>
+            <label><input name="bumpEnabled" type="checkbox" checked> Ativar sugestoes no carrinho</label>
+            <label><input name="bumpAuto" type="checkbox" checked> Sugerir automaticamente pela categoria quando nao houver vinculo manual</label>
+            <label>Titulo do bloco<input name="bumpTitle" value="Complete seu pedido"></label>
+            <label>Maximo de sugestoes<input name="bumpMax" type="number" min="1" max="6" value="3"></label>
+            <h3 class="full">Vinculos manuais</h3>
+            <label class="full">Produto principal<select name="bumpProduct" id="bumpProduct"></select></label>
+            <div class="full" id="bumpLinkList"></div>
+            <p class="full admin-hint">Marque os produtos complementares. A ordem de prioridade segue a ordem da lista. Itens inativos ou ja no carrinho nao sao exibidos.</p>
+            <h2 class="full">Campanha com contagem regressiva</h2>
+            <label><input name="campEnabled" type="checkbox"> Ativar campanha</label>
+            <label>Titulo<input name="campTitle" maxlength="80"></label>
+            <label class="full">Texto de apoio<input name="campText" maxlength="140"></label>
+            <label>Inicio<input name="campStart" type="datetime-local"></label>
+            <label>Termino (obrigatorio)<input name="campEnd" type="datetime-local"></label>
+            <label>Categoria (opcional)<input name="campCategory" list="categoryOptions"></label>
+            <label>Link do botao (opcional)<input name="campLink" placeholder="#promocoes"></label>
+            <p class="full admin-hint">A contagem usa o horario real de termino, some ao acabar e nao altera precos.</p>
+            <div class="admin-actions full"><button class="primary-button" type="submit">Salvar conversao</button></div>
           </form>
         </section>
 

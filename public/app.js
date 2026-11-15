@@ -323,6 +323,8 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     renderAssistant();
     renderSocial();
     renderMobileBottomNav();
+    window.KairosStore = { get settings() { return state.settings; }, get products() { return state.products; }, productUrl, formatCurrency, isVisible, escapeHtml };
+    document.dispatchEvent(new CustomEvent("kairos:rendered"));
   }
 
   function applySettings() {
@@ -541,38 +543,63 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     if (!els.heroCarousel) return;
     const banners = normalizeBanners();
     if (state.bannerTimer) clearInterval(state.bannerTimer);
+    state.bannerTimer = null;
     if (!banners.length) {
       els.heroCarousel.hidden = true;
       els.heroCarousel.innerHTML = "";
       return;
     }
     els.heroCarousel.hidden = false;
-    state.bannerIndex = Math.min(state.bannerIndex, banners.length - 1);
-    els.heroCarousel.innerHTML = banners.map((banner, index) => {
+    state.bannerIndex = Math.min(state.bannerIndex || 0, banners.length - 1);
+    const multi = banners.length > 1;
+    const slides = banners.map((banner, index) => {
       const desktop = banner.desktopImage || banner.image || state.settings.bannerUrl;
       const mobile = banner.mobileImage || desktop;
       const desktopVideo = banner.videoUrl || banner.desktopVideoUrl || "";
       const mobileVideo = banner.mobileVideoUrl || desktopVideo || "";
       const href = banner.link || banner.buttonLink || "#produtos";
+      const alt = banner.altText || banner.title || "Campanha Kairos Shopping";
       return `
-        <a class="banner-slide ${index === state.bannerIndex ? "active" : ""}" href="${escapeHtml(href)}" ${/^https?:/i.test(href) ? 'target="_blank" rel="noopener"' : ""}>
-          ${desktopVideo || mobileVideo ? bannerVideoMarkup(desktopVideo, mobileVideo, desktop, banner.title) : `
+        <a class="banner-slide ${index === state.bannerIndex ? "active" : ""}" href="${escapeHtml(href)}" ${/^https?:/i.test(href) ? 'target="_blank" rel="noopener"' : ""} ${multi ? `aria-label="${escapeHtml(alt)} (${index + 1} de ${banners.length})"` : ""}>
+          ${desktopVideo || mobileVideo ? bannerVideoMarkup(desktopVideo, mobileVideo, desktop, alt) : `
             <picture>
               <source media="(max-width: 640px)" srcset="${escapeHtml(mobile)}">
-              <img src="${escapeHtml(desktop)}" alt="${escapeHtml(banner.title || "Campanha Kairos Shopping")}" loading="lazy">
+              <img src="${escapeHtml(desktop)}" alt="${escapeHtml(alt)}" ${index === 0 ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async">
             </picture>
           `}
-        </a>
-      `;
+        </a>`;
     }).join("");
-    if (banners.length > 1) {
-      state.bannerTimer = setInterval(() => {
-        state.bannerIndex = (state.bannerIndex + 1) % banners.length;
-        els.heroCarousel.querySelectorAll(".banner-slide").forEach((slide, index) => {
-          slide.classList.toggle("active", index === state.bannerIndex);
-        });
-      }, 6000);
-    }
+    els.heroCarousel.innerHTML = slides + (multi ? `
+      <button class="bn-arrow bn-prev" type="button" data-bn="-1" aria-label="Banner anterior">${icon("chev")}</button>
+      <button class="bn-arrow bn-next" type="button" data-bn="1" aria-label="Próximo banner">${icon("chev")}</button>
+      <div class="bn-dots">${banners.map((_, i) => `<button type="button" data-bn-dot="${i}" class="${i === state.bannerIndex ? "active" : ""}" aria-label="Ir para o banner ${i + 1}"></button>`).join("")}</div>` : "");
+    if (!multi) return;
+    const root = els.heroCarousel;
+    const show = (index) => {
+      state.bannerIndex = (index + banners.length) % banners.length;
+      root.querySelectorAll(".banner-slide").forEach((slide, i) => slide.classList.toggle("active", i === state.bannerIndex));
+      root.querySelectorAll("[data-bn-dot]").forEach((dot, i) => dot.classList.toggle("active", i === state.bannerIndex));
+    };
+    let paused = false;
+    let resumeTimer = null;
+    const pause = () => { paused = true; clearTimeout(resumeTimer); resumeTimer = setTimeout(() => { paused = false; }, 10000); };
+    root.onclick = (event) => {
+      const nav = event.target.closest("[data-bn]");
+      const dot = event.target.closest("[data-bn-dot]");
+      if (nav) { event.preventDefault(); pause(); show(state.bannerIndex + Number(nav.dataset.bn)); }
+      else if (dot) { event.preventDefault(); pause(); show(Number(dot.dataset.bnDot)); }
+    };
+    root.onmouseenter = () => { paused = true; };
+    root.onmouseleave = () => { paused = false; };
+    let startX = 0, startY = 0, swiped = false;
+    root.ontouchstart = (event) => { startX = event.touches[0].clientX; startY = event.touches[0].clientY; swiped = false; pause(); };
+    root.ontouchend = (event) => {
+      const dx = event.changedTouches[0].clientX - startX;
+      const dy = event.changedTouches[0].clientY - startY;
+      if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) { swiped = true; show(state.bannerIndex + (dx < 0 ? 1 : -1)); }
+    };
+    root.addEventListener("click", (event) => { if (swiped) { event.preventDefault(); swiped = false; } }, true);
+    state.bannerTimer = setInterval(() => { if (!paused && !document.hidden) show(state.bannerIndex + 1); }, 6000);
   }
 
   function bannerVideoMarkup(desktopVideo, mobileVideo, poster, title) {
@@ -760,6 +787,14 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     if (!product) return;
     const url = productUrl(product);
     await trackEvent("share_product", { product_id: product.id, product_name: product.title });
+    if (navigator.share && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+      try {
+        await navigator.share({ title: product.title, text: `${product.title} - ${product.shortDescription || "Oferta Kairos Shopping"}`, url });
+        return;
+      } catch (error) {
+        if (error && error.name === "AbortError") return;
+      }
+    }
     showShareMenu(product, url);
   }
 
@@ -804,9 +839,14 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
       pinterest: `https://www.pinterest.com/pin/create/button/?url=${encodeURIComponent(url)}&media=${encodeURIComponent(image)}&description=${encodeURIComponent(text)}`
     };
     if (network === "copy") {
-      await navigator.clipboard?.writeText(url);
-      toast("Link do produto copiado.");
-      hideShareMenu();
+      let copied = false;
+      try { await navigator.clipboard.writeText(url); copied = true; } catch {}
+      if (!copied) {
+        const field = els.shareMenu?.querySelector("input");
+        if (field) { field.focus(); field.select(); try { copied = document.execCommand("copy"); } catch {} }
+      }
+      toast(copied ? "Link copiado!" : "Não foi possível copiar. Selecione o link e copie manualmente.");
+      if (copied) hideShareMenu();
       return;
     }
     if (shareUrls[network]) window.open(shareUrls[network], "_blank", "noopener");
@@ -1079,6 +1119,9 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
       bannerVideoUrl: settings.bannerVideoUrl || "",
       bannerMobileVideoUrl: settings.bannerMobileVideoUrl || "",
       banners: Array.isArray(settings.banners) ? settings.banners : [],
+      campaign: settings.campaign || null,
+      orderBump: settings.orderBump || {},
+      socialProof: settings.socialProof || {},
       trackingUrl: settings.trackingUrl || "https://app.kaiross.com.br/rastreio",
       promoBar: settings.promoBar || { enabled: true, text: "Frete gratis para todo o Brasil", backgroundColor: "#ff6b00", textColor: "#111827" },
       assistant: settings.assistant || {},
@@ -1301,9 +1344,18 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
 
   function normalizeBanners() {
     return (state.settings.banners || [])
-      .filter((banner) => banner && banner.active !== false && (banner.desktopImage || banner.image || banner.videoUrl || banner.desktopVideoUrl))
+      .filter((banner) => banner && banner.active !== false && (banner.desktopImage || banner.image || banner.videoUrl || banner.desktopVideoUrl) && inSchedule(banner))
       .sort((a, b) => Number(a.order || 0) - Number(b.order || 0))
-      .slice(0, 4);
+      .slice(0, 5);
+  }
+
+  function inSchedule(item) {
+    const now = Date.now();
+    const start = item.startAt ? Date.parse(item.startAt) : NaN;
+    const end = item.endAt ? Date.parse(item.endAt) : NaN;
+    if (!Number.isNaN(start) && now < start) return false;
+    if (!Number.isNaN(end) && now > end) return false;
+    return true;
   }
 
   function applyProductSeo(product) {
@@ -1497,6 +1549,7 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
           ${product.videoUrl ? `<span class="pc-video">${icon("play")}Vídeo</span>` : ""}
         </a>
         <button class="pc-fav ${favorite ? "active" : ""}" type="button" data-action="favorite" data-product-id="${id}" aria-label="${favorite ? "Remover dos favoritos" : "Favoritar"}" aria-pressed="${favorite}">${icon("heart")}</button>
+        <button class="pc-share" type="button" data-action="share" data-product-id="${id}" aria-label="Compartilhar ${escapeHtml(product.title)}">${icon("share")}</button>
         <div class="pc-body">
           <span class="pc-cat">${escapeHtml(displayName(product.subcategory || product.category))}</span>
           <h3><a href="${href}" data-action="details" data-product-id="${id}">${escapeHtml(product.title)}</a></h3>

@@ -2111,3 +2111,11 @@ th {
     font-size: 0.66rem;
   }
 }
+
+/* Admin: grupos do menu, previas e dicas */
+.admin-nav .nav-group{display:block;margin:14px 0 4px;padding:0 12px;font-size:.68rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#ff8a33}
+.admin-hint{margin:0;color:#6b7280;font-size:.86rem}
+.banner-preview img,.file-preview{max-width:100%;max-height:160px;border-radius:8px;border:1px solid #e5e7eb;object-fit:contain;background:#fafafa}
+.file-preview{display:block;margin-top:6px}
+.bump-check{display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid #eee;font-size:.9rem}
+.bump-check input{width:auto}
