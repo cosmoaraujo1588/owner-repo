@@ -633,7 +633,7 @@
     return publicUrl;
   }
 
-  // Reduz para no maximo 1600px e converte para WebP no navegador (mantem proporcao).
+  // Reduz para no maximo 1600px mantendo o formato (JPG/PNG/WebP) e a proporcao. Nao converte para WebP: rastreadores sociais aceitam melhor JPG/PNG.
   async function optimizeImage(file) {
     try {
       const bitmap = await createImageBitmap(file);
@@ -644,9 +644,12 @@
       canvas.width = width;
       canvas.height = height;
       canvas.getContext("2d").drawImage(bitmap, 0, 0, width, height);
-      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/webp", 0.85));
-      if (!blob || blob.type !== "image/webp" || blob.size >= file.size) return file;
-      return new File([blob], file.name.replace(/\.[^.]+$/, "") + ".webp", { type: "image/webp" });
+      const type = /png/i.test(file.type) ? "image/png" : /webp/i.test(file.type) ? "image/webp" : "image/jpeg";
+      const ctx = canvas.getContext("2d");
+      if (type === "image/jpeg") { ctx.globalCompositeOperation = "destination-over"; ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, width, height); }
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, type, 0.86));
+      if (!blob || blob.type !== type || blob.size >= file.size) return file;
+      return new File([blob], file.name, { type });
     } catch {
       return file;
     }

@@ -828,7 +828,8 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     }
     const product = findProduct(id);
     if (!product) return;
-    const url = productUrl(product);
+    const baseUrl = productUrl(product);
+    const url = shareUrl(baseUrl, network);
     const text = `${product.title} - ${product.shortDescription || "Oferta Kairos Shopping"}`;
     const image = product.image || "";
     const shareUrls = {
@@ -851,6 +852,12 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     }
     if (shareUrls[network]) window.open(shareUrls[network], "_blank", "noopener");
     hideShareMenu();
+  }
+
+  function shareUrl(base, network) {
+    const source = { whatsapp: "whatsapp", facebook: "facebook", x: "x", telegram: "telegram", pinterest: "pinterest", copy: "link_copiado" }[network] || "compartilhamento";
+    const medium = network === "whatsapp" ? "referral" : "social";
+    return `${base}?utm_source=${source}&utm_medium=${medium}&utm_campaign=compartilhamento_produto`;
   }
 
   function hideShareMenu() {
@@ -1023,7 +1030,6 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
       product_view: "view_product",
       checkout_click: "add_to_checkout",
       whatsapp_click: "whatsapp_click",
-      whatsapp_group_click: "whatsapp_click",
       search: "search_products",
       category_filter: "view_category",
       lead: "generate_lead"
@@ -1059,7 +1065,7 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
 
   function trackGenericClick(control) {
     if (!control || typeof window.gtag !== "function") return;
-    window.gtag("event", "click", {
+    window.gtag("event", "ui_click", {
       element_id: control.id || "",
       element_text: control.textContent?.trim().slice(0, 120) || "",
       link_url: control.href || ""
@@ -1367,6 +1373,11 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     const url = product ? productUrl(product) : `${publicSiteUrl()}/`;
     setMeta("og:url", url, true);
     setMeta("twitter:url", url);
+    if (product) {
+      setMeta("twitter:title", product.title);
+      setMeta("twitter:description", (product.shortDescription || product.description || "Produto Kairos Shopping").slice(0, 180));
+      setMeta("twitter:image", absoluteUrl(product.image));
+    }
     const canonical = document.querySelector('link[rel="canonical"]');
     if (canonical) canonical.setAttribute("href", url);
   }

@@ -12,7 +12,7 @@ export default async function handler(req, res) {
   const finalHtml = product ? injectProductMeta(html, product, slug, siteUrl) : injectBase(html);
   res.statusCode = product ? 200 : 404;
   res.setHeader("Content-Type", "text/html; charset=utf-8");
-  res.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate=300");
+  res.setHeader("Cache-Control", "public, s-maxage=300, stale-while-revalidate=600");
   res.end(finalHtml);
 }
 
@@ -28,7 +28,7 @@ async function findProduct(slug) {
   return (data || []).find((product) => slugify(product.title || product.id) === slug || product.id === slug) || null;
 }
 
-function injectProductMeta(html, product, slug, siteUrl) {
+export function injectProductMeta(html, product, slug, siteUrl) {
   const title = cleanText(product.title, 180);
   const description = cleanText(product.short_description || product.description || "Produto Kairos Shopping", 180);
   const image = absoluteUrl(product.image_url || "/assets/banner-kairos-claro-1.png", siteUrl);
@@ -70,6 +70,11 @@ function injectProductMeta(html, product, slug, siteUrl) {
     .replace(/<meta property="og:description" content="[^"]*">/, `<meta property="og:description" content="${escapeHtml(description)}">`)
     .replace(/<meta property="og:image" content="[^"]*">/, `<meta property="og:image" content="${escapeHtml(image)}">`)
     .replace(/<meta property="og:url" content="[^"]*">/, `<meta property="og:url" content="${escapeHtml(url)}">`)
+    .replace(/<meta property="og:type" content="[^"]*">/, `<meta property="og:type" content="product">`)
+    .replace(/<meta property="og:image:width" content="[^"]*">\s*<meta property="og:image:height" content="[^"]*">\s*<meta property="og:image:alt" content="[^"]*">/, `<meta property="og:image:alt" content="${escapeHtml(title)}">\n    <meta property="product:price:amount" content="${Number(product.price || 0).toFixed(2)}">\n    <meta property="product:price:currency" content="BRL">`)
+    .replace(/<meta name="twitter:title" content="[^"]*">/, `<meta name="twitter:title" content="${escapeHtml(title)}">`)
+    .replace(/<meta name="twitter:description" content="[^"]*">/, `<meta name="twitter:description" content="${escapeHtml(description)}">`)
+    .replace(/<meta name="twitter:image" content="[^"]*">/, `<meta name="twitter:image" content="${escapeHtml(image)}">`)
     .replace(/<meta name="twitter:url" content="[^"]*">/, `<meta name="twitter:url" content="${escapeHtml(url)}">`)
     .replace(/<link rel="canonical" href="[^"]*">/, `<link rel="canonical" href="${escapeHtml(url)}">`)
     .replace(/<link rel="alternate" hreflang="pt-BR" href="[^"]*">/, `<link rel="alternate" hreflang="pt-BR" href="${escapeHtml(url)}">`)

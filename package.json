@@ -14,6 +14,6 @@
     "dev": "vercel dev",
     "build": "echo Kairos static build ready",
     "start": "vercel dev",
-    "test": "node --test tests/auth.test.mjs"
+    "test": "node --test tests/*.test.mjs"
   }
 }
