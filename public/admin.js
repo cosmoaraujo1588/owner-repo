@@ -243,7 +243,8 @@
       state.deletedIds = [];
       const saved = await response.json().catch(() => ({}));
       await loadCatalog();
-      toast(saved.forcedDraft ? `Salvo. ${saved.forcedDraft} produto(s) sem preco/checkout valido ficaram como rascunho.` : "Alteracoes salvas no backend.");
+      if (saved.archived) toast(`${saved.deleted || 0} excluido(s); ${saved.archived} arquivado(s) por terem historico de cliques/carrinho.`);
+      else toast(saved.forcedDraft ? `Salvo. ${saved.forcedDraft} produto(s) sem preco/checkout valido ficaram como rascunho.` : "Alteracoes salvas no backend.");
     } catch (error) {
       if (location.protocol === "https:") {
         alert(`Nao foi possivel salvar no Supabase/Vercel. Nada foi publicado para os clientes. Erro: ${error.message || "falha desconhecida"}`);
@@ -1701,6 +1702,6 @@
     setTimeout(() => el.remove(), 3200);
   }
   window.KairosAdmin = {
-    state, saveCatalog, toast, uploadMedia, slugify, escapeHtml, formatCurrency, renderAll, fillProductForm, ensureCategoriesFromProducts, productById
+    state, saveCatalog, authFetch, toast, uploadMedia, slugify, escapeHtml, formatCurrency, renderAll, fillProductForm, ensureCategoriesFromProducts, productById
   };
 }());

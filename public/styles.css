@@ -2156,3 +2156,15 @@ th {
 .media-ctl{display:flex;flex-wrap:wrap;gap:2px;padding:3px}.media-ctl button{flex:1;font-size:.68rem;padding:3px;border:1px solid #d1d5db;background:#f9fafb;border-radius:6px;cursor:pointer}
 .media-add{cursor:pointer}
 @media(max-width:700px){.cat-item{grid-template-columns:auto 48px 1fr}.cat-item .admin-item-actions{grid-column:1/-1}}
+.st-archived{background:#e5e7eb;color:#6b7280}
+/* Visitantes ao vivo e desempenho (Bloco C) */
+.insight-head{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:8px 0 14px}
+.kpi{background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:12px;display:grid;gap:2px}.kpi span{font-size:.78rem;color:#6b7280}.kpi strong{font-size:1.5rem}.kpi.big{background:#fff7ed;border-color:#fdba74}.kpi.big strong{font-size:2.2rem;color:#c2410c}.kpi.muted strong{color:#9ca3af}
+.kpi small{font-size:.72rem;color:#6b7280}.kpi small.up{color:#15803d}.kpi small.down{color:#b91c1c}
+.kpi-groups{display:grid;gap:4px}.kpi-group h4{margin:8px 0 0}
+.live-grid{display:grid;grid-template-columns:minmax(260px,330px) 1fr 1fr;gap:18px}.live-map{width:100%;max-width:330px}
+.live-list{list-style:none;margin:0 0 10px;padding:0;display:grid;gap:4px}.live-list li{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid #f1f5f9;padding:3px 0;font-size:.88rem}
+.perf-chart{width:100%;max-width:720px}.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:.78rem;color:#4b5563}.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px}
+.bars{display:grid;gap:12px;margin:10px 0}.bar-group{display:grid;gap:3px}.bar-line{display:grid;grid-template-columns:110px 1fr 48px;gap:8px;align-items:center;font-size:.78rem}.bar{background:#f1f5f9;border-radius:6px;height:12px;overflow:hidden}.bar i{display:block;height:100%}.bar-line em{font-style:normal;text-align:right}
+@media(max-width:900px){.live-grid{grid-template-columns:1fr}}

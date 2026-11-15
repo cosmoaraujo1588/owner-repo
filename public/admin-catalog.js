@@ -19,10 +19,11 @@
   }
   function publishable(p) { return Boolean(String(p.title || "").trim()) && Number(p.price) > 0 && validCheckout(p.checkoutUrl) && Boolean(p.category) && categoryExists(p.category); }
   function statusOf(p) {
+    if (state.settings.archived && state.settings.archived[p.id]) return "archived";
     if (p.visible !== false) return "published";
     return state.settings.drafts && state.settings.drafts[p.id] ? "draft" : "inactive";
   }
-  const STATUS_LABEL = { published: "Publicado", draft: "Rascunho", inactive: "Inativo" };
+  const STATUS_LABEL = { published: "Publicado", draft: "Rascunho", inactive: "Inativo", archived: "Arquivado" };
 
   function setDraft(id, on) {
     const drafts = { ...(state.settings.drafts || {}) };
@@ -50,7 +51,7 @@
         <label class="bump-check"><input type="checkbox" id="catSelPage"> Pagina</label>
         <input type="search" id="catQ" placeholder="Buscar por nome, SKU ou categoria...">
         <select id="catCat"><option value="">Todas as categorias</option></select>
-        <select id="catStatus"><option value="">Todos os status</option><option value="published">Publicados</option><option value="draft">Rascunhos</option><option value="inactive">Inativos</option></select>
+        <select id="catStatus"><option value="">Todos os status</option><option value="published">Publicados</option><option value="draft">Rascunhos</option><option value="inactive">Inativos</option><option value="archived">Arquivados</option></select>
         <select id="catIssue"><option value="">Sem filtro de pendencia</option><option value="noCheckout">Sem checkout</option><option value="noImage">Sem imagem</option><option value="noPrice">Sem preco</option></select>
         <select id="catSort"><option value="order">Ordem da loja</option><option value="title">Nome A-Z</option><option value="priceAsc">Menor preco</option><option value="priceDesc">Maior preco</option></select>
       </div>
@@ -103,7 +104,7 @@
     let rows = state.products.filter((p) => {
       if (q && !norm(`${p.title} ${p.sku} ${p.category} ${p.subcategory}`).includes(q)) return false;
       if (f.cat && p.category !== f.cat) return false;
-      if (f.status && statusOf(p) !== f.status) return false;
+      if (f.status ? statusOf(p) !== f.status : statusOf(p) === "archived") return false;
       if (f.issue === "noCheckout" && p.checkoutUrl) return false;
       if (f.issue === "noImage" && p.image) return false;
       if (f.issue === "noPrice" && Number(p.price) > 0) return false;

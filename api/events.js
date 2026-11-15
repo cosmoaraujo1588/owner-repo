@@ -1,4 +1,5 @@
 import { getSupabase, isAdmin, sendJson, cleanText } from "./_supabase.js";
+import { geoFromHeaders, liveReport, periodReport } from "./_insights.js";
 
 const CLICK_EVENT_TYPES = new Set([
   "checkout_click",
@@ -47,14 +48,20 @@ async function recordEvent(req, res) {
 
   let result;
   if (type === "presence") {
-    result = await supabase.from("online_visitors").upsert({
+    const presenceRow = {
       session_id: sessionId,
       page,
       product_id: productId || null,
       device,
       origin: cleanText(body.origin || body.referrer || payload.origin, 800),
       last_activity: createdAt
-    }, { onConflict: "session_id" });
+    };
+    // Localizacao aproximada (pais/estado/cidade) dos cabecalhos da Vercel. O IP nao e lido nem armazenado.
+    const geo = geoFromHeaders(req.headers);
+    result = await supabase.from("online_visitors").upsert(geo.country ? { ...presenceRow, ...geo } : presenceRow, { onConflict: "session_id" });
+    if (result.error && geo.country && /country|region|city/i.test(result.error.message || "")) {
+      result = await supabase.from("online_visitors").upsert(presenceRow, { onConflict: "session_id" }); // migration ainda nao aplicada
+    }
   } else if (CLICK_EVENT_TYPES.has(type)) {
     result = await supabase.from("click_events").insert({
       product_id: productId || null,
@@ -114,6 +121,12 @@ async function listEvents(req, res) {
   if (!isAdmin(req)) return sendJson(res, 401, { error: "Unauthorized" });
   const supabase = getSupabase();
   if (!supabase) return sendJson(res, 503, { error: "Supabase not configured" });
+  try {
+    if (req.query?.live) return sendJson(res, 200, await liveReport(supabase, req.query.window));
+    if (req.query?.report) return sendJson(res, 200, await periodReport(supabase, { from: req.query.from, to: req.query.to, compare: req.query.compare === "1" }));
+  } catch (error) {
+    return sendJson(res, 500, { error: error.message || "Falha ao gerar relatorio" });
+  }
   const since = rangeToDate(req.query?.range || "today");
   const sinceIso = since.toISOString();
   const onlineSinceIso = new Date(Date.now() - 2 * 60 * 1000).toISOString();

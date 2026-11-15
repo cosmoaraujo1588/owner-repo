@@ -77,9 +77,29 @@ async function putCatalog(req, res) {
   const deletedIds = Array.isArray(body.deletedIds) ? [...new Set(body.deletedIds.map((id) => cleanText(id, 200)).filter(Boolean))].slice(0, 250) : [];
   const keptIds = new Set(products.map((product) => product.id));
   const idsToDelete = deletedIds.filter((id) => !keptIds.has(id));
+  // Exclusao segura: produtos com historico (cliques, carrinho, favoritos, avaliacoes, campanhas, videos) sao ARQUIVADOS
+  // (inativos e ocultos da lista) para nao perder analytics nem quebrar chaves estrangeiras; os demais sao removidos de fato.
+  let deletedCount = 0;
+  const archivedIds = [];
   if (idsToDelete.length) {
-    const deleteResult = await supabase.from("products").delete().in("id", idsToDelete);
-    if (deleteResult.error) return sendJson(res, 500, { error: deleteResult.error.message });
+    const referenced = new Set();
+    const tables = ["cart_events", "click_events", "favorites", "reviews", "campaigns", "videos"];
+    const checks = await Promise.all(tables.map((table) => supabase.from(table).select("product_id").in("product_id", idsToDelete).limit(1000)));
+    const checkError = checks.find((result) => result.error);
+    if (checkError) return sendJson(res, 500, { error: checkError.error.message });
+    checks.forEach((result) => (result.data || []).forEach((row) => referenced.add(row.product_id)));
+    const removable = idsToDelete.filter((id) => !referenced.has(id));
+    archivedIds.push(...idsToDelete.filter((id) => referenced.has(id)));
+    if (removable.length) {
+      const deleteResult = await supabase.from("products").delete().in("id", removable);
+      if (deleteResult.error) return sendJson(res, 500, { error: deleteResult.error.message });
+      deletedCount = removable.length;
+    }
+    if (archivedIds.length) {
+      const archiveResult = await supabase.from("products").update({ active: false, updated_at: new Date().toISOString() }).in("id", archivedIds);
+      if (archiveResult.error) return sendJson(res, 500, { error: archiveResult.error.message });
+      settings.archived = { ...(settings.archived || {}), ...Object.fromEntries(archivedIds.map((id) => [id, true])) };
+    }
   }
   const forcedDraft = body.products ? body.products.filter((item) => item && item.visible !== false && item.active !== false && !isPublishable(item)).length : 0;
   const reviews = uniqueById(Array.isArray(settings.reviews) ? settings.reviews.map(toReview) : []);
@@ -112,7 +132,7 @@ async function putCatalog(req, res) {
     if (reviewResult.error) return sendJson(res, 500, { error: reviewResult.error.message });
   }
 
-  sendJson(res, 200, { ok: true, deleted: idsToDelete.length, forcedDraft, products: products.length, categories: categories.length, subcategories: subcategories.length, reviews: reviews.length });
+  sendJson(res, 200, { ok: true, deleted: deletedCount, archived: archivedIds.length, forcedDraft, products: products.length, categories: categories.length, subcategories: subcategories.length, reviews: reviews.length });
 }
 
 function fromProduct(row) {
@@ -334,6 +354,11 @@ export function sanitizeSettings(input) {
       links,
       disabled
     };
+  }
+  if (settings.archived && typeof settings.archived === "object") {
+    const archived = {};
+    Object.entries(settings.archived).slice(0, 2000).forEach(([id, flag]) => { if (flag) archived[String(id).slice(0, 120)] = true; });
+    settings.archived = archived;
   }
   if (settings.drafts && typeof settings.drafts === "object") {
     const drafts = {};
