@@ -1,5 +1,13 @@
 import { getSupabase, cleanText } from "./_supabase.js";
 
+// Como cleanText, mas preserva quebras de linha para separar paragrafos.
+export function cleanBlock(value, limit = 12000) {
+  return String(value ?? "").replace(/\r\n?/g, "\n").replace(/[\u0000-\u0009\u000b-\u001f<>]/g, "").trim().slice(0, limit);
+}
+export function paragraphs(text) {
+  return String(text).split(/\n{2,}/).map((part) => part.trim()).filter(Boolean).map((part) => `<p>${escapeHtml(part).replace(/\n/g, "<br>")}</p>`).join("");
+}
+
 const SITE_URL = "https://www.kairosshopping.com.br";
 const EMAIL = "kairossshopping@gmail.com";
 const TRACKING_URL = "https://app.kaiross.com.br/rastreio";
@@ -43,7 +51,7 @@ export default async function handler(req, res) {
   if (!config) return sendPage(res, 404, "Pagina nao encontrada", "A pagina solicitada nao existe.");
 
   const page = await loadPage(config.dbSlugs);
-  const content = cleanText(page?.content || config.fallback, 12000);
+  const content = cleanBlock(page?.content || config.fallback);
   const title = cleanText(page?.seo_title || page?.title || config.title, 180);
   const description = cleanText(page?.seo_description || content, 180);
   return sendPage(res, 200, title, content, description, pageKey);
@@ -93,7 +101,7 @@ function sendPage(res, status, title, content, description = content, pageKey = 
 </head>
 <body>
   <header><nav><img src="/assets/logo-kairos-oficial.png" alt="Kairos Shopping"><strong>Kairos Shopping</strong><a href="/">Inicio</a><a href="/#produtos">Produtos</a><a href="/#categorias">Categorias</a><a href="/rastreio">Rastreio</a></nav></header>
-  <main><article><h1>${escapeHtml(title)}</h1><p>${escapeHtml(content)}</p><div class="actions">${pageKey === "rastreio" ? `<a class="button" href="${TRACKING_URL}" target="_blank" rel="noopener">Abrir portal de rastreio</a>` : ""}<a class="button secondary" href="/#produtos">Ver produtos</a><a class="button secondary" href="/contato">Contato</a></div></article></main>
+  <main><article><h1>${escapeHtml(title)}</h1>${paragraphs(content)}<div class="actions">${pageKey === "rastreio" ? `<a class="button" href="${TRACKING_URL}" target="_blank" rel="noopener">Abrir portal de rastreio</a>` : ""}<a class="button secondary" href="/#produtos">Ver produtos</a><a class="button secondary" href="/contato">Contato</a></div></article></main>
   <footer><div class="footer-inner"><strong>Kairos Shopping</strong><p>Envio para todo o Brasil, pedido com rastreamento e atendimento pelos canais oficiais.</p><a href="mailto:${EMAIL}">${EMAIL}</a></div></footer>
 </body>
 </html>`);
