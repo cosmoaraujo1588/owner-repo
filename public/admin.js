@@ -330,6 +330,9 @@
 
   function bindForms() {
     bindFilePreviews();
+    bindAssociations();
+    document.getElementById("shortSearch")?.addEventListener("input", renderShortLinks);
+    document.getElementById("saveShortLinks")?.addEventListener("click", saveShortLinks);
     forms.productForm?.addEventListener("submit", async (event) => {
       event.preventDefault();
       const form = event.currentTarget;
@@ -481,12 +484,6 @@
       event.preventDefault();
       const form = event.currentTarget;
       const el = form.elements;
-      const select = document.getElementById("bumpProduct");
-      const links = { ...((state.settings.orderBump && state.settings.orderBump.links) || {}) };
-      if (select && select.value) {
-        const ids = [...document.querySelectorAll("#bumpLinkList input:checked")].map((input) => input.value);
-        if (ids.length) links[select.value] = ids; else delete links[select.value];
-      }
       const campEnd = localToIso(el.campEnd.value);
       if (el.campEnabled.checked && !campEnd) { toast("Informe a data e hora de termino da campanha."); return; }
       const campStart = localToIso(el.campStart.value);
@@ -501,9 +498,10 @@
       state.settings.orderBump = {
         enabled: el.bumpEnabled.checked,
         autoByCategory: el.bumpAuto.checked,
-        title: clean(el.bumpTitle.value) || "Complete seu pedido",
+        title: clean(el.bumpTitle.value) || "Complete sua compra",
         max: Math.min(6, Math.max(1, number(el.bumpMax.value) || 3)),
-        links
+        links: (state.settings.orderBump && state.settings.orderBump.links) || {},
+        disabled: (state.settings.orderBump && state.settings.orderBump.disabled) || {}
       };
       state.settings.campaign = {
         enabled: el.campEnabled.checked,
@@ -688,29 +686,136 @@
     set("proofFirstDelay", sp.firstDelay ?? 8); set("proofInterval", sp.interval ?? 25); set("proofDuration", sp.duration ?? 6); set("proofMax", sp.maxPerVisit ?? 5);
     form.elements.bumpEnabled.checked = ob.enabled !== false;
     form.elements.bumpAuto.checked = ob.autoByCategory !== false;
-    set("bumpTitle", ob.title || "Complete seu pedido"); set("bumpMax", ob.max ?? 3);
+    set("bumpTitle", ob.title || "Complete sua compra"); set("bumpMax", ob.max ?? 3);
     form.elements.campEnabled.checked = cp.enabled === true;
     set("campTitle", cp.title || ""); set("campText", cp.text || ""); set("campCategory", cp.category || ""); set("campLink", cp.link || "");
     form.elements.campStart.value = isoToLocal(cp.startAt);
     form.elements.campEnd.value = isoToLocal(cp.endAt);
-    const select = document.getElementById("bumpProduct");
-    if (select && !select.dataset.ready) {
-      select.innerHTML = state.products.map((p) => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.title)}</option>`).join("");
-      select.dataset.ready = "1";
-      select.addEventListener("change", renderBumpLinks);
-    }
-    renderBumpLinks();
+    renderAssociations();
+    renderShortLinks();
   }
 
-  function renderBumpLinks() {
-    const select = document.getElementById("bumpProduct");
-    const box = document.getElementById("bumpLinkList");
-    if (!select || !box) return;
-    const links = (state.settings.orderBump && state.settings.orderBump.links) || {};
-    const chosen = Array.isArray(links[select.value]) ? links[select.value] : [];
-    const options = state.products.filter((p) => String(p.id) !== String(select.value));
-    const ordered = [...chosen.map((id) => options.find((p) => String(p.id) === String(id))).filter(Boolean), ...options.filter((p) => !chosen.map(String).includes(String(p.id)))];
-    box.innerHTML = ordered.map((p) => `<label class="bump-check"><input type="checkbox" value="${escapeHtml(p.id)}" ${chosen.map(String).includes(String(p.id)) ? "checked" : ""}> ${escapeHtml(p.title)}${p.visible === false || p.active === false ? " (inativo)" : ""}</label>`).join("");
+  // ---- Associacoes de produtos (settings.orderBump.links / disabled) ----
+  const assoc = { main: "", draft: null, dirty: false };
+
+  function assocData() {
+    if (!assoc.draft) {
+      const ob = state.settings.orderBump || {};
+      assoc.draft = { links: JSON.parse(JSON.stringify(ob.links || {})), disabled: { ...(ob.disabled || {}) } };
+    }
+    return assoc.draft;
+  }
+
+  function productById(id) { return state.products.find((p) => String(p.id) === String(id)); }
+
+  function productRow(p, actions, active) {
+    return `<div class="assoc-row ${active ? "active" : ""}"><img src="${escapeHtml(p.image || "")}" alt="" onerror="this.style.visibility='hidden'"><div><b>${escapeHtml(p.title)}</b><br><small>${escapeHtml(p.category || "")} - ${formatCurrency(p.price)}${p.visible === false || p.active === false ? " - INATIVO" : ""}</small></div><div class="row-actions">${actions}</div></div>`;
+  }
+
+  function renderAssociations() {
+    const results = document.getElementById("assocMainResults");
+    const editor = document.getElementById("assocEditor");
+    const overview = document.getElementById("assocOverview");
+    if (!results || !editor || !overview) return;
+    const data = assocData();
+    const term = (document.getElementById("assocSearchMain")?.value || "").toLowerCase().trim();
+    results.innerHTML = state.products
+      .filter((p) => !term || `${p.title} ${p.category}`.toLowerCase().includes(term))
+      .slice(0, 60)
+      .map((p) => productRow(p, `<button class="secondary-button compact" type="button" data-assoc-main="${escapeHtml(p.id)}">${(data.links[p.id] || []).length ? `Editar (${data.links[p.id].length})` : "Selecionar"}</button>`, String(p.id) === String(assoc.main)))
+      .join("") || '<p class="admin-hint" style="padding:10px">Nenhum produto encontrado.</p>';
+    const main = productById(assoc.main);
+    if (!main) {
+      editor.innerHTML = '<h2>2. Produtos complementares</h2><p class="admin-hint">Selecione um produto principal ao lado.</p>';
+    } else {
+      const ids = data.links[main.id] || [];
+      const addTerm = (document.getElementById("assocSearchAdd")?.value || "").toLowerCase().trim();
+      const candidates = addTerm ? state.products.filter((p) => String(p.id) !== String(main.id) && !ids.map(String).includes(String(p.id)) && `${p.title} ${p.category}`.toLowerCase().includes(addTerm)).slice(0, 8) : [];
+      editor.innerHTML = `
+        <h2>2. Complementares de: ${escapeHtml(main.title)}</h2>
+        <label class="bump-check"><input type="checkbox" id="assocEnabled" ${data.disabled[main.id] ? "" : "checked"}> Recomendações ativas para este produto</label>
+        <h3>Ordem de exibição</h3>
+        ${ids.length ? ids.map((id, i) => { const p = productById(id); return p ? productRow(p, `<button class="secondary-button compact" type="button" data-assoc-up="${i}" ${i === 0 ? "disabled" : ""}>↑</button><button class="secondary-button compact" type="button" data-assoc-down="${i}" ${i === ids.length - 1 ? "disabled" : ""}>↓</button><button class="danger-button compact" type="button" data-assoc-remove="${i}">Remover</button>`) : productRow({ title: "Produto removido do catalogo", price: 0 }, `<button class="danger-button compact" type="button" data-assoc-remove="${i}">Remover</button>`); }).join("") : '<p class="admin-hint">Nenhum complementar. Sem vínculo manual, a loja sugere produtos da mesma categoria (se a opção automática estiver ligada).</p>'}
+        <h3>Adicionar complementar</h3>
+        <input id="assocSearchAdd" type="search" placeholder="Pesquisar produto para adicionar..." value="${escapeHtml(addTerm)}" autocomplete="off">
+        <div class="assoc-results">${candidates.map((p) => productRow(p, `<button class="secondary-button compact" type="button" data-assoc-add="${escapeHtml(p.id)}">Adicionar</button>`)).join("")}</div>
+        <div class="admin-actions" style="margin-top:12px"><button class="primary-button" type="button" id="assocSave">Salvar associações</button>${assoc.dirty ? '<span class="admin-hint"> Alterações não salvas</span>' : ""}</div>`;
+    }
+    const rows = Object.keys(data.links).filter((id) => (data.links[id] || []).length);
+    overview.innerHTML = rows.map((id) => { const p = productById(id); if (!p) return ""; return productRow(p, `<span class="admin-hint">${data.links[id].length} associado(s) - ${data.disabled[id] ? "desativado" : "ativo"}</span><button class="secondary-button compact" type="button" data-assoc-main="${escapeHtml(id)}">Editar</button><button class="danger-button compact" type="button" data-assoc-clear="${escapeHtml(id)}">Remover tudo</button>`); }).join("") || '<p class="admin-hint">Nenhuma associação manual cadastrada.</p>';
+  }
+
+  async function saveAssociations() {
+    const data = assocData();
+    Object.keys(data.links).forEach((id) => { data.links[id] = data.links[id].filter((x) => productById(x)); if (!data.links[id].length) { delete data.links[id]; delete data.disabled[id]; } });
+    state.settings.orderBump = { ...(state.settings.orderBump || {}), links: data.links, disabled: data.disabled };
+    assoc.dirty = false;
+    await saveCatalog();
+    assoc.draft = null;
+    renderAssociations();
+  }
+
+  function bindAssociations() {
+    const root = document.getElementById("section-associations");
+    if (!root) return;
+    root.addEventListener("input", (event) => {
+      if (event.target.id === "assocSearchMain" || event.target.id === "assocSearchAdd") {
+        const id = event.target.id, pos = event.target.selectionStart;
+        renderAssociations();
+        const field = document.getElementById(id); if (field) { field.focus(); field.setSelectionRange(pos, pos); }
+      }
+    });
+    root.addEventListener("change", (event) => {
+      if (event.target.id === "assocEnabled" && assoc.main) {
+        const d = assocData();
+        if (event.target.checked) delete d.disabled[assoc.main]; else d.disabled[assoc.main] = true;
+        assoc.dirty = true; renderAssociations();
+      }
+    });
+    root.addEventListener("click", async (event) => {
+      const t = event.target.closest("button");
+      if (!t) return;
+      const d = assocData();
+      const list = () => (d.links[assoc.main] = d.links[assoc.main] || []);
+      if (t.dataset.assocMain) { assoc.main = t.dataset.assocMain; renderAssociations(); return; }
+      if (t.dataset.assocClear) {
+        if (!confirm("Remover todas as associações deste produto?")) return;
+        delete d.links[t.dataset.assocClear]; delete d.disabled[t.dataset.assocClear];
+        assoc.dirty = true; await saveAssociations(); return;
+      }
+      if (!assoc.main) return;
+      if (t.dataset.assocAdd) { list().push(t.dataset.assocAdd); assoc.dirty = true; renderAssociations(); }
+      else if (t.dataset.assocRemove !== undefined) { list().splice(Number(t.dataset.assocRemove), 1); assoc.dirty = true; renderAssociations(); }
+      else if (t.dataset.assocUp !== undefined) { const i = Number(t.dataset.assocUp), l = list(); [l[i - 1], l[i]] = [l[i], l[i - 1]]; assoc.dirty = true; renderAssociations(); }
+      else if (t.dataset.assocDown !== undefined) { const i = Number(t.dataset.assocDown), l = list(); [l[i + 1], l[i]] = [l[i], l[i + 1]]; assoc.dirty = true; renderAssociations(); }
+      else if (t.id === "assocSave") await saveAssociations();
+    });
+  }
+
+  // ---- Links curtos (settings.shortLinks = { produtoId: codigo }) ----
+  function renderShortLinks() {
+    const box = document.getElementById("shortRows");
+    if (!box || !window.KairosShort) return;
+    const term = (document.getElementById("shortSearch")?.value || "").toLowerCase().trim();
+    const { byId } = window.KairosShort.buildCodes(state.products.map((p) => ({ id: p.id, title: p.title })), state.settings.shortLinks || {});
+    box.innerHTML = state.products.filter((p) => !term || p.title.toLowerCase().includes(term)).map((p) => `
+      <div class="short-row"><div>${escapeHtml(p.title)}<small>kairosshopping.com.br/p/${escapeHtml(byId[p.id])}</small></div><input data-short-id="${escapeHtml(p.id)}" value="${escapeHtml(byId[p.id])}" maxlength="40" aria-label="Codigo do link curto"></div>`).join("");
+  }
+
+  async function saveShortLinks() {
+    if (!window.KairosShort) return;
+    const items = state.products.map((p) => ({ id: p.id, title: p.title }));
+    const overrides = { ...(state.settings.shortLinks || {}) };
+    document.querySelectorAll("[data-short-id]").forEach((input) => {
+      const id = input.dataset.shortId;
+      const code = window.KairosShort.cleanOverride(input.value);
+      if (!code) delete overrides[id]; else overrides[id] = code; // grava todos os codigos: o link compartilhado nao muda se o nome do produto mudar
+    });
+    const { byId } = window.KairosShort.buildCodes(items, overrides);
+    const conflict = state.products.find((p) => overrides[p.id] && byId[p.id] !== overrides[p.id]);
+    if (conflict) { toast(`O código "${overrides[conflict.id]}" já está em uso por outro produto.`); return; }
+    state.settings.shortLinks = overrides;
+    await saveCatalog();
   }
 
   async function mediaValue(form, fileField, urlValue, title, purpose) {

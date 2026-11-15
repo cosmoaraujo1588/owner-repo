@@ -31,3 +31,46 @@ test("descricao longa termina em palavra inteira", () => {
   const h = mk({ short_description: "palavra ".repeat(60) });
   assert.match(meta(h, "property", "og:description"), /palavra…$/);
 });
+
+import vm from "node:vm";
+import { buildCodes } from "../api/_shortcode.js";
+import { sanitizeSettings } from "../api/catalog.js";
+
+test("codigos curtos: cliente e servidor geram os mesmos links", async () => {
+  const ctx = { window: {} };
+  vm.createContext(ctx);
+  vm.runInContext(await readFile(new URL("../public/shortcode.js", import.meta.url), "utf8"), ctx);
+  const P = [{ id: "z9", title: "Bolsa Térmica Lancheira para Marmita" }, { id: "a1", title: "Bolsa Térmica Grande" }, { id: "m3", title: "Projetor de Natal Astronauta" }];
+  const o = { z9: "marmita-termica" };
+  const a = buildCodes(P, o), b = ctx.window.KairosShort.buildCodes(P, o);
+  assert.deepEqual(JSON.parse(JSON.stringify(b.byId)), a.byId);
+  assert.equal(a.byId.z9, "marmita-termica");
+  assert.equal(a.byId.a1, "bolsa-termica");
+  assert.equal(a.byId.m3, "projetor-natal");
+  assert.equal(new Set(Object.values(a.byId)).size, 3);
+});
+
+test("associacoes: manual tem prioridade, sem aleatorios, sem duplicar carrinho", async () => {
+  const ctx = { window: {} };
+  vm.createContext(ctx);
+  vm.runInContext(await readFile(new URL("../public/shortcode.js", import.meta.url), "utf8"), ctx);
+  const S = (...a) => JSON.parse(JSON.stringify(ctx.window.KairosShort.suggest(...a)));
+  const prods = ["a", "b", "c", "d", "e"].map((id) => ({ id, category: id === "e" ? "Outra" : "X" }));
+  const cfg = { links: { a: ["c", "b", "e"] }, disabled: {} };
+  assert.deepEqual(S(prods, [prods[0]], [], cfg).map((p) => p.id), ["c", "b", "e"]);
+  assert.deepEqual(S(prods, [prods[0]], ["b"], cfg).map((p) => p.id), ["c", "e"]);
+  assert.deepEqual(S(prods, [prods[0]], [], { ...cfg, disabled: { a: true } }), []);
+  assert.deepEqual(S(prods, [prods[3]], [], { links: {} }).map((p) => p.id), ["a", "b", "c"]);
+  assert.deepEqual(S(prods, [prods[3]], [], { links: {}, autoByCategory: false }), []);
+  prods[2].active = false;
+  assert.deepEqual(S(prods, [prods[0]], [], cfg).map((p) => p.id), ["b", "e"]);
+});
+
+test("servidor sanitiza associacoes, links curtos e campanha", () => {
+  const s = sanitizeSettings({ orderBump: { links: { a: ["a", "b", "b"], x: [] }, disabled: { a: 1, q: 0 }, max: 99 }, shortLinks: { a: "Bolsa Térmica!", b: "", c: "bolsa-termica" }, campaign: { enabled: true, endAt: "lixo" } });
+  assert.deepEqual(s.orderBump.links, { a: ["b", "b"] });
+  assert.deepEqual(s.orderBump.disabled, { a: true });
+  assert.equal(s.orderBump.max, 6);
+  assert.deepEqual(s.shortLinks, { a: "bolsa-termica" });
+  assert.equal(s.campaign.enabled, false);
+});

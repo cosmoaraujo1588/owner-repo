@@ -11,6 +11,7 @@
     started = true;
     try { renderCampaign(); } catch (e) { console.warn("campaign", e); }
     try { startProof(); } catch (e) { console.warn("proof", e); }
+    document.addEventListener("kairos:cart-add", (event) => { try { showBump(event.detail.id); } catch (e) { console.warn("bump", e); } });
   });
 
   const api = () => window.KairosStore;
@@ -100,5 +101,30 @@
       closed = true; el.classList.remove("show"); setTimeout(() => el.remove(), 500);
     });
     setTimeout(hide, duration);
+  }
+
+  // "Complete sua compra": mostra os complementos cadastrados no painel logo apos adicionar ao carrinho.
+  function showBump(id) {
+    const store = api();
+    const main = store.products.find((p) => String(p.id) === String(id));
+    const old = document.getElementById("kxBump");
+    if (old) old.remove();
+    if (!main || !window.KairosShort) return;
+    const cfg = store.settings.orderBump || {};
+    const list = window.KairosShort.suggest(store.products, [main], store.cart, cfg);
+    if (!list.length) return;
+    const el = document.createElement("aside");
+    el.id = "kxBump";
+    el.className = "kx-bump";
+    el.setAttribute("aria-label", cfg.title || "Complete sua compra");
+    el.innerHTML = `<div class="kxb-head"><b>${esc(cfg.title || "Complete sua compra")}</b><button type="button" data-kxb-close aria-label="Fechar">×</button></div>
+      <div class="kxb-list">${list.map((p) => `<div class="kxb-item"><img src="${esc(p.image)}" alt="" loading="lazy"><div><span>${esc(p.title)}</span><strong>${esc(store.formatCurrency(p.price))}</strong></div><button type="button" data-kxb-add="${esc(p.id)}">Adicionar</button></div>`).join("")}</div>
+      <a class="kxb-cart" href="/carrinho">Ver sacolinha</a>`;
+    document.body.appendChild(el);
+    el.addEventListener("click", (event) => {
+      if (event.target.closest("[data-kxb-close]")) { el.remove(); return; }
+      const add = event.target.closest("[data-kxb-add]");
+      if (add) { store.addToCart(add.dataset.kxbAdd); add.textContent = "Adicionado ✓"; add.disabled = true; }
+    });
   }
 })();

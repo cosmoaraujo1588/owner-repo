@@ -323,7 +323,7 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     renderAssistant();
     renderSocial();
     renderMobileBottomNav();
-    window.KairosStore = { get settings() { return state.settings; }, get products() { return state.products; }, productUrl, formatCurrency, isVisible, escapeHtml };
+    window.KairosStore = { get settings() { return state.settings; }, get products() { return state.products; }, get cart() { return state.cart; }, addToCart, productUrl, formatCurrency, isVisible, escapeHtml };
     document.dispatchEvent(new CustomEvent("kairos:rendered"));
   }
 
@@ -785,11 +785,11 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
   async function shareProduct(id) {
     const product = findProduct(id);
     if (!product) return;
-    const url = productUrl(product);
+    const url = shortLink(product);
     await trackEvent("share_product", { product_id: product.id, product_name: product.title });
     if (navigator.share && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
       try {
-        await navigator.share({ title: product.title, text: `${product.title} - ${product.shortDescription || "Oferta Kairos Shopping"}`, url });
+        await navigator.share({ title: product.title, text: `${product.title} - Confira esse produto na Kairos Shopping!`, url });
         return;
       } catch (error) {
         if (error && error.name === "AbortError") return;
@@ -828,9 +828,9 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     }
     const product = findProduct(id);
     if (!product) return;
-    const baseUrl = productUrl(product);
-    const url = shareUrl(baseUrl, network);
-    const text = `${product.title} - ${product.shortDescription || "Oferta Kairos Shopping"}`;
+    const cleanUrl = shortLink(product);
+    const url = shortLink(product, { whatsapp: "wa", facebook: "fb", x: "x", telegram: "tg", pinterest: "pin" }[network]);
+    const text = `${product.title} - Confira esse produto na Kairos Shopping!`;
     const image = product.image || "";
     const shareUrls = {
       whatsapp: `https://wa.me/?text=${encodeURIComponent(`${text} ${url}`)}`,
@@ -841,7 +841,7 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     };
     if (network === "copy") {
       let copied = false;
-      try { await navigator.clipboard.writeText(url); copied = true; } catch {}
+      try { await navigator.clipboard.writeText(cleanUrl); copied = true; } catch {}
       if (!copied) {
         const field = els.shareMenu?.querySelector("input");
         if (field) { field.focus(); field.select(); try { copied = document.execCommand("copy"); } catch {} }
@@ -852,12 +852,6 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     }
     if (shareUrls[network]) window.open(shareUrls[network], "_blank", "noopener");
     hideShareMenu();
-  }
-
-  function shareUrl(base, network) {
-    const source = { whatsapp: "whatsapp", facebook: "facebook", x: "x", telegram: "telegram", pinterest: "pinterest", copy: "link_copiado" }[network] || "compartilhamento";
-    const medium = network === "whatsapp" ? "referral" : "social";
-    return `${base}?utm_source=${source}&utm_medium=${medium}&utm_campaign=compartilhamento_produto`;
   }
 
   function hideShareMenu() {
@@ -1013,6 +1007,13 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     if (!els.productModal?.hidden) openProduct(id, { keepUrl: true, silent: true });
     toast(exists ? "Produto removido da sacolinha." : "Produto adicionado a sacolinha.");
     trackEvent(exists ? "cart_remove" : "cart_add", { product_id: id, product_name: product.title, price: product.price });
+    if (!exists && !state.noBump) document.dispatchEvent(new CustomEvent("kairos:cart-add", { detail: { id } }));
+  }
+
+  function addToCart(id) {
+    if (state.cart.includes(id)) return;
+    state.noBump = true;
+    try { toggleCart(id); } finally { state.noBump = false; }
   }
 
   function renderCartCount() {
@@ -1125,6 +1126,7 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
       bannerVideoUrl: settings.bannerVideoUrl || "",
       bannerMobileVideoUrl: settings.bannerMobileVideoUrl || "",
       banners: Array.isArray(settings.banners) ? settings.banners : [],
+      shortLinks: settings.shortLinks || {},
       campaign: settings.campaign || null,
       orderBump: settings.orderBump || {},
       socialProof: settings.socialProof || {},
@@ -1229,7 +1231,7 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
   function whatsappUrl(product) {
     const phone = String(state.settings.social?.whatsapp || "").replace(/\D/g, "");
     const text = product
-      ? `Ola, tenho interesse no produto: ${product.title} - ${productUrl(product)}`
+      ? `Ola, tenho interesse no produto: ${product.title} - ${shortLink(product)}`
       : state.settings.whatsappMessage || "Ola, vim pelo site da Kairos Shopping e gostaria de atendimento.";
     return `https://wa.me/${phone || ""}?text=${encodeURIComponent(text)}`;
   }
@@ -1242,12 +1244,31 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
   function currentProductFromUrl() {
     const pathMatch = location.pathname.match(/^\/produto\/([^/?#]+)/);
     if (pathMatch) return decodeURIComponent(pathMatch[1]);
+    const shortMatch = location.pathname.match(/^\/p\/([^/?#]+)/);
+    if (shortMatch) {
+      const code = decodeURIComponent(shortMatch[1]).toLowerCase();
+      const { byCode } = shortCodes();
+      const byShort = state.products.find((item) => item.id === byCode[code]);
+      return byShort ? (byShort.slug || slugify(byShort.title)) : (document.querySelector('meta[name="kairos-product"]')?.content || "");
+    }
     return new URLSearchParams(location.search).get("produto") || "";
   }
 
   function productUrl(product) {
     const base = publicSiteUrl();
     return `${base}/produto/${encodeURIComponent(product.slug || slugify(product.title || product.id))}`;
+  }
+
+  function shortCodes() {
+    const list = state.products.filter(isVisible).map((item) => ({ id: item.id, title: item.title }));
+    return window.KairosShort ? window.KairosShort.buildCodes(list, state.settings.shortLinks || {}) : { byId: {}, byCode: {} };
+  }
+
+  // Link curto e limpo (sem parametros) usado em todos os botoes de compartilhar.
+  function shortLink(product, channel) {
+    const code = shortCodes().byId[product.id];
+    if (!code) return productUrl(product);
+    return `${publicSiteUrl()}/p/${code}${channel ? `?s=${channel}` : ""}`;
   }
 
   function publicSiteUrl() {

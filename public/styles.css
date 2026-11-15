@@ -2119,3 +2119,13 @@ th {
 .file-preview{display:block;margin-top:6px}
 .bump-check{display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid #eee;font-size:.9rem}
 .bump-check input{width:auto}
+.assoc-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:20px}
+@media(max-width:900px){.assoc-grid{grid-template-columns:1fr}}
+.assoc-results{max-height:340px;overflow:auto;margin-top:8px;border:1px solid #e5e7eb;border-radius:8px}
+.assoc-row{display:grid;grid-template-columns:44px 1fr auto;gap:10px;align-items:center;padding:8px;border-bottom:1px solid #f0f0f0;font-size:.9rem}
+.assoc-row img{width:44px;height:44px;object-fit:cover;border-radius:6px;background:#eee}
+.assoc-row.active{background:#fff4ea}
+.assoc-row .row-actions{display:flex;gap:4px;flex-wrap:wrap}
+.assoc-row button{padding:5px 9px;font-size:.78rem}
+.short-row{display:grid;grid-template-columns:1fr minmax(120px,200px);gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:.88rem}
+.short-row small{display:block;color:#6b7280}

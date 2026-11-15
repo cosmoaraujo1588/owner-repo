@@ -73,7 +73,7 @@ async function putCatalog(req, res) {
   } catch (error) {
     return sendJson(res, 400, { error: error.message || "Dados invalidos no catalogo" });
   }
-  const settings = body.settings || {};
+  const settings = sanitizeSettings(body.settings || {});
   const reviews = uniqueById(Array.isArray(settings.reviews) ? settings.reviews.map(toReview) : []);
 
   const [productResult, categoryResult, subcategoryResult, settingsResult] = await Promise.all([
@@ -296,4 +296,45 @@ function fromPage(row) {
     seoDescription: row.seo_description || "",
     active: row.active !== false
   };
+}
+
+// Validacao no servidor das configuracoes comerciais (associacoes, links curtos, campanha, banners).
+export function sanitizeSettings(input) {
+  const settings = { ...input };
+  const idList = (value) => (Array.isArray(value) ? value.map((id) => String(id).slice(0, 120)).filter(Boolean).slice(0, 12) : []);
+  if (settings.orderBump && typeof settings.orderBump === "object") {
+    const ob = settings.orderBump;
+    const links = {};
+    Object.entries(ob.links && typeof ob.links === "object" ? ob.links : {}).slice(0, 1000).forEach(([id, list]) => {
+      const ids = idList(list).filter((other) => other !== id);
+      if (ids.length) links[String(id).slice(0, 120)] = ids;
+    });
+    const disabled = {};
+    Object.entries(ob.disabled && typeof ob.disabled === "object" ? ob.disabled : {}).forEach(([id, flag]) => { if (flag) disabled[String(id).slice(0, 120)] = true; });
+    settings.orderBump = {
+      enabled: ob.enabled !== false,
+      autoByCategory: ob.autoByCategory !== false,
+      title: String(ob.title || "Complete sua compra").slice(0, 80),
+      max: Math.min(6, Math.max(1, Number(ob.max) || 3)),
+      links,
+      disabled
+    };
+  }
+  if (settings.shortLinks && typeof settings.shortLinks === "object") {
+    const codes = {};
+    const used = new Set();
+    Object.entries(settings.shortLinks).slice(0, 1000).forEach(([id, code]) => {
+      const clean = String(code || "").trim() ? slugify(String(code)).slice(0, 40) : "";
+      if (clean && !used.has(clean)) { used.add(clean); codes[String(id).slice(0, 120)] = clean; }
+    });
+    settings.shortLinks = codes;
+  } else if ("shortLinks" in settings) {
+    settings.shortLinks = {};
+  }
+  if (settings.campaign && typeof settings.campaign === "object") {
+    const valid = (v) => (v && !Number.isNaN(Date.parse(v)) ? new Date(v).toISOString() : "");
+    const c = settings.campaign;
+    settings.campaign = { enabled: c.enabled === true && Boolean(valid(c.endAt)), title: String(c.title || "").slice(0, 80), text: String(c.text || "").slice(0, 140), category: String(c.category || "").slice(0, 80), link: String(c.link || "").slice(0, 300), startAt: valid(c.startAt), endAt: valid(c.endAt) };
+  }
+  return settings;
 }

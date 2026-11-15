@@ -69,6 +69,7 @@
           <button data-section="leads" type="button">Leads</button>
           <span class="nav-group">Produtos</span>
           <button data-section="products" type="button">Produtos</button>
+          <button data-section="associations" type="button">Associações de Produtos</button>
           <button data-section="categories" type="button">Categorias</button>
           <button data-section="reviews" type="button">Avaliacoes</button>
           <span class="nav-group">Apresentacao da loja</span>
@@ -327,6 +328,24 @@
           </form>
         </section>
 
+        <section class="admin-section" id="section-associations">
+          <div class="admin-card assoc-grid">
+            <div>
+              <h2>1. Produto principal</h2>
+              <input id="assocSearchMain" type="search" placeholder="Pesquisar produto cadastrado..." autocomplete="off">
+              <div class="assoc-results" id="assocMainResults"></div>
+            </div>
+            <div id="assocEditor">
+              <h2>2. Produtos complementares</h2>
+              <p class="admin-hint">Selecione um produto principal ao lado.</p>
+            </div>
+          </div>
+          <div class="admin-card">
+            <h2>Associações cadastradas</h2>
+            <div class="admin-list" id="assocOverview"></div>
+          </div>
+        </section>
+
         <section class="admin-section" id="section-conversion">
           <form class="admin-card form-grid" id="conversionForm">
             <h2 class="full">Prova social (popup)</h2>
@@ -339,12 +358,9 @@
             <h2 class="full">Produtos relacionados no carrinho (order bump)</h2>
             <label><input name="bumpEnabled" type="checkbox" checked> Ativar sugestoes no carrinho</label>
             <label><input name="bumpAuto" type="checkbox" checked> Sugerir automaticamente pela categoria quando nao houver vinculo manual</label>
-            <label>Titulo do bloco<input name="bumpTitle" value="Complete seu pedido"></label>
+            <label>Titulo do bloco<input name="bumpTitle" value="Complete sua compra"></label>
             <label>Maximo de sugestoes<input name="bumpMax" type="number" min="1" max="6" value="3"></label>
-            <h3 class="full">Vinculos manuais</h3>
-            <label class="full">Produto principal<select name="bumpProduct" id="bumpProduct"></select></label>
-            <div class="full" id="bumpLinkList"></div>
-            <p class="full admin-hint">Marque os produtos complementares. A ordem de prioridade segue a ordem da lista. Itens inativos ou ja no carrinho nao sao exibidos.</p>
+            <p class="full admin-hint">Os vinculos manuais ficam em <b>Associações de Produtos</b> (menu Produtos). Produtos com vinculo manual mostram somente os associados; a sugestao por categoria vale so para produtos sem vinculo.</p>
             <h2 class="full">Campanha com contagem regressiva</h2>
             <label><input name="campEnabled" type="checkbox"> Ativar campanha</label>
             <label>Titulo<input name="campTitle" maxlength="80"></label>
@@ -356,6 +372,13 @@
             <p class="full admin-hint">A contagem usa o horario real de termino, some ao acabar e nao altera precos.</p>
             <div class="admin-actions full"><button class="primary-button" type="submit">Salvar conversao</button></div>
           </form>
+          <div class="admin-card" id="shortLinksCard">
+            <h2>Links curtos de compartilhamento</h2>
+            <p class="admin-hint">Cada produto tem um link curto (kairosshopping.com.br/p/codigo). O codigo e gerado a partir do nome; ao salvar, os codigos ficam fixos (nao mudam se o nome do produto mudar). Edite para personalizar. Links antigos (/produto/...) continuam funcionando.</p>
+            <input id="shortSearch" type="search" placeholder="Pesquisar produto...">
+            <div id="shortRows"></div>
+            <div class="admin-actions"><button class="primary-button" type="button" id="saveShortLinks">Salvar links curtos</button></div>
+          </div>
         </section>
 
         <section class="admin-section" id="section-marketing">
@@ -442,6 +465,7 @@
 
     <script src="./data/seed-products.js?v=20260605-sync-grid"></script>
     <script src="./data/settings.js?v=20260605-sync-grid"></script>
+    <script src="./shortcode.js?v=20261115-short"></script>
     <script src="./admin.js?v=20260605-sync-grid" defer></script>
   </body>
 </html>

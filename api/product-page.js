@@ -1,15 +1,19 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { getSupabase, cleanText, slugify } from "./_supabase.js";
+import { buildCodes } from "./_shortcode.js";
 
 const PUBLIC_SITE_URL = "https://www.kairosshopping.com.br";
 
 export default async function handler(req, res) {
-  const slug = cleanText(req.query?.slug || "", 180);
-  const product = await findProduct(slug);
+  const code = cleanText(req.query?.code || "", 80).toLowerCase();
+  let slug = cleanText(req.query?.slug || "", 180);
+  const product = code ? await findProductByCode(code) : await findProduct(slug);
+  if (product && code) slug = slugify(product.title || product.id);
   const html = await readFile(path.join(process.cwd(), "public", "index.html"), "utf8");
   const siteUrl = requestOrigin(req);
-  const finalHtml = product ? injectProductMeta(html, product, slug, siteUrl) : injectBase(html);
+  let finalHtml = product ? injectProductMeta(html, product, slug, siteUrl) : injectBase(html);
+  if (product && code) finalHtml = finalHtml.replace("<head>", `<head>${shortLinkHead(slug)}`);
   res.statusCode = product ? 200 : 404;
   res.setHeader("Content-Type", "text/html; charset=utf-8");
   res.setHeader("Cache-Control", "public, s-maxage=300, stale-while-revalidate=600");
@@ -26,6 +30,27 @@ async function findProduct(slug) {
     .limit(500);
   if (error) return null;
   return (data || []).find((product) => slugify(product.title || product.id) === slug || product.id === slug) || null;
+}
+
+export // Link curto: marca o produto para o JS da loja e converte ?s=<canal> em UTMs
+// antes do gtag rodar, para o GA4 identificar o canal sem poluir o link compartilhado.
+function shortLinkHead(slug) {
+  const channels = { wa: ["whatsapp", "referral"], fb: ["facebook", "social"], x: ["x", "social"], tg: ["telegram", "social"], pin: ["pinterest", "social"] };
+  return `<meta name="kairos-product" content="${escapeHtml(slug)}"><script>(function(){try{var m=${JSON.stringify(channels)};var q=new URLSearchParams(location.search);var c=m[q.get("s")];if(c&&!q.get("utm_source")){history.replaceState(null,"",location.pathname+"?utm_source="+c[0]+"&utm_medium="+c[1]+"&utm_campaign=compartilhamento_produto")}}catch(e){}})()</script>`;
+}
+
+async function findProductByCode(code) {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+  const [products, settings] = await Promise.all([
+    supabase.from("products").select("id,title,category,subcategory,price,old_price,short_description,description,image_url,checkout_url,active").eq("active", true).limit(500),
+    supabase.from("settings").select("value").eq("key", "store").maybeSingle()
+  ]);
+  if (products.error) return null;
+  const list = products.data || [];
+  const { byCode } = buildCodes(list, settings.data?.value?.shortLinks || {});
+  const id = byCode[code];
+  return list.find((item) => item.id === id) || list.find((item) => slugify(item.title || item.id) === code || item.id === code) || null;
 }
 
 export function injectProductMeta(html, product, slug, siteUrl) {

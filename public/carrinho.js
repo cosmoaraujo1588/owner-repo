@@ -51,20 +51,7 @@
   }
 
   function suggestions(items) {
-    const cfg = settings.orderBump || {};
-    if (cfg.enabled === false) return [];
-    const inCart = new Set(cart.map(String));
-    const links = cfg.links || {};
-    const picked = [];
-    const add = (product) => {
-      if (!visible(product) || inCart.has(String(product.id)) || picked.some((p) => String(p.id) === String(product.id))) return;
-      picked.push(product);
-    };
-    items.forEach((item) => (Array.isArray(links[item.id]) ? links[item.id] : []).forEach((id) => add(products.find((p) => String(p.id) === String(id)))));
-    if (cfg.autoByCategory !== false) {
-      items.forEach((item) => products.filter((p) => p.category && p.category === item.category).forEach(add));
-    }
-    return picked.slice(0, Math.min(Math.max(Number(cfg.max) || 3, 1), 6));
+    return window.KairosShort ? window.KairosShort.suggest(products, items, cart, settings.orderBump || {}) : [];
   }
 
   function renderBump(items) {
@@ -72,7 +59,7 @@
     const list = items.length ? suggestions(items) : [];
     if (!list.length) { bump.hidden = true; bump.innerHTML = ""; return; }
     bump.hidden = false;
-    bump.innerHTML = `<h2>${escapeHtml((settings.orderBump || {}).title || "Complete seu pedido")}</h2><div class="bump-grid">${list.map((product) => `
+    bump.innerHTML = `<h2>${escapeHtml((settings.orderBump || {}).title || "Complete sua compra")}</h2><div class="bump-grid">${list.map((product) => `
       <div class="bump-item">
         <img src="${escapeHtml(product.image || FALLBACK_IMAGE)}" alt="${escapeHtml(product.title)}" loading="lazy" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'">
         <div><h3>${escapeHtml(product.title)}</h3><strong>${currency(product.price)}</strong></div>
@@ -119,6 +106,10 @@
 
   function publicUrl(product) {
     const origin = /\.vercel\.app$/i.test(location.hostname) || /localhost|127\.0\.0\.1/.test(location.hostname) ? "https://www.kairosshopping.com.br" : location.origin;
+    if (window.KairosShort) {
+      const code = window.KairosShort.buildCodes(products.filter(visible).map((p) => ({ id: p.id, title: p.title })), settings.shortLinks || {}).byId[product.id];
+      if (code) return `${origin}/p/${code}`;
+    }
     return `${origin}/produto/${encodeURIComponent(product.slug || product.id)}`;
   }
 
@@ -126,7 +117,7 @@
     const product = products.find((p) => String(p.id) === String(id));
     if (!product) return;
     const url = publicUrl(product);
-    const text = `${product.title} - Kairos Shopping`;
+    const text = `${product.title} - Confira esse produto na Kairos Shopping!`;
     if (navigator.share) {
       try { await navigator.share({ title: product.title, text, url }); return; } catch (e) { if (e && e.name === "AbortError") return; }
     }

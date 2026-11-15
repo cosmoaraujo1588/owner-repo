@@ -106,6 +106,10 @@
       "destination": "/api/product-page?slug=:slug"
     },
     {
+      "source": "/p/:code",
+      "destination": "/api/product-page?code=:code"
+    },
+    {
       "source": "/admin",
       "destination": "/admin.html"
     },
