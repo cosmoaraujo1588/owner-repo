@@ -5,7 +5,7 @@ const ADMIN_PAGE_PATTERNS = ["/admin", "/admin.html", "/painel", "/dashboard"];
 export default async function handler(req, res) {
   if (req.method !== "GET") return sendJson(res, 405, { error: "Method not allowed" });
   const supabase = getSupabase();
-  if (!supabase) return sendJson(res, 200, { onlineNow: 0, visitsTotal: 0 });
+  if (!supabase) return sendJson(res, 503, { ok: false, error: "Analytics storage is not configured" });
 
   const onlineSinceIso = new Date(Date.now() - 2 * 60 * 1000).toISOString();
   const [online, total] = await Promise.all([
@@ -14,7 +14,7 @@ export default async function handler(req, res) {
   ]);
 
   if (online.error || total.error) {
-    return sendJson(res, 200, { onlineNow: 0, visitsTotal: 0 });
+    return sendJson(res, 500, { ok: false, error: online.error?.message || total.error?.message || "Analytics query failed" });
   }
 
   sendJson(res, 200, {
