@@ -30,7 +30,7 @@ async function findProduct(slug) {
 
 export function injectProductMeta(html, product, slug, siteUrl) {
   const title = cleanText(product.title, 180);
-  const description = cleanText(product.short_description || product.description || "Produto Kairos Shopping", 180);
+  const description = shortText(product.short_description || product.description || "Produto Kairos Shopping", 160);
   const image = absoluteUrl(product.image_url || "/assets/banner-kairos-claro-1.png", siteUrl);
   const url = `${siteUrl}/produto/${encodeURIComponent(slug)}`;
   const category = cleanText(product.category || "Produtos", 100);
@@ -80,6 +80,13 @@ export function injectProductMeta(html, product, slug, siteUrl) {
     .replace(/<link rel="alternate" hreflang="pt-BR" href="[^"]*">/, `<link rel="alternate" hreflang="pt-BR" href="${escapeHtml(url)}">`)
     .replace(/<link rel="alternate" hreflang="x-default" href="[^"]*">/, `<link rel="alternate" hreflang="x-default" href="${escapeHtml(url)}">`)
     .replace(/<script type="application\/ld\+json" id="structuredData">[\s\S]*?<\/script>/, `<script type="application/ld+json" id="structuredData">${JSON.stringify(jsonLd)}</script>`);
+}
+
+function shortText(value, max) {
+  const text = cleanText(value, 2000).replace(/\s+/g, " ").trim();
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max);
+  return `${cut.slice(0, Math.max(cut.lastIndexOf(" "), 60)).replace(/[\s,;:.\-–]+$/, "")}…`;
 }
 
 function injectBase(html) {

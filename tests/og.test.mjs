@@ -26,3 +26,8 @@ test("produtos diferentes nao compartilham metadados", () => {
   assert.notEqual(meta(a, "property", "og:image"), meta(b, "property", "og:image"));
   assert.ok(!b.includes("Projetor de Natal"));
 });
+
+test("descricao longa termina em palavra inteira", () => {
+  const h = mk({ short_description: "palavra ".repeat(60) });
+  assert.match(meta(h, "property", "og:description"), /palavra…$/);
+});
