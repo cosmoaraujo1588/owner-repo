@@ -27,7 +27,7 @@ export default async function handler(req, res) {
 
 async function recordEvent(req, res) {
   const supabase = getSupabase();
-  if (!supabase) return sendJson(res, 202, { ok: true, local: true });
+  if (!supabase) return sendJson(res, 503, { ok: false, error: "Analytics storage is not configured" });
   const body = await readBody(req);
   const type = cleanText(body.type, 80);
   const payload = safePayload(body.payload);
