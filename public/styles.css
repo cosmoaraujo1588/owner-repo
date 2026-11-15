@@ -2134,3 +2134,25 @@ th {
 .admin-nav button .nav-badge{float:right;background:#ff6a00;color:#fff;border-radius:999px;font-size:.68rem;padding:1px 7px;font-weight:800}
 .comp-box{border:1px dashed #d1d5db;border-radius:10px;padding:12px;display:grid;gap:8px;background:#fafafa}
 .comp-box h3{margin:0}
+/* Catalogo em escala (Bloco B) */
+.cat-tools{display:grid;gap:10px;margin-bottom:10px}
+.cat-actions,.cat-filters,.cat-batch,.cat-pager,.cat-form{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.cat-filters input{flex:1 1 220px}.cat-batch{background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:8px}
+.link-button{background:none;border:0;color:#c2410c;text-decoration:underline;cursor:pointer}
+.cat-item{grid-template-columns:auto 64px 1fr auto}.cat-check{display:flex;align-items:center}
+.st-badge{display:inline-block;font-size:.68rem;font-weight:700;padding:1px 7px;border-radius:999px;background:#e5e7eb;color:#374151;margin-left:2px}
+.st-published{background:#dcfce7;color:#166534}.st-draft{background:#fef3c7;color:#92400e}.st-inactive{background:#e5e7eb}.st-warn{background:#fee2e2;color:#991b1b}.st-feat{background:#dbeafe;color:#1e40af}
+.cat-pager{justify-content:center;margin-top:12px}
+.cat-modal{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:24px 12px}
+.cat-modal-card{background:#fff;border-radius:14px;padding:20px;width:min(980px,100%);display:grid;gap:12px}
+.cat-table-wrap{max-height:50vh;overflow:auto;border:1px solid #e5e7eb;border-radius:8px}
+.cat-table{width:100%;border-collapse:collapse;font-size:.82rem}.cat-table th,.cat-table td{padding:6px 8px;border-bottom:1px solid #f1f5f9;text-align:left;vertical-align:top}
+.cat-table tr.skip{background:#fef2f2}.cat-table tr.draft{background:#fffbeb}.cat-table tr.published{background:#f0fdf4}
+.cat-summary{display:flex;flex-wrap:wrap;gap:8px}.cat-summary span{background:#f3f4f6;border-radius:8px;padding:4px 10px;font-weight:700}
+.cat-summary .ok{background:#dcfce7}.cat-summary .warn{background:#fef3c7}.cat-summary .err,.err{color:#991b1b}.cat-summary .err{background:#fee2e2}
+.media-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
+.media-tile{position:relative;border:2px solid #e5e7eb;border-radius:10px;overflow:hidden;background:#fff}.media-tile.main{border-color:#ff6a00}
+.media-tile img{width:100%;aspect-ratio:1;object-fit:cover;display:block}.media-badge{position:absolute;top:4px;left:4px;background:#ff6a00;color:#fff;font-size:.65rem;font-weight:800;padding:1px 6px;border-radius:999px}
+.media-ctl{display:flex;flex-wrap:wrap;gap:2px;padding:3px}.media-ctl button{flex:1;font-size:.68rem;padding:3px;border:1px solid #d1d5db;background:#f9fafb;border-radius:6px;cursor:pointer}
+.media-add{cursor:pointer}
+@media(max-width:700px){.cat-item{grid-template-columns:auto 48px 1fr}.cat-item .admin-item-actions{grid-column:1/-1}}

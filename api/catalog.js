@@ -74,6 +74,14 @@ async function putCatalog(req, res) {
     return sendJson(res, 400, { error: error.message || "Dados invalidos no catalogo" });
   }
   const settings = sanitizeSettings(body.settings || {});
+  const deletedIds = Array.isArray(body.deletedIds) ? [...new Set(body.deletedIds.map((id) => cleanText(id, 200)).filter(Boolean))].slice(0, 250) : [];
+  const keptIds = new Set(products.map((product) => product.id));
+  const idsToDelete = deletedIds.filter((id) => !keptIds.has(id));
+  if (idsToDelete.length) {
+    const deleteResult = await supabase.from("products").delete().in("id", idsToDelete);
+    if (deleteResult.error) return sendJson(res, 500, { error: deleteResult.error.message });
+  }
+  const forcedDraft = body.products ? body.products.filter((item) => item && item.visible !== false && item.active !== false && !isPublishable(item)).length : 0;
   const reviews = uniqueById(Array.isArray(settings.reviews) ? settings.reviews.map(toReview) : []);
 
   const [productResult, categoryResult, subcategoryResult, settingsResult] = await Promise.all([
@@ -104,7 +112,7 @@ async function putCatalog(req, res) {
     if (reviewResult.error) return sendJson(res, 500, { error: reviewResult.error.message });
   }
 
-  sendJson(res, 200, { ok: true, products: products.length, categories: categories.length, subcategories: subcategories.length, reviews: reviews.length });
+  sendJson(res, 200, { ok: true, deleted: idsToDelete.length, forcedDraft, products: products.length, categories: categories.length, subcategories: subcategories.length, reviews: reviews.length });
 }
 
 function fromProduct(row) {
@@ -134,6 +142,12 @@ function fromProduct(row) {
   };
 }
 
+export function isPublishable(product) {
+  const checkout = cleanText(product.checkoutUrl, 1400);
+  const price = number(product.price);
+  return Boolean(cleanText(product.title, 240)) && price > 0 && /^https:\/\/[^\s?]+(\?[^?\s]*)?$/i.test(checkout);
+}
+
 function toProduct(product, index) {
   const id = cleanText(product.id) || `${slugify(product.title || "produto")}-${Date.now()}-${index}`;
   return {
@@ -148,12 +162,13 @@ function toProduct(product, index) {
     short_description: cleanText(product.shortDescription, 500),
     description: cleanText(product.description, 8000),
     image_url: publicImageUrl(product.image || product.imageUrl, product.title),
-    gallery: Array.isArray(product.gallery) ? product.gallery.slice(0, 12) : [],
+    gallery: Array.isArray(product.gallery) ? product.gallery.filter((url) => /^https:\/\//i.test(String(url))).slice(0, 12) : [],
     video_url: cleanText(product.videoUrl, 1200),
     video_thumb: cleanText(product.videoThumb, 1200),
     checkout_url: cleanText(product.checkoutUrl, 1400),
     featured: product.featured !== false,
-    active: product.visible !== false && product.active !== false,
+    // Nunca publica produto sem dados obrigatorios (nome, preco e checkout https validos).
+    active: product.visible !== false && product.active !== false && isPublishable(product),
     best_seller: Boolean(product.bestSeller),
     flash_offer: Boolean(product.flashOffer),
     review_rating: number(product.reviewRating || 5),
@@ -319,6 +334,11 @@ export function sanitizeSettings(input) {
       links,
       disabled
     };
+  }
+  if (settings.drafts && typeof settings.drafts === "object") {
+    const drafts = {};
+    Object.entries(settings.drafts).slice(0, 2000).forEach(([id, flag]) => { if (flag) drafts[String(id).slice(0, 120)] = true; });
+    settings.drafts = drafts;
   }
   if (settings.shortLinks && typeof settings.shortLinks === "object") {
     const codes = {};

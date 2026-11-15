@@ -229,7 +229,8 @@
       products: state.products,
       categories: state.categories,
       subcategories: state.subcategories,
-      settings: state.settings
+      settings: state.settings,
+      deletedIds: state.deletedIds || []
     };
 
     try {
@@ -239,8 +240,10 @@
         body: JSON.stringify(payload)
       });
       if (!response.ok) throw new Error(await response.text());
+      state.deletedIds = [];
+      const saved = await response.json().catch(() => ({}));
       await loadCatalog();
-      toast("Alteracoes salvas no backend.");
+      toast(saved.forcedDraft ? `Salvo. ${saved.forcedDraft} produto(s) sem preco/checkout valido ficaram como rascunho.` : "Alteracoes salvas no backend.");
     } catch (error) {
       if (location.protocol === "https:") {
         alert(`Nao foi possivel salvar no Supabase/Vercel. Nada foi publicado para os clientes. Erro: ${error.message || "falha desconhecida"}`);
@@ -299,7 +302,7 @@
     });
     document.getElementById("saveAllButton")?.addEventListener("click", saveCatalog);
     document.getElementById("newProductButton")?.addEventListener("click", () => forms.productForm.reset());
-    forms.productForm?.addEventListener("reset", () => setTimeout(() => loadProdComp(""), 0));
+    forms.productForm?.addEventListener("reset", () => setTimeout(() => { loadProdComp(""); document.dispatchEvent(new CustomEvent("kairos:product-loaded", { detail: null })); }, 0));
     document.getElementById("prodComp")?.addEventListener("click", onProdCompClick);
     document.getElementById("prodComp")?.addEventListener("input", (e) => { if (e.target.id === "compSearch") renderProdComp(); });
     document.getElementById("prodComp")?.addEventListener("change", (e) => { if (e.target.id === "compEnabled") comp.disabled = !e.target.checked; });
@@ -372,7 +375,7 @@
         description: clean(data.description),
         checkoutUrl: clean(data.checkoutUrl),
         image: productImage,
-        gallery: state.products.find((item) => item.id === id)?.gallery || [],
+        gallery: galleryFromForm(data.galleryJson, state.products.find((item) => item.id === id)?.gallery || []),
         videoUrl: clean(data.videoUrl),
         videoThumb: clean(data.videoThumb),
         reviewRating: number(data.reviewRating) || 5,
@@ -984,6 +987,7 @@
   }
 
   function renderProducts() {
+    if (window.KairosCatalog) return window.KairosCatalog.render();
     els.productCount.textContent = String(state.products.length);
     els.productList.innerHTML = state.products
       .slice()
@@ -1330,6 +1334,12 @@
     forms.productForm.elements.flashOffer.checked = Boolean(product.flashOffer);
     forms.productForm.elements.visible.checked = product.visible !== false;
     loadProdComp(product.id);
+    document.dispatchEvent(new CustomEvent("kairos:product-loaded", { detail: product }));
+  }
+
+  function galleryFromForm(json, fallback) {
+    if (json === undefined || json === "") return fallback;
+    try { const list = JSON.parse(json); return Array.isArray(list) ? list.filter((url) => /^https:\/\//i.test(url)).slice(0, 11) : fallback; } catch { return fallback; }
   }
 
   function fillCategoryForm(category) {
@@ -1690,4 +1700,7 @@
     document.body.appendChild(el);
     setTimeout(() => el.remove(), 3200);
   }
+  window.KairosAdmin = {
+    state, saveCatalog, toast, uploadMedia, slugify, escapeHtml, formatCurrency, renderAll, fillProductForm, ensureCategoriesFromProducts, productById
+  };
 }());

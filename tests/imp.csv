@@ -1,0 +1,8 @@
+Nome;SKU;Categoria;Subcategoria;Preço;Preço antigo;Descrição curta;Descrição completa;Link de checkout externo;Imagem principal;Status
+Produto CSV Completo;CSV-001;Casa e Utilidades;;1.234,56;1.500,00;curta;longa;https://pay.kaiross.com.br/checkout/x1;https://example.com/a.jpg;ativo
+Produto CSV Sem Imagem;CSV-002;Casa e Utilidades;;29,90;;;;https://pay.kaiross.com.br/checkout/x2;;ativo
+;CSV-003;Casa e Utilidades;;10;;;;https://pay.kaiross.com.br/checkout/x3;https://example.com/c.jpg;ativo
+Produto Preco Ruim;CSV-004;Casa e Utilidades;;abc;;;;https://pay.kaiross.com.br/checkout/x4;https://example.com/d.jpg;ativo
+Produto Cat Nova;CSV-005;CategoriaInexistenteXYZ;;19,90;;;;https://pay.kaiross.com.br/checkout/x5;https://example.com/e.jpg;ativo
+Produto Checkout Ruim;CSV-006;Casa e Utilidades;;19,90;;;;http://x.com/a?b?c;https://example.com/f.jpg;ativo
+Duplicado;CSV-001;Casa e Utilidades;;5;;;;https://pay.kaiross.com.br/checkout/x7;https://example.com/g.jpg;ativo
