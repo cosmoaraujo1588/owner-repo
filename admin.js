@@ -165,9 +165,11 @@
       const data = await response.json();
       state.reports = Array.isArray(data.events) ? data.events : [];
       state.reportSummary = data.summary || {};
-    } catch {
+      setStatus("Analytics conectado: dados carregados do Supabase.");
+    } catch (error) {
       state.reports = readJson("kairos:local-events", []);
       state.reportSummary = {};
+      setStatus(`Analytics indisponivel no servidor. Exibindo apenas dados locais deste navegador. ${error?.message || ""}`);
     }
   }
 
@@ -511,11 +513,11 @@
     const mostViewed = state.reportSummary.mostViewedProduct?.name || productStats(state.reports)[0]?.name || "Sem dados";
     if (els.metricGrid) els.metricGrid.innerHTML = [
       ["Online agora", Number(state.reportSummary.onlineNow || 0)],
-      ["Visitas do dia", Number(state.reportSummary.visitsToday || views.length)],
-      ["Ultimos 7 dias", Number(state.reportSummary.visits7d || 0)],
-      ["Visitas no mes", Number(state.reportSummary.visitsMonth || 0)],
-      ["Visitas no ano", Number(state.reportSummary.visitsYear || 0)],
-      ["Total geral de visitas", Number(state.reportSummary.visitsTotal || views.length)],
+      ["Visitas do dia", Number(state.reportSummary.visitsToday ?? views.length)],
+      ["Ultimos 7 dias", Number(state.reportSummary.visits7d ?? 0)],
+      ["Visitas no mes", Number(state.reportSummary.visitsMonth ?? 0)],
+      ["Visitas no ano", Number(state.reportSummary.visitsYear ?? 0)],
+      ["Total geral de visitas", Number(state.reportSummary.visitsTotal ?? views.length)],
       ["Produto mais visto", mostViewed],
       ["Cliques checkout", Number(state.reportSummary.checkoutClicks || checkoutClicks.length)],
       ["Taxa de interesse", `${Number(state.reportSummary.interestRate ?? conversion)}%`],
