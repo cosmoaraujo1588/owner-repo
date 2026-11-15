@@ -732,12 +732,15 @@ state.products = apiProducts.some((product) => product.visible !== false && prod
       created_at: new Date().toISOString()
     };
     try {
-      await fetch("/api/events", {
+      const response = await fetch("/api/events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
         keepalive: true
       });
+      if (!response.ok) throw new Error(`analytics_http_${response.status}`);
+      const result = await response.json().catch(() => ({}));
+      if (result.ok !== true || result.local === true) throw new Error("analytics_not_persisted");
     } catch {
       const localEvents = readJson("kairos:local-events", []);
       localEvents.push(body);
