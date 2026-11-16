@@ -1,5 +1,5 @@
 import { getSupabase, isAdmin, sendJson, cleanText } from "./_supabase.js";
-import { geoFromHeaders, liveReport, periodReport } from "./_insights.js";
+import { geoFromHeaders, liveReport, periodReport, uaClass } from "./_insights.js";
 
 const CLICK_EVENT_TYPES = new Set([
   "checkout_click",
@@ -58,8 +58,9 @@ async function recordEvent(req, res) {
     };
     // Localizacao aproximada (pais/estado/cidade) dos cabecalhos da Vercel. O IP nao e lido nem armazenado.
     const geo = geoFromHeaders(req.headers);
-    result = await supabase.from("online_visitors").upsert(geo.country ? { ...presenceRow, ...geo } : presenceRow, { onConflict: "session_id" });
-    if (result.error && geo.country && /country|region|city/i.test(result.error.message || "")) {
+    const ua_class = uaClass(req.headers["user-agent"]);
+    result = await supabase.from("online_visitors").upsert({ ...presenceRow, ...(geo.country ? geo : {}), ua_class }, { onConflict: "session_id" });
+    if (result.error && /country|region|city|ua_class/i.test(result.error.message || "")) {
       result = await supabase.from("online_visitors").upsert(presenceRow, { onConflict: "session_id" }); // migration ainda nao aplicada
     }
   } else if (CLICK_EVENT_TYPES.has(type)) {

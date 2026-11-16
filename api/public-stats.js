@@ -9,7 +9,7 @@ export default async function handler(req, res) {
 
   const onlineSinceIso = new Date(Date.now() - 2 * 60 * 1000).toISOString();
   const [online, total] = await Promise.all([
-    excludeAdminPages(supabase.from("online_visitors").select("session_id,page").gte("last_activity", onlineSinceIso).limit(1000)),
+    excludeAdminPages(supabase.from("online_visitors").select("session_id,page,ua_class").gte("last_activity", onlineSinceIso).limit(1000)),
     excludeAdminPages(supabase.from("view_events").select("id", { count: "exact", head: true }).in("event_type", ["page_view", "product_view"]))
   ]);
 
@@ -18,7 +18,7 @@ export default async function handler(req, res) {
   }
 
   sendJson(res, 200, {
-    onlineNow: uniqueCount((online.data || []).filter((item) => !isAdminPage(item.page)).map((item) => item.session_id)),
+    onlineNow: uniqueCount((online.data || []).filter((item) => !isAdminPage(item.page) && item.ua_class !== "bot").map((item) => item.session_id)),
     visitsTotal: total.count || 0,
     updatedAt: new Date().toISOString()
   });

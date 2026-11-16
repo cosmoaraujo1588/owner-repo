@@ -24,6 +24,14 @@ export function originLabel(origin) {
 }
 
 const isAdminPage = (page) => ADMIN_RE.test(String(page || ""));
+// Classificacao grosseira pelo User-Agent declarado (sem armazenar o UA). Apenas robos que SE DECLARAM como tal ou navegadores headless.
+export function uaClass(ua = "") {
+  const v = String(ua || "");
+  if (!v) return "unknown";
+  if (/facebookexternalhit|meta-externalagent|meta-externalfetcher|facebot|googlebot|google-inspectiontool|bingbot|bingpreview|slurp|duckduckbot|baiduspider|yandex|applebot|twitterbot|linkedinbot|pinterest|whatsapp|telegrambot|slackbot|discordbot|ahrefsbot|semrushbot|mj12bot|petalbot|bytespider|gptbot|claudebot|oai-searchbot|chatgpt-user|perplexitybot|headlesschrome|lighthouse|pagespeed|phantomjs|puppeteer|playwright|python-requests|curl\/|wget\/|go-http-client|node-fetch|axios\/|\bbot\b|crawler|spider/i.test(v)) return "bot";
+  return "browser";
+}
+export const isBotRow = (row) => row?.ua_class === "bot";
 const isSynthetic = (row) => String(row.session_id || "").startsWith("test-") || row.payload?.test === true;
 const inc = (map, key, by = 1) => { map[key] = (map[key] || 0) + by; };
 const top = (map, n = 10) => Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, n);
@@ -49,7 +57,7 @@ export async function liveReport(supabase, windowMinutes) {
   if (error) throw new Error(error.message);
   const products = new Map((productsResult.data || []).map((p) => [p.id, p]));
   const now = Date.now();
-  const rows = (online || []).filter((row) => !isAdminPage(row.page) && !isSynthetic(row));
+  const rows = (online || []).filter((row) => !isAdminPage(row.page) && !isSynthetic(row) && !isBotRow(row));
   const visitors = rows.map((row) => {
     const product = row.product_id ? products.get(row.product_id) : null;
     return {

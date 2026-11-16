@@ -65,3 +65,11 @@ test("relatorio: cliques de checkout nao sao vendas", async () => {
   assert.equal(r.purchases.confirmed, null);
   assert.equal(r.products[0].checkoutClicks, 1); assert.equal(r.series.length, 3);
 });
+
+import { uaClass } from "../api/_insights.js";
+test("uaClass separa robos declarados de navegadores", () => {
+  assert.equal(uaClass("facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)"), "bot");
+  assert.equal(uaClass("Mozilla/5.0 (X11; Linux x86_64) HeadlessChrome/120.0 Safari/537.36"), "bot");
+  assert.equal(uaClass("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile Safari"), "browser");
+  assert.equal(uaClass(""), "unknown");
+});
