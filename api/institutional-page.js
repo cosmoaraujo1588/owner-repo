@@ -1,4 +1,5 @@
 import { getSupabase, cleanText } from "./_supabase.js";
+import { trackingBody, contactBody, EXTRA_CSS, TRACK_JS } from "./_institutional-views.js";
 
 // Como cleanText, mas preserva quebras de linha para separar paragrafos.
 export function cleanBlock(value, limit = 12000) {
@@ -51,6 +52,7 @@ export default async function handler(req, res) {
   if (!config) return sendPage(res, 404, "Pagina nao encontrada", "A pagina solicitada nao existe.");
 
   const page = await loadPage(config.dbSlugs);
+  if (pageKey === "rastreio" || pageKey === "contato") return sendRich(res, pageKey, config, page);
   const content = cleanBlock(page?.content || config.fallback);
   const title = cleanText(page?.seo_title || page?.title || config.title, 180);
   const description = cleanText(page?.seo_description || content, 180);
@@ -64,7 +66,31 @@ async function loadPage(slugs) {
   return data || null;
 }
 
-function sendPage(res, status, title, content, description = content, pageKey = "") {
+async function loadContacts() {
+  const out = { whatsapp: "", email: EMAIL, trackingUrl: TRACKING_URL };
+  try {
+    const supabase = getSupabase();
+    if (!supabase) return out;
+    const { data } = await supabase.from("settings").select("value").eq("key", "store").maybeSingle();
+    const v = data?.value || {};
+    out.whatsapp = String(v.social?.whatsapp || "").replace(/\D/g, "").slice(0, 15);
+    out.email = /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/.test(v.storeEmail || "") ? v.storeEmail : EMAIL;
+    if (/^https:\/\//i.test(v.trackingUrl || "")) out.trackingUrl = v.trackingUrl;
+  } catch { /* usa padroes */ }
+  return out;
+}
+
+async function sendRich(res, pageKey, config, page) {
+  const contacts = await loadContacts();
+  const title = cleanText(page?.seo_title || config.title, 180);
+  const body = pageKey === "rastreio" ? trackingBody(contacts) : contactBody(contacts);
+  const description = pageKey === "rastreio"
+    ? "Informe seu código de rastreamento e acompanhe as atualizações da entrega diretamente pela Kairos Shopping."
+    : "Precisa de ajuda com seu pedido ou deseja tirar alguma dúvida? Nossa equipe está pronta para orientar você.";
+  return sendPage(res, 200, title, "", description, pageKey, { body, css: EXTRA_CSS, js: pageKey === "rastreio" ? TRACK_JS : "" });
+}
+
+function sendPage(res, status, title, content, description = content, pageKey = "", rich = null) {
   const url = `${SITE_URL}/${pageKey}`;
   res.statusCode = status;
   res.setHeader("Content-Type", "text/html; charset=utf-8");
@@ -98,11 +124,13 @@ function sendPage(res, status, title, content, description = content, pageKey = 
   <style>
     *{box-sizing:border-box}body{margin:0;background:#f5f7fb;color:#102a43;font-family:Arial,sans-serif;line-height:1.65}header,footer{background:#101827;color:#fff}header{padding:18px}nav,main,.footer-inner{width:min(960px,calc(100% - 28px));margin:auto}nav{display:flex;align-items:center;gap:18px;flex-wrap:wrap}nav img{width:54px;height:54px;border-radius:50%}nav strong{font-size:1.2rem}nav a{color:#fff;text-decoration:none;font-weight:700}nav a:first-of-type{margin-left:auto}main{min-height:65vh;padding:44px 0}article{background:#fff;border:1px solid #e1e7ef;border-top:5px solid #ff6b00;border-radius:8px;padding:clamp(22px,5vw,52px);box-shadow:0 12px 36px rgba(16,42,67,.08)}h1{font-size:clamp(2rem,7vw,3.4rem);line-height:1.05;margin:0 0 24px}p{white-space:pre-line}.actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:30px}.button{display:inline-block;padding:13px 18px;border-radius:6px;background:#ff6b00;color:#101827;text-decoration:none;font-weight:800}.button.secondary{background:#102a43;color:#fff}footer{padding:28px 0;margin-top:30px}.footer-inner a{color:#ffb36b}@media(max-width:600px){nav a:first-of-type{margin-left:0}nav{gap:12px}article{padding:22px}.actions .button{width:100%;text-align:center}}
   </style>
+  ${rich ? `<style>${rich.css}</style>` : ""}
 </head>
-<body>
+<body${rich ? ' class="k"' : ""}>
   <header><nav><img src="/assets/logo-kairos-oficial.png" alt="Kairos Shopping"><strong>Kairos Shopping</strong><a href="/">Inicio</a><a href="/#produtos">Produtos</a><a href="/#categorias">Categorias</a><a href="/rastreio">Rastreio</a></nav></header>
-  <main><article><h1>${escapeHtml(title)}</h1>${paragraphs(content)}<div class="actions">${pageKey === "rastreio" ? `<a class="button" href="${TRACKING_URL}" target="_blank" rel="noopener">Abrir portal de rastreio</a>` : ""}<a class="button secondary" href="/#produtos">Ver produtos</a><a class="button secondary" href="/contato">Contato</a></div></article></main>
+  ${rich ? `<main>${rich.body}</main>` : `<main><article><h1>${escapeHtml(title)}</h1>${paragraphs(content)}<div class="actions">${pageKey === "rastreio" ? `<a class="button" href="${TRACKING_URL}" target="_blank" rel="noopener">Abrir portal de rastreio</a>` : ""}<a class="button secondary" href="/#produtos">Ver produtos</a><a class="button secondary" href="/contato">Contato</a></div></article></main>`}
   <footer><div class="footer-inner"><strong>Kairos Shopping</strong><p>Envio para todo o Brasil, pedido com rastreamento e atendimento pelos canais oficiais.</p><a href="mailto:${EMAIL}">${EMAIL}</a></div></footer>
+  ${rich && rich.js ? `<script>${rich.js}</script>` : ""}
   <script src="/cookie-notice.js?v=20261115-ck" defer></script>
 </body>
 </html>`);

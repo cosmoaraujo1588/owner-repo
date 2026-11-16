@@ -330,7 +330,7 @@
       let preview = input.parentElement.querySelector(".file-preview");
       const file = input.files && input.files[0];
       if (!file) { if (preview) preview.remove(); return; }
-      if (!/^image\/(jpeg|jpg|png|webp)$/i.test(file.type)) { toast("Formato nao aceito. Use JPG, PNG ou WebP."); input.value = ""; return; }
+      if (file.type && !/^image\/(jpeg|jpg|pjpeg|png|webp)$/i.test(file.type)) { toast("Formato nao aceito. Use JPG, PNG ou WebP."); input.value = ""; return; }
       if (!preview) { preview = document.createElement("img"); preview.className = "file-preview"; preview.alt = "Previa"; input.parentElement.appendChild(preview); }
       preview.src = URL.createObjectURL(file);
     });
@@ -608,57 +608,16 @@
     });
   }
 
+  // Todo upload passa por KairosMedia: valida pelo conteudo, otimiza, envia direto ao Storage e confere a URL publica.
   async function uploadMedia(file, title = "arquivo", purpose = "product-image") {
     if (!file || !file.size) throw new Error("Selecione um arquivo valido para enviar.");
-    const isVideo = purpose.includes("video");
-    const expectedType = isVideo ? "video/" : "image/";
-    if (!file.type || !file.type.startsWith(expectedType)) {
-      throw new Error(isVideo ? "O arquivo selecionado precisa ser um video." : "O arquivo selecionado precisa ser uma imagem.");
-    }
-    if (!isVideo) {
-      if (!/^image\/(jpeg|jpg|png|webp)$/i.test(file.type)) throw new Error("Formato nao aceito. Use JPG, PNG ou WebP.");
-      file = await optimizeImage(file);
-    }
-    if (!isVideo && file.size > 4 * 1024 * 1024) throw new Error("Imagem muito grande mesmo apos otimizacao. Use uma imagem de ate 4MB.");
-    if (isVideo && file.size > 25 * 1024 * 1024) throw new Error("Video muito grande. Use um video curto ate 25MB.");
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("title", title);
-    formData.append("purpose", purpose);
-    const response = await authFetch("/api/upload", {
-      method: "POST",
-      body: formData
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(data.error || "Falha ao enviar arquivo para o storage publico.");
-    }
-    const publicUrl = normalizePublicMediaUrl(data.url, isVideo ? "video" : "image");
-    if (!publicUrl) {
-      throw new Error("O storage nao retornou uma URL publica https para o arquivo.");
-    }
-    return publicUrl;
-  }
-
-  // Reduz para no maximo 1600px mantendo o formato (JPG/PNG/WebP) e a proporcao. Nao converte para WebP: rastreadores sociais aceitam melhor JPG/PNG.
-  async function optimizeImage(file) {
+    window.KairosMedia.configure({ authFetch, videoMaxMb: (state.settings.carousel && state.settings.carousel.videoMaxMb) || 30 });
     try {
-      const bitmap = await createImageBitmap(file);
-      const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
-      const width = Math.round(bitmap.width * scale);
-      const height = Math.round(bitmap.height * scale);
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      canvas.getContext("2d").drawImage(bitmap, 0, 0, width, height);
-      const type = /png/i.test(file.type) ? "image/png" : /webp/i.test(file.type) ? "image/webp" : "image/jpeg";
-      const ctx = canvas.getContext("2d");
-      if (type === "image/jpeg") { ctx.globalCompositeOperation = "destination-over"; ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, width, height); }
-      const blob = await new Promise((resolve) => canvas.toBlob(resolve, type, 0.86));
-      if (!blob || blob.type !== type || blob.size >= file.size) return file;
-      return new File([blob], file.name, { type });
-    } catch {
-      return file;
+      if (purpose.includes("video")) return (await window.KairosMedia.uploadVideo(file, { name: title })).url;
+      const kind = purpose === "banner-image" ? "banner-desktop" : purpose;
+      return (await window.KairosMedia.uploadImage(file, { purpose: kind, name: title })).url;
+    } catch (error) {
+      throw new Error(error.userMessage || error.message || "Falha ao enviar o arquivo.");
     }
   }
 

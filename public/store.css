@@ -455,3 +455,13 @@ input:focus{border-color:var(--orange);outline:none}
 .kxb-item button:disabled{background:var(--ok);cursor:default}
 .kxb-cart{text-align:center;font-weight:700;color:var(--orange)}
 @media(max-width:760px){.kx-bump{bottom:72px}}
+
+/* Carrossel principal: video, controles e transicoes suaves */
+.banner-slide{transition:opacity .6s ease}
+.banner-slide.is-video{aspect-ratio:16/9;background:#0b0b0c}
+.banner-slide.is-video video{width:100%;height:100%;object-fit:cover;display:block}
+.bn-vctl{position:absolute;right:10px;top:10px;z-index:4;display:flex;gap:6px}
+.bn-vctl[hidden]{display:none}
+.bn-vctl button{width:34px;height:34px;border-radius:50%;border:0;background:rgba(11,11,12,.6);color:#fff;font-size:13px;cursor:pointer}
+@media(max-width:640px){.banner-slide.is-video{aspect-ratio:4/5}}
+@media(prefers-reduced-motion:reduce){.banner-slide{transition:none}}

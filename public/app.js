@@ -539,11 +539,23 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     toggleDepartments(false);
   }
 
+  function carouselConfig() {
+    const c = state.settings.carousel || {};
+    const bool = (v, d) => (typeof v === "boolean" ? v : d);
+    return {
+      enabled: bool(c.enabled, true), autoplay: bool(c.autoplay, true), interval: Math.min(30, Math.max(3, Number(c.interval) || 6)),
+      arrows: bool(c.arrows, true), dots: bool(c.dots, true), swipe: bool(c.swipe, true),
+      pauseOnInteraction: bool(c.pauseOnInteraction, true), pauseHidden: bool(c.pauseHidden, true)
+    };
+  }
+
   function renderBanners() {
     if (!els.heroCarousel) return;
-    const banners = normalizeBanners();
-    if (state.bannerTimer) clearInterval(state.bannerTimer);
+    const cfg = carouselConfig();
+    const banners = cfg.enabled ? normalizeBanners() : [];
+    if (state.bannerTimer) clearTimeout(state.bannerTimer);
     state.bannerTimer = null;
+    if (state.bannerCleanup) { state.bannerCleanup(); state.bannerCleanup = null; }
     if (!banners.length) {
       els.heroCarousel.hidden = true;
       els.heroCarousel.innerHTML = "";
@@ -551,64 +563,114 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     }
     els.heroCarousel.hidden = false;
     state.bannerIndex = Math.min(state.bannerIndex || 0, banners.length - 1);
-    const multi = banners.length > 1;
+    const multi = banners.length > 1; // com 1 item: exibicao estatica, sem setas nem indicadores
+    const mobileMq = window.matchMedia("(max-width: 640px)");
     const slides = banners.map((banner, index) => {
-      const desktop = banner.desktopImage || banner.image || state.settings.bannerUrl;
+      const desktop = banner.desktopImage || banner.image || banner.mobileImage || "";
       const mobile = banner.mobileImage || desktop;
-      const desktopVideo = banner.videoUrl || banner.desktopVideoUrl || "";
-      const mobileVideo = banner.mobileVideoUrl || desktopVideo || "";
-      const href = banner.link || banner.buttonLink || "#produtos";
+      const dv = banner.videoUrl || banner.desktopVideoUrl || "";
+      const mv = banner.mobileVideoUrl || dv;
+      const isVideo = Boolean(dv || mv) && banner.type !== "image";
+      const href = banner.link || banner.buttonLink || "";
       const alt = banner.altText || banner.title || "Campanha Kairos Shopping";
-      return `
-        <a class="banner-slide ${index === state.bannerIndex ? "active" : ""}" href="${escapeHtml(href)}" ${/^https?:/i.test(href) ? 'target="_blank" rel="noopener"' : ""} ${multi ? `aria-label="${escapeHtml(alt)} (${index + 1} de ${banners.length})"` : ""}>
-          ${desktopVideo || mobileVideo ? bannerVideoMarkup(desktopVideo, mobileVideo, desktop, alt) : `
-            <picture>
-              <source media="(max-width: 640px)" srcset="${escapeHtml(mobile)}">
-              <img src="${escapeHtml(desktop)}" alt="${escapeHtml(alt)}" ${index === 0 ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async">
-            </picture>
-          `}
-        </a>`;
+      const tag = href ? "a" : "div";
+      const attrs = href ? `href="${escapeHtml(href)}" ${/^https?:/i.test(href) ? 'target="_blank" rel="noopener"' : ""}` : "";
+      const label = multi ? `aria-label="${escapeHtml(alt)} (${index + 1} de ${banners.length})"` : `aria-label="${escapeHtml(alt)}"`;
+      const poster = banner.poster || desktop;
+      const mposter = banner.mobilePoster || banner.poster || mobile;
+      const media = isVideo
+        ? `<video class="hero-video" muted playsinline preload="none" ${multi ? "" : "loop"} data-dv="${escapeHtml(dv)}" data-mv="${escapeHtml(mv)}" data-poster="${escapeHtml(poster)}" data-mposter="${escapeHtml(mposter)}" poster="${escapeHtml(mobileMq.matches ? mposter : poster)}" aria-label="${escapeHtml(alt)}"></video>`
+        : `<picture>${mobile && mobile !== desktop ? `<source media="(max-width: 640px)" srcset="${escapeHtml(mobile)}">` : ""}<img src="${escapeHtml(desktop || mobile)}" alt="${escapeHtml(alt)}" ${index === 0 ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async"></picture>`;
+      return `<${tag} class="banner-slide ${isVideo ? "is-video" : ""} ${index === state.bannerIndex ? "active" : ""}" ${attrs} ${label} data-i="${index}">${media}</${tag}>`;
     }).join("");
-    els.heroCarousel.innerHTML = slides + (multi ? `
-      <button class="bn-arrow bn-prev" type="button" data-bn="-1" aria-label="Banner anterior">${icon("chev")}</button>
-      <button class="bn-arrow bn-next" type="button" data-bn="1" aria-label="Próximo banner">${icon("chev")}</button>
-      <div class="bn-dots">${banners.map((_, i) => `<button type="button" data-bn-dot="${i}" class="${i === state.bannerIndex ? "active" : ""}" aria-label="Ir para o banner ${i + 1}"></button>`).join("")}</div>` : "");
-    if (!multi) return;
+    const videoCtl = banners.some((b) => (b.videoUrl || b.desktopVideoUrl || b.mobileVideoUrl) && b.type !== "image")
+      ? `<div class="bn-vctl" hidden><button type="button" data-bn-play aria-label="Pausar video">❚❚</button><button type="button" data-bn-sound aria-label="Ativar som">🔇</button></div>` : "";
+    els.heroCarousel.innerHTML = slides + videoCtl + (multi ? `
+      ${cfg.arrows ? `<button class="bn-arrow bn-prev" type="button" data-bn="-1" aria-label="Banner anterior">${icon("chev")}</button>
+      <button class="bn-arrow bn-next" type="button" data-bn="1" aria-label="Próximo banner">${icon("chev")}</button>` : ""}
+      ${cfg.dots ? `<div class="bn-dots">${banners.map((_, i) => `<button type="button" data-bn-dot="${i}" class="${i === state.bannerIndex ? "active" : ""}" aria-label="Ir para o banner ${i + 1}"></button>`).join("")}</div>` : ""}` : "");
+
     const root = els.heroCarousel;
-    const show = (index) => {
-      state.bannerIndex = (index + banners.length) % banners.length;
-      root.querySelectorAll(".banner-slide").forEach((slide, i) => slide.classList.toggle("active", i === state.bannerIndex));
-      root.querySelectorAll("[data-bn-dot]").forEach((dot, i) => dot.classList.toggle("active", i === state.bannerIndex));
+    const slideEls = [...root.querySelectorAll(".banner-slide")];
+    let paused = false, resumeTimer = null, destroyed = false;
+
+    // Videos: so o slide ativo carrega e toca; ao sair, pausa e libera o arquivo. Sem audio por padrao.
+    const videoOf = (i) => slideEls[i] && slideEls[i].querySelector("video");
+    const stopVideo = (v) => { if (!v) return; v.pause(); if (v.getAttribute("src")) { v.removeAttribute("src"); v.load(); } };
+    const startVideo = (v) => {
+      if (!v) return;
+      const src = mobileMq.matches ? (v.dataset.mv || v.dataset.dv) : (v.dataset.dv || v.dataset.mv);
+      if (!src) return;
+      if (v.getAttribute("src") !== src) { v.src = src; }
+      v.muted = true;
+      const p = v.play(); if (p && p.catch) p.catch(() => { /* autoplay bloqueado: segue com o poster */ });
     };
-    let paused = false;
-    let resumeTimer = null;
-    const pause = () => { paused = true; clearTimeout(resumeTimer); resumeTimer = setTimeout(() => { paused = false; }, 10000); };
+    const syncVideoCtl = () => {
+      const ctl = root.querySelector(".bn-vctl"); if (!ctl) return;
+      const v = videoOf(state.bannerIndex);
+      ctl.hidden = !v;
+      if (v) {
+        ctl.querySelector("[data-bn-play]").textContent = v.paused ? "▶" : "❚❚";
+        ctl.querySelector("[data-bn-sound]").textContent = v.muted ? "🔇" : "🔊";
+      }
+    };
+    const schedule = () => {
+      clearTimeout(state.bannerTimer);
+      if (!multi || !cfg.autoplay || destroyed) return;
+      const v = videoOf(state.bannerIndex);
+      const wait = v ? 30000 : cfg.interval * 1000; // video: avanca ao terminar (ou em 30s no maximo)
+      state.bannerTimer = setTimeout(() => { if (!paused && !(cfg.pauseHidden && document.hidden)) show(state.bannerIndex + 1); else schedule(); }, wait);
+    };
+    const show = (index) => {
+      const prev = videoOf(state.bannerIndex);
+      state.bannerIndex = (index + banners.length) % banners.length;
+      slideEls.forEach((slide, i) => { slide.classList.toggle("active", i === state.bannerIndex); slide.setAttribute("aria-hidden", i === state.bannerIndex ? "false" : "true"); });
+      root.querySelectorAll("[data-bn-dot]").forEach((dot, i) => dot.classList.toggle("active", i === state.bannerIndex));
+      const cur = videoOf(state.bannerIndex);
+      if (prev && prev !== cur) stopVideo(prev);
+      if (cur && !(cfg.pauseHidden && document.hidden)) startVideo(cur);
+      syncVideoCtl();
+      schedule();
+    };
+    slideEls.forEach((slide, i) => { const v = slide.querySelector("video"); if (v) v.addEventListener("ended", () => { if (i === state.bannerIndex && multi && cfg.autoplay && !paused) show(i + 1); }); });
+    const pause = () => {
+      if (!cfg.pauseOnInteraction) return;
+      paused = true; clearTimeout(resumeTimer); resumeTimer = setTimeout(() => { paused = false; schedule(); }, 10000);
+    };
     root.onclick = (event) => {
-      const nav = event.target.closest("[data-bn]");
-      const dot = event.target.closest("[data-bn-dot]");
+      const nav = event.target.closest("[data-bn]"), dot = event.target.closest("[data-bn-dot]");
+      const play = event.target.closest("[data-bn-play]"), snd = event.target.closest("[data-bn-sound]");
       if (nav) { event.preventDefault(); pause(); show(state.bannerIndex + Number(nav.dataset.bn)); }
       else if (dot) { event.preventDefault(); pause(); show(Number(dot.dataset.bnDot)); }
+      else if (play) { event.preventDefault(); const v = videoOf(state.bannerIndex); if (v) { if (v.paused) v.play().catch(() => {}); else v.pause(); syncVideoCtl(); } }
+      else if (snd) { event.preventDefault(); const v = videoOf(state.bannerIndex); if (v) { v.muted = !v.muted; syncVideoCtl(); } }
     };
-    root.onmouseenter = () => { paused = true; };
-    root.onmouseleave = () => { paused = false; };
-    let startX = 0, startY = 0, swiped = false;
-    root.ontouchstart = (event) => { startX = event.touches[0].clientX; startY = event.touches[0].clientY; swiped = false; pause(); };
-    root.ontouchend = (event) => {
-      const dx = event.changedTouches[0].clientX - startX;
-      const dy = event.changedTouches[0].clientY - startY;
-      if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) { swiped = true; show(state.bannerIndex + (dx < 0 ? 1 : -1)); }
+    if (multi) {
+      root.onmouseenter = () => { if (cfg.pauseOnInteraction) paused = true; };
+      root.onmouseleave = () => { paused = false; schedule(); };
+      if (cfg.swipe) {
+        let startX = 0, startY = 0, swiped = false;
+        root.ontouchstart = (event) => { startX = event.touches[0].clientX; startY = event.touches[0].clientY; swiped = false; pause(); };
+        root.ontouchend = (event) => {
+          const dx = event.changedTouches[0].clientX - startX, dy = event.changedTouches[0].clientY - startY;
+          if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) { swiped = true; show(state.bannerIndex + (dx < 0 ? 1 : -1)); }
+        };
+        root.addEventListener("click", (event) => { if (swiped) { event.preventDefault(); swiped = false; } }, true);
+      }
+    }
+    // Aba inativa: pausa rotacao e video; ao voltar, retoma.
+    const onVisibility = () => {
+      const v = videoOf(state.bannerIndex);
+      if (document.hidden) { if (cfg.pauseHidden && v) v.pause(); }
+      else { if (v) startVideo(v); schedule(); }
     };
-    root.addEventListener("click", (event) => { if (swiped) { event.preventDefault(); swiped = false; } }, true);
-    state.bannerTimer = setInterval(() => { if (!paused && !document.hidden) show(state.bannerIndex + 1); }, 6000);
-  }
-
-  function bannerVideoMarkup(desktopVideo, mobileVideo, poster, title) {
-    return `
-      <video class="hero-video" autoplay muted loop playsinline preload="metadata" poster="${escapeHtml(poster || "")}" aria-label="${escapeHtml(title || "Banner Kairos Shopping")}">
-        ${mobileVideo ? `<source media="(max-width: 640px)" src="${escapeHtml(mobileVideo)}">` : ""}
-        <source src="${escapeHtml(desktopVideo || mobileVideo)}">
-      </video>
-    `;
+    document.addEventListener("visibilitychange", onVisibility);
+    state.bannerCleanup = () => { destroyed = true; document.removeEventListener("visibilitychange", onVisibility); root.querySelectorAll("video").forEach(stopVideo); };
+    // Primeiro slide: se for video, inicia (os demais permanecem sem carregar).
+    const first = videoOf(state.bannerIndex);
+    if (first) startVideo(first);
+    syncVideoCtl();
+    schedule();
   }
 
   function renderGrid(container, products, emptyText) {
@@ -1127,6 +1189,7 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
       bannerMobileVideoUrl: settings.bannerMobileVideoUrl || "",
       banners: Array.isArray(settings.banners) ? settings.banners : [],
       shortLinks: settings.shortLinks || {},
+      carousel: settings.carousel || {},
       campaign: settings.campaign || null,
       orderBump: settings.orderBump || {},
       socialProof: settings.socialProof || {},
@@ -1371,7 +1434,7 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
 
   function normalizeBanners() {
     return (state.settings.banners || [])
-      .filter((banner) => banner && banner.active !== false && (banner.desktopImage || banner.image || banner.videoUrl || banner.desktopVideoUrl) && inSchedule(banner))
+      .filter((banner) => banner && banner.active !== false && (banner.desktopImage || banner.mobileImage || banner.image || banner.videoUrl || banner.mobileVideoUrl || banner.desktopVideoUrl) && inSchedule(banner))
       .sort((a, b) => Number(a.order || 0) - Number(b.order || 0))
       .slice(0, 5);
   }

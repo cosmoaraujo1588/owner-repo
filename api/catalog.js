@@ -355,6 +355,41 @@ export function sanitizeSettings(input) {
       disabled
     };
   }
+  if (Array.isArray(settings.banners)) {
+    const str = (v, n = 600) => String(v == null ? "" : v).replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, n);
+    const media = (v) => { const u = str(v, 1400); return /^(https:\/\/|\/|\.\/)/i.test(u) && !/^\/\//.test(u) ? u : ""; };
+    const link = (v) => { const u = str(v, 1000); return !u || /^(#|\/(?!\/)|\.\/|https?:\/\/)/i.test(u) ? u : ""; };
+    const date = (v) => { const d = new Date(v); return v && !Number.isNaN(d.getTime()) ? d.toISOString() : ""; };
+    const items = settings.banners.filter((item) => item && typeof item === "object").slice(0, 30).map((item, index) => ({
+      ...item,
+      id: str(item.id, 120) || `banner-${index + 1}`,
+      title: str(item.title, 160),
+      type: item.type === "video" ? "video" : "image",
+      altText: str(item.altText, 200),
+      link: link(item.link),
+      desktopImage: media(item.desktopImage), mobileImage: media(item.mobileImage),
+      videoUrl: media(item.videoUrl), mobileVideoUrl: media(item.mobileVideoUrl),
+      poster: media(item.poster), mobilePoster: media(item.mobilePoster),
+      active: item.active !== false,
+      order: Number.isFinite(Number(item.order)) ? Math.round(Number(item.order)) : index + 1,
+      startAt: date(item.startAt), endAt: date(item.endAt)
+    }));
+    // No maximo 5 itens ativos no carrossel (banners e videos em conjunto): os excedentes, pela ordem, ficam inativos.
+    let activeCount = 0;
+    items.slice().sort((x, y) => x.order - y.order).forEach((item) => { if (item.active) { activeCount += 1; if (activeCount > 5) item.active = false; } });
+    settings.banners = items;
+  }
+  if (settings.carousel && typeof settings.carousel === "object") {
+    const c = settings.carousel;
+    const bool = (v, d) => (typeof v === "boolean" ? v : d);
+    const clamp = (v, lo, hi, d) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
+    settings.carousel = {
+      enabled: bool(c.enabled, true), autoplay: bool(c.autoplay, true), interval: clamp(c.interval, 3, 30, 6),
+      arrows: bool(c.arrows, true), dots: bool(c.dots, true), swipe: bool(c.swipe, true),
+      pauseOnInteraction: bool(c.pauseOnInteraction, true), pauseHidden: bool(c.pauseHidden, true),
+      videoMaxMb: Math.round(clamp(c.videoMaxMb, 5, 100, 30))
+    };
+  }
   if (settings.archived && typeof settings.archived === "object") {
     const archived = {};
     Object.entries(settings.archived).slice(0, 2000).forEach(([id, flag]) => { if (flag) archived[String(id).slice(0, 120)] = true; });
