@@ -8,11 +8,12 @@ const PUBLIC_SITE_URL = "https://www.kairosshopping.com.br";
 export default async function handler(req, res) {
   const code = cleanText(req.query?.code || "", 80).toLowerCase();
   let slug = cleanText(req.query?.slug || "", 180);
-  const product = code ? await findProductByCode(code) : await findProduct(slug);
+  let product = code ? await findProductByCode(code) : await findProduct(slug);
+  if (product && await isHiddenProduct(product.id)) product = null; // rascunho/arquivado nao pode aparecer
   if (product && code) slug = slugify(product.title || product.id);
   const html = await readFile(path.join(process.cwd(), "public", "index.html"), "utf8");
   const siteUrl = requestOrigin(req);
-  let finalHtml = product ? injectProductMeta(html, product, slug, siteUrl) : injectBase(html);
+  let finalHtml = product ? injectProductShell(injectProductMeta(html, product, slug, siteUrl), product) : injectBase(html);
   if (product && code) finalHtml = finalHtml.replace("<head>", `<head>${shortLinkHead(slug)}`);
   res.statusCode = product ? 200 : 404;
   res.setHeader("Content-Type", "text/html; charset=utf-8");
@@ -138,4 +139,38 @@ function escapeHtml(value) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+
+async function isHiddenProduct(id) {
+  const supabase = getSupabase();
+  if (!supabase) return false;
+  try {
+    const { data } = await supabase.from("settings").select("value").eq("key", "store").maybeSingle();
+    const v = data?.value || {};
+    return Boolean(v.drafts?.[id] || v.archived?.[id]);
+  } catch { return false; }
+}
+
+// Primeira pintura no servidor: titulo, foto, preco e botao de compra ja chegam no HTML.
+// O JavaScript da loja substitui este bloco pelo modal completo assim que o catalogo carrega.
+export function injectProductShell(html, product) {
+  const price = Number(product.price || 0);
+  const old = Number(product.old_price || 0);
+  const brl = (n) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const image = cleanText(product.image_url || "", 800);
+  const checkout = /^https:\/\//i.test(product.checkout_url || "") ? product.checkout_url : "";
+  const text = cleanText(product.description || product.short_description || "", 3000);
+  const title = escapeHtml(cleanText(product.title, 180));
+  const shell = `<div class="pp-topbar"><a class="pp-back" href="/"><span>Voltar à loja</span></a><a class="brand" href="/"><img src="/assets/logo-kairos-oficial.png" alt="" width="40" height="40"><span class="brand-text"><strong>KAIRÓS</strong><small>SHOPPING</small></span></a><a class="pp-cart" href="/carrinho"><span>Sacolinha</span></a></div>
+<article class="pp"><div class="pp-grid"><div class="pp-gallery"><div class="gstage">${image ? `<img src="${escapeHtml(image)}" alt="${title}" fetchpriority="high" width="640" height="640">` : ""}</div></div>
+<div class="pp-buy"><span class="pc-cat">${escapeHtml(cleanText(product.category || "", 100))}</span><h1>${title}</h1><div class="pp-box"><div class="pp-price"><div class="price-row large"><strong>${price > 0 ? brl(price) : ""}</strong>${old > price && price > 0 ? `<del>${brl(old)}</del>` : ""}</div></div>
+<ul class="pp-perks"><li><span><strong>Frete grátis</strong> para todo o Brasil</span></li><li><span><strong>Compra segura</strong> no checkout oficial</span></li></ul>
+<div class="pp-actions">${checkout ? `<a class="btn btn-primary btn-lg" href="${escapeHtml(checkout)}" rel="noopener">Comprar agora</a>` : ""}</div></div></div></div>
+${text ? `<div class="pp-details"><section><h2>Sobre o produto</h2><div class="pp-text">${escapeHtml(text)}</div></section></div>` : ""}</article>`;
+  const preload = image ? `<link rel="preload" as="image" href="${escapeHtml(image)}">` : "";
+  return html
+    .replace('<div class="product-modal" id="productModal" hidden></div>', `<div class="product-modal" id="productModal">${shell}</div>`)
+    .replace(/<body>/, '<body class="product-open">')
+    .replace("</head>", `${preload}</head>`);
 }

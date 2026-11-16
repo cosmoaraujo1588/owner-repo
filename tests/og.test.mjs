@@ -74,3 +74,17 @@ test("servidor sanitiza associacoes, links curtos e campanha", () => {
   assert.deepEqual(s.shortLinks, { a: "bolsa-termica" });
   assert.equal(s.campaign.enabled, false);
 });
+
+import { injectProductShell } from "../api/product-page.js";
+test("injectProductShell entrega titulo, preco e compra no HTML inicial e escapa conteudo", () => {
+  const html = '<html><head></head><body><div class="product-modal" id="productModal" hidden></div></body></html>';
+  const out = injectProductShell(html, { id: "p1", title: 'Fone <script>x</script>', price: 59.9, old_price: 79.9, image_url: "https://x.co/a.jpg", checkout_url: "https://pay.example/co", description: "Linha 1 <b>", category: "Audio" });
+  assert.ok(!out.includes("<script>x"));
+  assert.match(out, /<h1>Fone /);
+  assert.match(out, /R\$\s?59,90/);
+  assert.match(out, /href="https:\/\/pay\.example\/co"/);
+  assert.ok(!out.includes('id="productModal" hidden'));
+  assert.match(out, /<body class="product-open">/);
+  const bad = injectProductShell(html, { id: "p2", title: "X", price: 1, checkout_url: "javascript:alert(1)" });
+  assert.ok(!bad.includes("javascript:"));
+});
