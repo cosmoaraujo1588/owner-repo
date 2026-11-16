@@ -29,15 +29,6 @@
       ]
     },
     {
-      "source": "/",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=0, must-revalidate"
-        }
-      ]
-    },
-    {
       "source": "/assets/(.*)",
       "headers": [
         {
@@ -101,6 +92,10 @@
     }
   ],
   "rewrites": [
+    {
+      "source": "/",
+      "destination": "/api/home-page"
+    },
     {
       "source": "/produto/:slug",
       "destination": "/api/product-page?slug=:slug"

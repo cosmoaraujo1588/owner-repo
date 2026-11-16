@@ -88,3 +88,13 @@ test("injectProductShell entrega titulo, preco e compra no HTML inicial e escapa
   const bad = injectProductShell(html, { id: "p2", title: "X", price: 1, checkout_url: "javascript:alert(1)" });
   assert.ok(!bad.includes("javascript:"));
 });
+
+import { injectHomeProducts } from "../api/home-page.js";
+test("injectHomeProducts coloca cards rastreaveis na grade e escapa conteudo", () => {
+  const html = '<div class="product-grid catalog-grid" id="catalogGrid"></div>';
+  const out = injectHomeProducts(html, [{ id: "a", title: 'Cafeteira "Pro" <b>', price: 99.9, image_url: "https://x.co/a.jpg", category: "Casa" }]);
+  assert.match(out, /href="\/produto\/cafeteira-pro/);
+  assert.match(out, /R\$\s?99,90/);
+  assert.ok(!out.includes("<b>"));
+  assert.equal(injectHomeProducts(html, []), html);
+});
