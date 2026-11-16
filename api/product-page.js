@@ -2,10 +2,12 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { getSupabase, cleanText, slugify } from "./_supabase.js";
 import { buildCodes } from "./_shortcode.js";
+import { homeHandler } from "./_home.js";
 
 const PUBLIC_SITE_URL = "https://www.kairosshopping.com.br";
 
 export default async function handler(req, res) {
+  if (req.query?.home) return homeHandler(req, res); // "/" (limite de 12 funcoes do plano: compartilha esta funcao)
   const code = cleanText(req.query?.code || "", 80).toLowerCase();
   let slug = cleanText(req.query?.slug || "", 180);
   let product = code ? await findProductByCode(code) : await findProduct(slug);

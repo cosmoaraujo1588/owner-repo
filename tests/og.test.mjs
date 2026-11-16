@@ -89,7 +89,7 @@ test("injectProductShell entrega titulo, preco e compra no HTML inicial e escapa
   assert.ok(!bad.includes("javascript:"));
 });
 
-import { injectHomeProducts } from "../api/home-page.js";
+import { injectHomeProducts } from "../api/_home.js";
 test("injectHomeProducts coloca cards rastreaveis na grade e escapa conteudo", () => {
   const html = '<div class="product-grid catalog-grid" id="catalogGrid"></div>';
   const out = injectHomeProducts(html, [{ id: "a", title: 'Cafeteira "Pro" <b>', price: 99.9, image_url: "https://x.co/a.jpg", category: "Casa" }]);

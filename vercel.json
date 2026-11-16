@@ -94,7 +94,7 @@
   "rewrites": [
     {
       "source": "/",
-      "destination": "/api/home-page"
+      "destination": "/api/product-page?home=1"
     },
     {
       "source": "/produto/:slug",

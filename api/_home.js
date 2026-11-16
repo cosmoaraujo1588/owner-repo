@@ -4,7 +4,7 @@ import { getSupabase, cleanText, slugify } from "./_supabase.js";
 
 const MAX_CARDS = 24;
 
-export default async function handler(req, res) {
+export async function homeHandler(req, res) {
   let html = await readFile(path.join(process.cwd(), "public", "index.html"), "utf8");
   try {
     html = injectHomeProducts(html, await loadHomeProducts());
