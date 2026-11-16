@@ -13,7 +13,7 @@ export default async function handler(req, res) {
   let product = code ? await findProductByCode(code) : await findProduct(slug);
   if (product && await isHiddenProduct(product.id)) product = null; // rascunho/arquivado nao pode aparecer
   if (product && code) slug = slugify(product.title || product.id);
-  const html = await readFile(path.join(process.cwd(), "public", "index.html"), "utf8");
+  const html = await readFile(path.join(process.cwd(), "public", "home.html"), "utf8");
   const siteUrl = requestOrigin(req);
   let finalHtml = product ? injectProductShell(injectProductMeta(html, product, slug, siteUrl), product) : injectBase(html);
   if (product && code) finalHtml = finalHtml.replace("<head>", `<head>${shortLinkHead(slug)}`);

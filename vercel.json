@@ -97,6 +97,10 @@
       "destination": "/api/product-page?home=1"
     },
     {
+      "source": "/index.html",
+      "destination": "/api/product-page?home=1"
+    },
+    {
       "source": "/produto/:slug",
       "destination": "/api/product-page?slug=:slug"
     },

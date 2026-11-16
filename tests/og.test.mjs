@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { injectProductMeta } from "../api/product-page.js";
 
-const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
+const html = await readFile(new URL("../public/home.html", import.meta.url), "utf8");
 const mk = (o) => injectProductMeta(html, { title: "Projetor de Natal Astronauta Bivolt", short_description: "Projeções luminosas & efeitos natalinos", price: 59.9, image_url: "https://x.supabase.co/storage/v1/object/public/kairos-public/products/a.jpg", ...o }, "projetor-de-natal-astronauta-bivolt", "https://www.kairosshopping.com.br");
 const meta = (h, attr, name) => new RegExp(`<meta ${attr}="${name}" content="([^"]*)"`).exec(h)?.[1];
 
