@@ -21,6 +21,6 @@ with sync_playwright() as p:
         chk(f"{w} sem erros",not errs)
         pg.click("#productModal .pp-back, #productModal [data-modal-action=close]"); pg.wait_for_timeout(500)
         chk(f"{w} fecha e volta a loja",pg.locator("#productModal").is_hidden() and pg.url.rstrip("/")==B)
-        pg.screenshot(path=f"ssr-{w}.png"); pg.close()
+        pg.screenshot(path=f"/tmp/kairos-ssr-{w}.png"); pg.close()
     br.close()
 print("OK",ok,"FALHAS",bad)

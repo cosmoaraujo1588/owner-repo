@@ -68,6 +68,6 @@ with sync_playwright() as p:
         sp=br.new_page(viewport={"width":w,"height":h}); sp.goto(B+"/"); sp.wait_for_timeout(2500)
         sl=sp.locator(".banner-slide").count(); chk(lab+" slides>0",sl>0); 
         chk(lab+" sem dots (config)",sp.locator(".banner-dots button, .bn-dots button").count()==0)
-        sp.screenshot(path="shot-%s.png"%lab); sp.close()
+        sp.screenshot(path="/tmp/kairos-shot-%s.png"%lab); sp.close()
     br.close()
 print("OK",ok,"FALHAS",bad)

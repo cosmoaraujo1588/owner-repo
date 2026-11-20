@@ -11,3 +11,5 @@ kairos-shopping-firebase-*/
 Nova pasta/
 
 .vercel
+# capturas de teste nunca entram no repositorio (somente na raiz)
+/*.png
