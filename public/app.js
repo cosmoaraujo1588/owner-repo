@@ -276,7 +276,7 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
       if (button.tagName === "A" && !(event.metaKey || event.ctrlKey || event.shiftKey || event.button === 1)) event.preventDefault();
       else if (button.tagName === "A") return;
       const id = button.dataset.productId;
-      if (button.dataset.action === "details") openProduct(id);
+      if (button.dataset.action === "details") { const sp = findProduct(id); if (sp) trackGa4("select_item", { product_id: sp.id, product_name: sp.title, category: sp.category, price: sp.price }); openProduct(id); }
       if (button.dataset.action === "buy") buyProduct(id);
       if (button.dataset.action === "cart") toggleCart(id);
       if (button.dataset.action === "share") shareProduct(id);
@@ -1087,19 +1087,32 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     if (mobileCart) mobileCart.dataset.count = String(state.cart.length);
   }
 
+  // Evita disparo duplicado do mesmo evento/origem em janela curta (ex.: clique em link + trackEvent).
+  const gaRecent = new Map();
+  function gaOnce(name, params = {}) {
+    if (typeof window.gtag !== "function") return;
+    const key = name + "|" + (params.source || params.product_id || params.link_url || "");
+    const now = Date.now();
+    if (now - (gaRecent.get(key) || 0) < 1500) return;
+    gaRecent.set(key, now);
+    window.gtag("event", name, params);
+  }
+
   function trackGa4(type, payload = {}) {
     if (typeof window.gtag !== "function") return;
     const eventMap = {
-      product_view: "view_product",
-      checkout_click: "add_to_checkout",
-      whatsapp_click: "whatsapp_click",
-      search: "search_products",
-      category_filter: "view_category",
+      product_view: "view_item",
+      checkout_click: "begin_checkout",
+      whatsapp_click: "click_whatsapp",
+      search: "search",
+      category_filter: "category_filter",
+      cart_add: "add_to_cart",
+      select_item: "select_item",
       lead: "generate_lead"
     };
     const eventName = eventMap[type];
     if (!eventName) return;
-    window.gtag("event", eventName, {
+    gaOnce(eventName, {
       product_id: payload.product_id || "",
       product_name: payload.product_name || "",
       category: payload.category || "",
@@ -1114,16 +1127,9 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     const href = String(link.href || "");
     if (!href) return;
     if (/wa\.me|whatsapp\.com/i.test(href)) {
-      window.gtag("event", "whatsapp_click", { source: link.dataset.whatsappGroup || link.id || "link" });
+      gaOnce("click_whatsapp", { source: link.dataset.whatsappGroup || link.id || "link" });
     }
-    if (/\.(pdf|xlsx?|csv|docx?|zip)(?:[?#]|$)/i.test(href)) {
-      window.gtag("event", "file_download", { file_name: href.split("/").pop(), link_url: href });
-    }
-    try {
-      if (new URL(href, location.href).origin !== location.origin) {
-        window.gtag("event", "outbound_click", { link_url: href, link_text: link.textContent?.trim() || "" });
-      }
-    } catch {}
+    // file_download e cliques de saida ja sao medidos pela Medicao aprimorada do GA4; nao duplicar.
   }
 
   function trackGenericClick(control) {

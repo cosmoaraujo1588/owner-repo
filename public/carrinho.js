@@ -100,7 +100,7 @@
     if (!buy) return;
     const product = products.find((item) => String(item.id) === String(buy.dataset.buy));
     if (!product?.checkoutUrl) return alert("Checkout ainda nao configurado para este produto.");
-    if (typeof window.gtag === "function") window.gtag("event", "add_to_checkout", { product_id: product.id, product_name: product.title, price: Number(product.price || 0), source: "cart" });
+    if (typeof window.gtag === "function") window.gtag("event", "begin_checkout", { product_id: product.id, product_name: product.title, price: Number(product.price || 0), source: "cart" });
     window.open(product.checkoutUrl, "_blank", "noopener");
   }
 

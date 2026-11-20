@@ -57,7 +57,9 @@ export async function liveReport(supabase, windowMinutes) {
   if (error) throw new Error(error.message);
   const products = new Map((productsResult.data || []).map((p) => [p.id, p]));
   const now = Date.now();
-  const rows = (online || []).filter((row) => !isAdminPage(row.page) && !isSynthetic(row) && !isBotRow(row));
+  const considered = (online || []).filter((row) => !isAdminPage(row.page) && !isSynthetic(row));
+  const botsDeclared = considered.filter(isBotRow).length;
+  const rows = considered.filter((row) => !isBotRow(row));
   const visitors = rows.map((row) => {
     const product = row.product_id ? products.get(row.product_id) : null;
     return {
@@ -90,6 +92,9 @@ export async function liveReport(supabase, windowMinutes) {
     windowMinutes: minutes, serverTime: new Date().toISOString(),
     active: visitors.length, // 1 linha por sessao (session_id e chave primaria): atualizar a pagina nao gera novo visitante
     unknownLocation: unknown,
+    brazil: visitors.filter((v) => v.country === "BR").length,
+    international: visitors.filter((v) => v.country && v.country !== "BR").length,
+    botsDeclared, // robos declarados por User-Agent (excluidos de "ativos"); fonte: online_visitors.ua_class
     byState, byCountry: Object.fromEntries(top(byCountry, 20)), byCity: top(byCity, 15), byDevice: top(byDevice, 6), byPage: top(byPage, 10), byProduct: top(byProduct, 10), byOrigin: top(byOrigin, 10),
     visitors: visitors.slice(0, 200)
   };
