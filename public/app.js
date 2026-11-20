@@ -199,7 +199,6 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     });
 
     document.addEventListener("click", (event) => {
-      trackGenericClick(event.target.closest("a,button"));
       const link = event.target.closest("a[href]");
       if (link) trackLinkAnalytics(link);
 
@@ -1068,7 +1067,7 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
     renderProducts();
     if (!els.productModal?.hidden) openProduct(id, { keepUrl: true, silent: true });
     toast(exists ? "Produto removido da sacolinha." : "Produto adicionado a sacolinha.");
-    trackEvent(exists ? "cart_remove" : "cart_add", { product_id: id, product_name: product.title, price: product.price });
+    trackEvent(exists ? "cart_remove" : "cart_add", { product_id: id, product_name: product.title, category: product.category, price: product.price });
     if (!exists && !state.noBump) document.dispatchEvent(new CustomEvent("kairos:cart-add", { detail: { id } }));
   }
 
@@ -1091,35 +1090,41 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
   const gaRecent = new Map();
   function gaOnce(name, params = {}) {
     if (typeof window.gtag !== "function") return;
-    const key = name + "|" + (params.source || params.product_id || params.link_url || "");
+    const key = name + "|" + (params.source || (params.items && params.items[0] && params.items[0].item_id) || params.search_term || params.category || "");
     const now = Date.now();
     if (now - (gaRecent.get(key) || 0) < 1500) return;
     gaRecent.set(key, now);
     window.gtag("event", name, params);
   }
 
+  // Eventos de comercio eletronico do GA4: currency/value/items reais; nada de parametros vazios.
+  const GA_ECOM = { product_view: "view_item", select_item: "select_item", cart_add: "add_to_cart", checkout_click: "begin_checkout" };
+  function gaItem(payload) {
+    const item = { item_id: String(payload.product_id), item_name: String(payload.product_name || ""), price: Number(payload.price) || 0, quantity: 1 };
+    if (payload.category) item.item_category = String(payload.category);
+    if (!item.item_name) delete item.item_name;
+    return item;
+  }
   function trackGa4(type, payload = {}) {
     if (typeof window.gtag !== "function") return;
-    const eventMap = {
-      product_view: "view_item",
-      checkout_click: "begin_checkout",
-      whatsapp_click: "click_whatsapp",
-      search: "search",
-      category_filter: "category_filter",
-      cart_add: "add_to_cart",
-      select_item: "select_item",
-      lead: "generate_lead"
-    };
-    const eventName = eventMap[type];
-    if (!eventName) return;
-    gaOnce(eventName, {
-      product_id: payload.product_id || "",
-      product_name: payload.product_name || "",
-      category: payload.category || "",
-      price: Number(payload.price || 0),
-      search_term: payload.query || "",
-      source: payload.source || ""
-    });
+    if (GA_ECOM[type]) {
+      if (!payload.product_id) return;
+      const item = gaItem(payload);
+      const params = { currency: "BRL", value: item.price, items: [item] };
+      if (type === "select_item") params.items[0].item_list_name = "Catalogo";
+      gaOnce(GA_ECOM[type], params);
+    } else if (type === "whatsapp_click") {
+      gaOnce("click_whatsapp", { source: payload.source || "site" });
+    } else if (type === "search") {
+      if (payload.query) gaOnce("search", { search_term: String(payload.query).slice(0, 100) });
+    } else if (type === "category_filter") {
+      const params = {};
+      if (payload.category) params.category = String(payload.category);
+      if (payload.subcategory) params.subcategory = String(payload.subcategory);
+      if (params.category) gaOnce("category_filter", params);
+    } else if (type === "lead") {
+      gaOnce("generate_lead", { source: payload.source || "site" });
+    }
   }
 
   function trackLinkAnalytics(link) {
@@ -1130,15 +1135,6 @@ state.products = hasVisibleProducts(apiProducts) ? apiProducts : seedProducts;
       gaOnce("click_whatsapp", { source: link.dataset.whatsappGroup || link.id || "link" });
     }
     // file_download e cliques de saida ja sao medidos pela Medicao aprimorada do GA4; nao duplicar.
-  }
-
-  function trackGenericClick(control) {
-    if (!control || typeof window.gtag !== "function") return;
-    window.gtag("event", "ui_click", {
-      element_id: control.id || "",
-      element_text: control.textContent?.trim().slice(0, 120) || "",
-      link_url: control.href || ""
-    });
   }
 
   function isAdminPath(path) {

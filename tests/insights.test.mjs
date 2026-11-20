@@ -73,3 +73,16 @@ test("uaClass separa robos declarados de navegadores", () => {
   assert.equal(uaClass("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile Safari"), "browser");
   assert.equal(uaClass(""), "unknown");
 });
+
+test("liveReport: brasil + internacional + robos declarados sao coerentes e robos ficam fora dos ativos", async () => {
+  const now = new Date().toISOString();
+  const row = (id, country, ua_class, extra = {}) => ({ session_id: id, page: "/", country, region: null, city: null, origin: "facebook", device: "mobile", last_activity: now, created_at: now, ua_class, ...extra });
+  const sb = fake({ online_visitors: [row("a1", "BR", "browser"), row("a2", "US", "browser"), row("a3", "SE", "unknown"), row("a4", "US", "bot"), row("test-5", "BR", "browser"), row("a6", null, "browser"), row("a7", "IE", "bot", { page: "/admin" })], products: [] });
+  const r = await liveReport(sb, 5);
+  assert.equal(r.active, 4);            // a1,a2,a3,a6 (bot, teste e /admin fora)
+  assert.equal(r.brazil, 1);
+  assert.equal(r.international, 2);     // US, SE
+  assert.equal(r.unknownLocation, 1);
+  assert.equal(r.botsDeclared, 1);      // so o bot em pagina publica
+  assert.ok(r.brazil + r.international + r.unknownLocation === r.active);
+});

@@ -83,7 +83,7 @@
     save();
     render();
     const product = products.find((p) => String(p.id) === String(id));
-    if (typeof window.gtag === "function" && product) window.gtag("event", "add_to_cart", { product_id: product.id, product_name: product.title, source: "order_bump" });
+    if (typeof window.gtag === "function" && product) window.gtag("event", "add_to_cart", gaEcom(product, "order_bump"));
   }
 
   function handleClick(event) {
@@ -100,8 +100,16 @@
     if (!buy) return;
     const product = products.find((item) => String(item.id) === String(buy.dataset.buy));
     if (!product?.checkoutUrl) return alert("Checkout ainda nao configurado para este produto.");
-    if (typeof window.gtag === "function") window.gtag("event", "begin_checkout", { product_id: product.id, product_name: product.title, price: Number(product.price || 0), source: "cart" });
+    if (typeof window.gtag === "function") window.gtag("event", "begin_checkout", gaEcom(product, "cart"));
     window.open(product.checkoutUrl, "_blank", "noopener");
+  }
+
+  // GA4 e-commerce: currency/value/items reais; source indica o ponto da jornada.
+  function gaEcom(product, source) {
+    const price = Number(product.price || 0);
+    const item = { item_id: String(product.id), item_name: String(product.title || ""), price, quantity: 1 };
+    if (product.category) item.item_category = String(product.category);
+    return { currency: "BRL", value: price, items: [item], source };
   }
 
   function publicUrl(product) {
