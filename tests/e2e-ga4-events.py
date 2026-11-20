@@ -1,7 +1,7 @@
 # GA4: nomes padrao, e-commerce (currency/value/items), sem duplicados, sem parametros vazios,
 # sem ui_click e modo ?ga_debug=1 (le o dataLayer; nao envia nada real ao Google).
 from playwright.sync_api import sync_playwright
-import json
+import json,urllib.request
 B="http://localhost:4181"; ok=bad=0
 def chk(n,c):
     global ok,bad
@@ -62,6 +62,22 @@ with sync_playwright() as p:
         g=get(pg,"add_to_cart"); chk("carrinho order bump add_to_cart com e-commerce",len(g)==1 and ecom_ok(g[0]))
     chk("carrinho sem parametros vazios",not any(has_empty(pp) for _,pp in evs(pg)))
     chk("carrinho sem erros",not errs); pg.close()
+    # generate_lead (formulario da home) e WhatsApp nas paginas institucionais
+    pg=br.new_page(viewport={"width":1280,"height":900}); pg.goto(B+"/"); pg.wait_for_timeout(1800)
+    pg.fill("#leadForm [name=name]","Teste GA4"); pg.fill("#leadForm [name=whatsapp]","19999999999")
+    pg.check("#leadForm input[type=checkbox]"); pg.locator("#leadForm button[type=submit]").click(); pg.wait_for_timeout(900)
+    g=get(pg,"generate_lead"); chk("generate_lead 1x com source",len(g)==1 and g[0].get("source"))
+    pg.close()
+    c0=json.load(urllib.request.urlopen(B+"/api/catalog")); c0["settings"]["social"]={"whatsapp":"https://wa.me/5519997607078"}
+    urllib.request.urlopen(urllib.request.Request(B+"/api/catalog",data=json.dumps({"settings":c0["settings"],"products":[]}).encode(),method="PUT",headers={"content-type":"application/json"}))
+    for path,src in (("/contato","pagina_contato"),):
+        pg=br.new_page(viewport={"width":390,"height":800}); pg.goto(B+path); pg.wait_for_timeout(1000)
+        pg.evaluate("()=>document.addEventListener('click',e=>{const a=e.target.closest('a[href]');if(a)e.preventDefault()})")
+        if pg.locator("a[href*='wa.me']").count():
+            pg.locator("a[href*='wa.me']").first.click(); pg.wait_for_timeout(300)
+            g=get(pg,"click_whatsapp"); chk(path+" click_whatsapp 1x com source",len(g)==1 and g[0].get("source")==src)
+        else: chk(path+" tem link de WhatsApp",False)
+        pg.close()
     # modo debug
     pg=br.new_page(); pg.goto(B+"/?ga_debug=1"); pg.wait_for_timeout(1200)
     cfg=[a for a in dl(pg) if a[0]=="config"]; chk("ga_debug=1 liga debug_mode",cfg and cfg[0][2].get("debug_mode") is True)

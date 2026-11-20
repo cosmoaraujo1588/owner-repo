@@ -1,5 +1,6 @@
 import { getSupabase, isAdmin, sendJson, cleanText } from "./_supabase.js";
 import { geoFromHeaders, liveReport, periodReport, uaClass } from "./_insights.js";
+import { gaReport } from "./_ga4.js";
 
 const CLICK_EVENT_TYPES = new Set([
   "checkout_click",
@@ -120,6 +121,7 @@ async function recordEvent(req, res) {
 
 async function listEvents(req, res) {
   if (!isAdmin(req)) return sendJson(res, 401, { error: "Unauthorized" });
+  if (req.query?.ga) return sendJson(res, 200, await gaReport({ days: req.query.days })); // GA4 Data API (somente admin; separado do Supabase)
   const supabase = getSupabase();
   if (!supabase) return sendJson(res, 503, { error: "Supabase not configured" });
   try {

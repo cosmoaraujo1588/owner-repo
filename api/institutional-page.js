@@ -131,6 +131,14 @@ function sendPage(res, status, title, content, description = content, pageKey = 
   ${rich ? `<main>${rich.body}</main>` : `<main><article><h1>${escapeHtml(title)}</h1>${paragraphs(content)}<div class="actions">${pageKey === "rastreio" ? `<a class="button" href="${TRACKING_URL}" target="_blank" rel="noopener">Abrir portal de rastreio</a>` : ""}<a class="button secondary" href="/#produtos">Ver produtos</a><a class="button secondary" href="/contato">Contato</a></div></article></main>`}
   <footer><div class="footer-inner"><strong>Kairos Shopping</strong><p>Envio para todo o Brasil, pedido com rastreamento e atendimento pelos canais oficiais.</p><a href="mailto:${EMAIL}">${EMAIL}</a></div></footer>
   ${rich && rich.js ? `<script>${rich.js}</script>` : ""}
+  <script>
+    // GA4: clique no WhatsApp nas paginas institucionais (mesmo evento e origem da loja).
+    document.addEventListener("click", function (e) {
+      var a = e.target && e.target.closest && e.target.closest("a[href]");
+      if (!a || typeof window.gtag !== "function" || !/wa\\.me|whatsapp\\.com/i.test(a.href)) return;
+      window.gtag("event", "click_whatsapp", { source: "pagina_" + (location.pathname.replace(/[^a-z0-9]+/gi, "") || "institucional") });
+    }, true);
+  </script>
   <script src="/cookie-notice.js?v=20261115-ck" defer></script>
 </body>
 </html>`);

@@ -110,6 +110,8 @@
       <h3>Ranking e comparação</h3><div class="cat-form"><button class="secondary-button compact ${perf.tab === "products" ? "active" : ""}" data-tab="products" type="button">Produtos</button><button class="secondary-button compact ${perf.tab === "categories" ? "active" : ""}" data-tab="categories" type="button">Categorias</button><span class="admin-hint">Marque até 4 para comparar.</span></div>
       ${barCompare(picked, nameKey)}
       <div class="cat-table-wrap"><table class="cat-table"><thead><tr><th></th><th>${perf.tab === "products" ? "Produto" : "Categoria"}</th><th>Visualizações</th><th>Carrinho</th><th>Cliques checkout</th>${perf.tab === "products" ? "<th>Compart.</th>" : ""}<th>Checkout/Visual.</th></tr></thead><tbody>${rows.slice(0, 50).map((r) => `<tr><td><input type="checkbox" data-pick="${esc(r[idKey])}" ${perf.picked.has(r[idKey]) ? "checked" : ""}></td><td>${esc(r[nameKey])}</td><td>${nf(r.views)}</td><td>${nf(r.cartAdds)}</td><td>${nf(r.checkoutClicks)}</td>${perf.tab === "products" ? `<td>${nf(r.shares)}</td>` : ""}<td>${rate(r.checkoutClicks, r.views)}</td></tr>`).join("") || '<tr><td colspan="7">Sem dados no período.</td></tr>'}</tbody></table></div>`;
+    root.insertAdjacentHTML("beforeend", '<div id="gaRoot"></div>');
+    renderGa();
     bindPerf();
   }
   function bindPerf() {
@@ -124,6 +126,44 @@
     const [from, to] = rangeDates();
     try { perf.data = await get(`report=1&from=${from}&to=${to}&compare=${perf.compare ? 1 : 0}`); perf.error = ""; } catch (e) { perf.error = e.message; }
     renderPerf();
+  }
+
+
+  // ================= GOOGLE ANALYTICS (GA4 Data API) - fonte separada do Supabase =================
+  const ga = { days: 7, data: null, error: "", loading: false };
+  const ENV_LABEL = { producao: "Produção", preview: "Preview/teste", local: "Local/teste", sem_host: "Sem host", outro: "Outro" };
+  const GA_NEW = ["view_item", "select_item", "add_to_cart", "begin_checkout", "click_whatsapp", "search", "category_filter", "generate_lead"];
+  const GA_OLD = ["view_product", "add_to_checkout", "search_products", "view_category", "whatsapp_click", "ui_click", "outbound_click"];
+  function renderGa() {
+    const root = document.getElementById("gaRoot"); if (!root) return;
+    const d = ga.data;
+    const head = `<h3>Google Analytics (GA4)</h3><p class="admin-hint">Fonte: Google Analytics Data API, consultada ao vivo. <b>Não é misturada com os dados do Supabase</b> (que vêm da própria loja). Números podem divergir: o GA4 aplica consentimento, modelagem e defasagem.</p>
+      <div class="cat-form"><label>Período <select id="gaDays">${[1, 7, 28].map((n) => `<option value="${n}" ${n === ga.days ? "selected" : ""}>${n === 1 ? "Hoje" : `${n} dias`}</option>`).join("")}</select></label><button class="secondary-button compact" type="button" id="gaLoad">${ga.loading ? "Consultando..." : "Consultar GA4"}</button></div>`;
+    if (ga.error) { root.innerHTML = head + `<p class="err">${esc(ga.error)}</p>`; bindGa(); return; }
+    if (!d) { root.innerHTML = head; bindGa(); return; }
+    if (d.configured === false) {
+      root.innerHTML = head + `<p class="admin-hint"><b>Integração ainda não configurada.</b> Faltam variáveis de ambiente protegidas na Vercel: ${d.missing.map((m) => `<code>${esc(m)}</code>`).join(", ")}. Propriedade usada: ${esc(d.propertyId)}.</p>`; bindGa(); return;
+    }
+    if (d.error) {
+      const why = { auth: "Credenciais recusadas pelo Google.", no_access: "A conta de serviço não tem acesso à propriedade (adicione-a como Leitor no GA4).", api_disabled: "A Google Analytics Data API não está ativada no projeto da conta de serviço.", api: "Falha na consulta." }[d.error] || "Falha na consulta.";
+      root.innerHTML = head + `<p class="err">${esc(why)} <small>${esc(d.message || "")}</small></p>`; bindGa(); return;
+    }
+    const byName = {};
+    d.events.forEach((e) => { const k = e.name; byName[k] = byName[k] || { prod: 0, other: 0 }; if (e.env === "producao") byName[k].prod += e.count; else byName[k].other += e.count; });
+    const tag = (n) => (GA_NEW.includes(n) ? '<small class="up">novo</small>' : GA_OLD.includes(n) ? '<small class="down">legado</small>' : "");
+    root.innerHTML = head + `<p class="admin-hint">${esc(d.source)} · últimos ${d.days} dia(s) · consultado ${esc(new Date(d.fetchedAt).toLocaleString("pt-BR"))}</p>
+      <div class="cat-table-wrap"><table class="cat-table"><thead><tr><th>Evento</th><th></th><th>Produção (.com.br)</th><th>Preview/teste/outros</th></tr></thead><tbody>${Object.entries(byName).sort((a, b) => b[1].prod + b[1].other - a[1].prod - a[1].other).map(([n, v]) => `<tr><td>${esc(n)}</td><td>${tag(n)}</td><td>${nf(v.prod)}</td><td>${nf(v.other)}</td></tr>`).join("") || '<tr><td colspan="4">Sem eventos no período.</td></tr>'}</tbody></table></div>
+      <div class="live-grid"><div><h3>Sessões por país (GA4)</h3>${list(d.countries.map((c) => [c.country, c.sessions]))}</div><div><h3>Origem / mídia (GA4)</h3>${list(d.sources.map((s) => [`${s.source} / ${s.medium}`, s.sessions]))}</div></div>`;
+    bindGa();
+  }
+  function bindGa() {
+    document.getElementById("gaDays")?.addEventListener("change", (e) => { ga.days = Number(e.target.value); });
+    document.getElementById("gaLoad")?.addEventListener("click", loadGa);
+  }
+  async function loadGa() {
+    ga.loading = true; ga.error = ""; renderGa();
+    try { ga.data = await get(`ga=1&days=${ga.days}`); } catch (e) { ga.error = e.message; }
+    ga.loading = false; renderGa();
   }
 
   document.getElementById("adminNav")?.addEventListener("click", (e) => {
