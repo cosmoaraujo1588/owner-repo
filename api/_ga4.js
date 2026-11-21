@@ -35,7 +35,7 @@ async function accessToken(creds, fetchImpl) {
     body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: signJwt(creds) })
   });
   const j = await r.json().catch(() => ({}));
-  if (!r.ok || !j.access_token) throw gaError("auth", j.error_description || j.error || `HTTP ${r.status}`);
+  if (!r.ok || !j.access_token) throw gaError("auth", j.error_description || (typeof j.error === "string" ? j.error : j.error?.message) || `HTTP ${r.status}`);
   return j.access_token;
 }
 

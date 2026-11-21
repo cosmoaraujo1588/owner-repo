@@ -69,3 +69,15 @@ test("gaReport: mapeia erros de autenticacao, acesso e API desativada", async ()
   r = await gaReport({ env, fetchImpl: mk(json(200, { access_token: "t" }), json(403, { error: { message: "Google Analytics Data API has not been used in project 1 before or it is disabled" } })) });
   assert.equal(r.error, "api_disabled");
 });
+
+test("erro de autenticacao com objeto de erro vira texto legivel e nao vaza a chave", async () => {
+  const { generateKeyPairSync } = await import("node:crypto");
+  const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+  const pem = privateKey.export({ type: "pkcs8", format: "pem" });
+  const env = { GA4_CLIENT_EMAIL: "sa@x.iam.gserviceaccount.com", GA4_PRIVATE_KEY: pem };
+  const fetchImpl = async () => ({ ok: false, status: 403, json: async () => ({ error: { message: "denied" } }) });
+  const out = await gaReport({ days: 7, env, fetchImpl });
+  assert.equal(out.error, "auth");
+  assert.equal(out.message, "denied");
+  assert.ok(!JSON.stringify(out).includes("PRIVATE KEY"));
+});
